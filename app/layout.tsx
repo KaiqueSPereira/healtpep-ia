@@ -1,21 +1,10 @@
-import type { Metadata } from "next";
-import { Inter, Roboto_Mono } from "next/font/google";
+import { Toaster } from "./_components/ui/toaster";
+import AuthProvider from "./_providers/auth";
 import "./globals.css";
 
-const geistSans = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Roboto_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-
-export const metadata: Metadata = {
-  title: "Healt Pep",
-  description: "Seu assistente me?dico",
+export const metadata = {
+  title: "Health Pep",
+  description: "Seu prontuario medico pessoal",
 };
 
 export default function RootLayout({
@@ -24,11 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} dark: antialiased`}
-      >
-        {children}
+    <html lang="pt-br" className="dark">
+      <body className="font-sans">
+        <AuthProvider>{children}</AuthProvider>
+        <Toaster />
       </body>
     </html>
   );
