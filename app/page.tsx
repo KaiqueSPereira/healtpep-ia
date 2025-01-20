@@ -6,6 +6,7 @@ import { Inter, Roboto_Mono } from "next/font/google";
 import Searchbar from "./_components/searchbar";
 import { Button } from "./_components/ui/button";
 import NovaConsulta from "./consulta/components/novaconsulta";
+import Footer from "./_components/footer";
 
 const geistSans = Inter({
   variable: "--font-geist-sans",
@@ -20,7 +21,7 @@ const Home = async () => {
   let agendamentos = [];
 
   try {
-    // Consulta os agendamentos com os relacionamentos necessĂˇrios
+    // Consulta os agendamentos com os relacionamentos necessÄ‚Ë‡rios
     agendamentos = await db.consultas.findMany({
       include: {
         profissional: {
@@ -36,7 +37,7 @@ const Home = async () => {
       },
     });
 
-    // Verifique se agendamentos Ă© nulo ou vazio
+    // Verifique se agendamentos Ä‚Â© nulo ou vazio
     if (!agendamentos || agendamentos.length === 0) {
       console.error("Nenhum agendamento encontrado.");
       return;
@@ -49,22 +50,22 @@ const Home = async () => {
   // Filtra agendamentos futuros e passados
   const agendamentosFuturos = agendamentos.filter((agendamento) => {
     const dataAgendamento = new Date(agendamento.data);
-    // Verifica se a data Ă© vĂˇlida antes de comparar
+    // Verifica se a data Ä‚Â© vÄ‚Ë‡lida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data inválida para o agendamento ${agendamento.id}`);
+      console.error(`Data invĂˇlida para o agendamento ${agendamento.id}`);
       return false;
     }
-    return dataAgendamento >= new Date(); // Verifica se Ă© futuro
+    return dataAgendamento >= new Date(); // Verifica se Ä‚Â© futuro
   });
 
   const agendamentosPassados = agendamentos.filter((agendamento) => {
     const dataAgendamento = new Date(agendamento.data);
-    // Verifica se a data Ă© vĂˇlida antes de comparar
+    // Verifica se a data Ä‚Â© vÄ‚Ë‡lida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data inválida para o agendamento ${agendamento.id}`);
+      console.error(`Data invĂˇlida para o agendamento ${agendamento.id}`);
       return false;
     }
-    return dataAgendamento < new Date(); // Verifica se Ă© passado
+    return dataAgendamento < new Date(); // Verifica se Ä‚Â© passado
   });
 
   // Formata a data atual
@@ -82,20 +83,20 @@ const Home = async () => {
     <div>
       <Header />
       <div className="p-5">
-        {/* Nome do usuĂˇrio dinĂ˘mico pode ser passado aqui */}
-        <h2 className="text-2xl font-bold">Olá, Kaique</h2>
+        {/* Nome do usuÄ‚Ë‡rio dinÄ‚Ë�mico pode ser passado aqui */}
+        <h2 className="text-2xl font-bold">Ola, Kaique</h2>
         <p>{formattedDate}</p>
         <div className="mt-6">
           <Searchbar />
         </div>
         <div className="mt-5">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase text-gray-400">
-            Agendamentos
-          </h2>
-          <NovaConsulta />
+              Agendamentos
+            </h2>
+            <NovaConsulta />
           </div>
-          
+
           <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
             {agendamentosFuturos.map((agendamento) => (
               <AgendamentoItem
@@ -117,7 +118,7 @@ const Home = async () => {
         </div>
         <div className="mt-5">
           <h2 className="text-xs font-bold uppercase text-gray-400">
-            últimas Consultas
+            Ultimas Consultas
           </h2>
           <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
             {agendamentosPassados.map((agendamento) => (
@@ -139,13 +140,7 @@ const Home = async () => {
           </div>
         </div>
       </div>
-      <footer>
-        <Card>
-          <CardContent className="px-5 py-5">
-            <p className="text-center text-sm">© 2024 Health Pep</p>
-          </CardContent>
-        </Card>
-      </footer>
+      <Footer />
     </div>
   );
 };

@@ -1,8 +1,7 @@
 "use client";
+import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/_components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/app/_components/ui/popover";
 import {
   Sheet,
   SheetContent,
@@ -11,10 +10,9 @@ import {
   SheetTrigger,
 } from "@/app/_components/ui/sheet";
 import { ptBR } from "date-fns/locale";
-import { Check, ChevronsUpDown } from "lucide-react";
-import React, { useEffect } from "react";
-import { useState } from "react";
+import React, { useEffect, useState } from "react";
 
+// Lista de horários disponíveis
 const TIME_LIST = [
   "07:00",
   "07:30",
@@ -45,38 +43,42 @@ const TIME_LIST = [
 ];
 
 const NovaConsulta = () => {
+  const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
+  const [selectedTime, setSelectedTime] = useState<string | undefined>(
+    undefined,
+  );
+  const [consultaTipos, setConsultaTipos] = useState<string[]>([]);
+  const [selectedTipo, setSelectedTipo] = useState<string | undefined>(
+    undefined,
+  );
+  const [inputValue, setInputValue] = useState<string>("");
+
+  // Buscar os tipos de consulta da API
   useEffect(() => {
     async function fetchConsultaTipos() {
-      const response = await fetch("/api/consultas/type");
-      const data = await response.json();
-      setConsultaTipos(data);
+      try {
+        const response = await fetch("/api/consultas/tipoconsultas");
+        if (!response.ok) {
+          throw new Error("Erro ao buscar os tipos de consulta");
+        }
+        const tipos = await response.json();
+        setConsultaTipos(tipos);
+      } catch (error) {
+        console.error("Erro ao buscar os tipos de consulta:", error);
+      }
     }
 
     fetchConsultaTipos();
   }, []);
-  const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined,);
-  const [consultaTipos, setConsultaTipos] = useState<string[]>([]);
-  const [selectedTipo, setSelectedTipo] = useState<string | undefined>(undefined,);
-  const [open, setOpen] = useState(false);
-  const [inputValue, setInputValue] = useState<string>("");
 
-  const handleDateSelect = (date: Date | undefined) => {
-    setSelectedDay(date);
-  };
-
-  const handleTimeSelect = (time: string | undefined) => {
-    setSelectedTime(time);
-  };
-
+  const handleDateSelect = (date: Date | undefined) => setSelectedDay(date);
+  const handleTimeSelect = (time: string | undefined) => setSelectedTime(time);
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-    setSelectedTime(undefined); 
+    setSelectedTime(undefined);
   };
-   const handleTipoSelect = (tipo: string) => {
-     setSelectedTipo(tipo);
-     setOpen(false); 
-   };
+  const handleTipoSelect = (tipo: string) => setSelectedTipo(tipo);
+
   return (
     <div>
       <Sheet>
@@ -94,13 +96,8 @@ const NovaConsulta = () => {
               selected={selectedDay}
               onSelect={handleDateSelect}
               styles={{
-                head_cell: {
-                  width: "100%",
-                  textTransform: "capitalize",
-                },
-                caption: {
-                  textTransform: "capitalize",
-                },
+                head_cell: { width: "100%", textTransform: "capitalize" },
+                caption: { textTransform: "capitalize" },
               }}
             />
           </div>
@@ -113,7 +110,7 @@ const NovaConsulta = () => {
                     variant={selectedTime === time ? "default" : "outline"}
                     className="rounded-full"
                     onClick={() => handleTimeSelect(time)}
-                    disabled={inputValue !== ""} // Desabilita os botões se o input não estiver vazio
+                    disabled={inputValue !== ""}
                   >
                     {time}
                   </Button>
@@ -128,43 +125,19 @@ const NovaConsulta = () => {
               />
             </div>
           )}
-          <div>
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={open}
-                  className="w-[200px] justify-between"
-                >
-                  {selectedTipo || "Select tipo..."}
-                  <Check className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[200px] p-0">
-                <div>
-                  {consultaTipos.map((tipo) => (
-                    <Button
-                      key={tipo}
-                      onClick={() => handleTipoSelect(tipo)}
-                      variant={selectedTipo === tipo ? "default" : "outline"}
-                      className="w-full p-2 text-left"
-                    >
-                      {tipo}
-                      {selectedTipo === tipo && (
-                        <Check className="ml-2 h-4 w-4" />
-                      )}
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
+          {selectedDay && (
+            <div className="py-5">
+              <ConsultaTipoSelector
+                consultaTipos={consultaTipos}
+                selectedTipo={selectedTipo}
+                onTipoSelect={handleTipoSelect}
+              />
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     </div>
   );
 };
-
 
 export default NovaConsulta;

@@ -15,12 +15,12 @@ interface AgendamentoItemProps {
 const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
   if (!consultas) {
     return (
-      <p className="text-gray-300">Dados do agendamento nĂŁo disponĂ­Â­veis.</p>
+      <p className="text-gray-300">Dados do agendamento n?o encontrados.</p>
     );
   }
 
   const {
-    tipo = "Tipo nĂŁo especificado",
+    tipo = "Tipo n?o especificado",
     profissional,
     unidade,
     data,
@@ -31,21 +31,21 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   const mes = dataObj
     ? new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj)
-    : "Mês não especificado";
+    : "M?s n?o especificado";
 
-  const dia = dataObj ? dataObj.getDate().toString() : "Dia nâo especificado";
+  const dia = dataObj ? dataObj.getDate().toString() : "Dia n?o especificado";
 
   const horaFormatada = dataObj
     ? dataObj.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "Hora não especificada";
+    : "Hora n?o especificada";
 
   // Lida com dados opcionais
   const profissionalNome =
-    profissional?.nome || "Profissional não especificado";
-  const unidadeNome = unidade?.nome || "Unidade não especificada";
+    profissional?.nome || "Profissional n?o especificado";
+  const unidadeNome = unidade?.nome || "Unidade n?o especificada";
 
   return (
     <div className="w-full md:w-auto">
