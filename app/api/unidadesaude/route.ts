@@ -1,48 +1,36 @@
-// /app/api/medicos/route.ts
 import { db } from "@/app/_lib/prisma";
 import { getSession } from "next-auth/react";
 import { NextResponse } from "next/server";
 
-export async function handler(req: Request) {
-  const { method } = req;
+// FunÁ?o para garantir que o usu·rio esteja logado
+async function checkAuth(req: Request) {
   const session = await getSession({ req });
-
   if (!session) {
     return NextResponse.json(
-      { error: "Usu√°rio n√£o autenticado" },
+      { error: "Usu·rio n?o autenticado" },
       { status: 401 },
     );
   }
-  switch (method) {
-    case "GET":
-      return await handleGet(req);
-    case "POST":
-      return await handlePost(req);
-    case "PATCH":
-      return await handlePatch(req);
-    case "DELETE":
-      return await handleDelete(req);
-    default:
-      return NextResponse.json(
-        { error: "M√©todo n√£o permitido" },
-        { status: 405 },
-      );
-  }
+  return session;
 }
 
-async function handleGet(req: Request) {
+// ExportaÁ?o dos mÈtodos para cada tipo de requisiÁ?o HTTP
+export async function GET(req: Request) {
+  const session = await checkAuth(req);
+  if (!session) return;
+
   const url = new URL(req.url);
   const unidadeId = url.searchParams.get("id");
 
   if (unidadeId) {
-    // Obter um m√©dico espec√≠fico
+    // Obter uma unidade especÌfica
     try {
       const unidade = await db.unidadeDeSaude.findUnique({
         where: { id: unidadeId },
       });
       if (!unidade) {
         return NextResponse.json(
-          { error: "Unidade de Sa√∫de n√£o encontrada" },
+          { error: "Unidade n?o encontrada" },
           { status: 404 },
         );
       }
@@ -54,10 +42,10 @@ async function handleGet(req: Request) {
       );
     }
   } else {
-    // Listar todos os m√©dicos
+    // Listar todas as unidades
     try {
-      const unidade = await db.unidadeDeSaude.findMany();
-      return NextResponse.json(unidade);
+      const unidades = await db.unidadeDeSaude.findMany();
+      return NextResponse.json(unidades);
     } catch {
       return NextResponse.json(
         { error: "Falha ao buscar as unidades" },
@@ -67,22 +55,28 @@ async function handleGet(req: Request) {
   }
 }
 
-async function handlePost(req: Request) {
+export async function POST(req: Request) {
+  const session = await checkAuth(req);
+  if (!session) return;
+
   try {
     const { nome, tipo, endereco } = await req.json();
-    const novaunidade = await db.unidadeDeSaude.create({
+    const novaUnidade = await db.unidadeDeSaude.create({
       data: { nome, tipo, endereco },
     });
-    return NextResponse.json(novaunidade);
+    return NextResponse.json(novaUnidade);
   } catch {
     return NextResponse.json(
-      { error: "Falha ao Cadastrar a unidade" },
+      { error: "Falha ao cadastrar a unidade" },
       { status: 500 },
     );
   }
 }
 
-async function handlePatch(req: Request) {
+export async function PATCH(req: Request) {
+  const session = await checkAuth(req);
+  if (!session) return;
+
   try {
     const { nome, tipo, endereco, id } = await req.json();
     const unidadeAtualizada = await db.unidadeDeSaude.update({
@@ -92,19 +86,22 @@ async function handlePatch(req: Request) {
     return NextResponse.json(unidadeAtualizada);
   } catch {
     return NextResponse.json(
-      { error: "Falha ao atualizar o cadastro da unidade" },
+      { error: "Falha ao atualizar a unidade" },
       { status: 500 },
     );
   }
 }
 
-async function handleDelete(req: Request) {
+export async function DELETE(req: Request) {
+  const session = await checkAuth(req);
+  if (!session) return;
+
   const url = new URL(req.url);
   const unidadeId = url.searchParams.get("id");
 
   if (!unidadeId) {
     return NextResponse.json(
-      { error: "ID da unidade √© necess√°rio" },
+      { error: "ID da unidade È necess·rio" },
       { status: 400 },
     );
   }
@@ -114,10 +111,8 @@ async function handleDelete(req: Request) {
     return NextResponse.json({ message: "Cadastro deletado com sucesso!" });
   } catch {
     return NextResponse.json(
-      { error: "Falha ao deletar o Cadastro" },
+      { error: "Falha ao deletar o cadastro" },
       { status: 500 },
     );
   }
 }
-
-export default handler;

@@ -1,5 +1,6 @@
 "use client";
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
+import MenuUnidades from "@/app/_components/menuunidades";
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
 import {
@@ -134,6 +135,7 @@ const NovaConsulta = () => {
               />
             </div>
           )}
+          <MenuUnidades />
         </SheetContent>
       </Sheet>
     </div>

@@ -1,10 +1,8 @@
 import Header from "./_components/header";
 import AgendamentoItem from "./_components/agendamentosItem";
 import { db } from "./_lib/prisma";
-import { Card, CardContent } from "./_components/ui/card";
 import { Inter, Roboto_Mono } from "next/font/google";
 import Searchbar from "./_components/searchbar";
-import { Button } from "./_components/ui/button";
 import NovaConsulta from "./consulta/components/novaconsulta";
 import Footer from "./_components/footer";
 
