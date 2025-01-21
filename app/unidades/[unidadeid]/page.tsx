@@ -1,124 +1,260 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
+import Footer from "@/app/_components/footer";
+import Header from "@/app/_components/header";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/app/_components/ui/form";
+import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
+import Link from "next/link";
+import { ChevronLeftIcon } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/app/_components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/app/_components/ui/command";
+import EnderecoDialog from "@/app/enderecos/_components/enderecosdialog";
 
-interface Unidade {
-  id?: string;
-  nome: string;
-  tipo: string;
-  endereco: string;
-}
-
-const UnidadeForm: React.FC = () => {
+const UnidadePage = () => {
   const router = useRouter();
-  const [unidade, setUnidade] = useState<Unidade>({
-    nome: "",
-    tipo: "",
-    endereco: "",
+  const searchParams = useSearchParams();
+  const unidadeid = searchParams.get("unidadeid");
+
+  const form = useForm({
+    defaultValues: {
+      unidade: { nome: "", tipo: "" },
+      endereco: {
+        CEP: "",
+        numero: "",
+        rua: "",
+        bairro: "",
+        municipio: "",
+        UF: "",
+      },
+    },
   });
-  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Pegando o id da unidade da URL
-  const { unidadeid } = router.query;
+  const [enderecos, setEnderecos] = useState([]);
+  const [selectedEndereco, setSelectedEndereco] = useState(null);
 
-  // Carregar dados da unidade caso esteja editando
   useEffect(() => {
     if (unidadeid) {
-      const fetchUnidade = async () => {
-        try {
-          setIsLoading(true);
-          const res = await fetch(`/api/unidadesaude?id=${unidadeid}`);
-          if (res.ok) {
-            const data = await res.json();
-            setUnidade(data);
-          } else {
-            alert("Erro ao carregar os dados da unidade");
-          }
-        } catch (err) {
-          alert("Erro ao carregar os dados da unidade");
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchUnidade();
+      fetchUnidadeById(unidadeid); // Carrega os dados da unidade ao editar
     }
+    fetchEnderecos(); // Sempre carrega os endereços existentes
   }, [unidadeid]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const fetchUnidadeById = async (unidadeid: string) => {
     try {
-      const method = unidade.id ? "PATCH" : "POST";
-      const url = unidade.id ? `/api/unidadesaude` : "/api/unidadesaude";
+      const response = await fetch(`/api/unidades/${unidadeid}`);
+      const data = await response.json();
+      if (data) {
+        form.setValue("unidade", data.unidade);
+        form.setValue("endereco", data.endereco);
+        setSelectedEndereco(data.endereco); // Define o endereço selecionado
+      }
+    } catch (error) {
+      console.error("Erro ao buscar unidade:", error);
+    }
+  };
 
-      const res = await fetch(url, {
-        method,
+  const fetchEnderecos = async () => {
+    try {
+      const response = await fetch("/api/endereco");
+      const data = await response.json();
+      setEnderecos(data);
+    } catch (error) {
+      console.error("Erro ao buscar endereços:", error);
+    }
+  };
+
+  const createUnidade = async (data) => {
+    try {
+      const response = await fetch("/api/unidades", {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(unidade),
+        body: JSON.stringify({
+          unidade: data.unidade,
+          endereco: data.endereco,
+        }),
       });
-
-      if (!res.ok) {
-        throw new Error("Erro ao salvar a unidade");
+      if (response.ok) {
+        router.push("/unidades");
+      } else {
+        console.error("Erro ao criar unidade");
       }
-
-      // Após sucesso, redirecionar para a lista de unidades
-      router.push("/unidades");
     } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar a unidade");
+      console.error("Erro ao criar unidade:", error);
+    }
+  };
+
+  const updateUnidade = async (data) => {
+    try {
+      const response = await fetch(`/api/unidades/${unidadeid}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          unidade: data.unidade,
+          endereco: data.endereco,
+        }),
+      });
+      if (response.ok) {
+        router.push("/unidades");
+      } else {
+        console.error("Erro ao atualizar unidade");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar unidade:", error);
+    }
+  };
+
+  const handleSaveEndereco = (novoEndereco) => {
+    setEnderecos([...enderecos, novoEndereco]); // Adiciona o novo endereço à lista
+    setSelectedEndereco(novoEndereco); // Define o novo endereço como selecionado
+    form.setValue("endereco", novoEndereco); // Atualiza o formulário com o novo endereço
+  };
+
+  const handleSubmit = async (data) => {
+    try {
+      if (unidadeid) {
+        await updateUnidade(data); // Atualiza a unidade existente
+      } else {
+        await createUnidade(data); // Cria uma nova unidade
+      }
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
     }
   };
 
   return (
     <div>
-      <h1>{unidade.id ? "Editar Unidade" : "Adicionar Unidade"}</h1>
-      {isLoading ? (
-        <p>Carregando...</p>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="nome">Nome:</label>
-            <input
-              type="text"
-              id="nome"
-              value={unidade.nome}
-              onChange={(e) => setUnidade({ ...unidade, nome: e.target.value })}
-              required
+      <Header />
+      <div className="flex items-center justify-between p-5">
+        <Button
+          size="icon"
+          variant="secondary"
+          className="left-5 top-6"
+          asChild
+        >
+          <Link href="/unidades">
+            <ChevronLeftIcon />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="mx-auto my-8 w-4/5">
+        <h1 className="mb-6 text-center text-2xl font-bold">
+          {unidadeid ? "Editar Unidade" : "Nova Unidade"}
+        </h1>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <FormField
+              control={form.control}
+              name="unidade.nome"
+              render={({ field }) => (
+                <FormItem>
+                  <label>Nome da Unidade:</label>
+                  <FormControl>
+                    <Input {...field} required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="tipo">Tipo:</label>
-            <input
-              type="text"
-              id="tipo"
-              value={unidade.tipo}
-              onChange={(e) => setUnidade({ ...unidade, tipo: e.target.value })}
-              required
+            <FormField
+              control={form.control}
+              name="unidade.tipo"
+              render={({ field }) => (
+                <FormItem>
+                  <label>Tipo da Unidade:</label>
+                  <FormControl>
+                    <Input {...field} required />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <div>
-            <label htmlFor="endereco">Endereço:</label>
-            <input
-              type="text"
-              id="endereco"
-              value={unidade.endereco}
-              onChange={(e) =>
-                setUnidade({ ...unidade, endereco: e.target.value })
-              }
-              required
-            />
-          </div>
-          <Button type="submit">
-            {unidade.id ? "Atualizar" : "Cadastrar"}
-          </Button>
-        </form>
-      )}
+
+            <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
+            <div>
+              <label>Escolher Endereço Existente</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={false}
+                    className="w-full justify-between"
+                  >
+                    {selectedEndereco
+                      ? selectedEndereco.rua
+                      : "Selecione um Endereço..."}
+                    <ChevronLeftIcon className="ml-2 h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <Command>
+                    <CommandInput placeholder="Buscar endereço..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {enderecos.length === 0 ? (
+                          <CommandItem disabled>
+                            Carregando endereços...
+                          </CommandItem>
+                        ) : (
+                          enderecos.map((endereco, index) => (
+                            <CommandItem
+                              key={index}
+                              value={endereco.id}
+                              onSelect={() => {
+                                setSelectedEndereco(endereco);
+                                form.setValue("endereco", endereco);
+                              }}
+                            >
+                              {endereco.nome} - {endereco.bairro}
+                            </CommandItem>
+                          ))
+                        )}
+                        <CommandItem>
+                          <EnderecoDialog onSave={handleSaveEndereco} />
+                        </CommandItem>
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <Button type="submit" className="mt-6 justify-center">
+              Salvar
+            </Button>
+          </form>
+        </Form>
+      </div>
+      <Footer />
     </div>
   );
 };
 
-export default UnidadeForm;
+export default UnidadePage;

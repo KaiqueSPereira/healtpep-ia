@@ -11,6 +11,7 @@ import DescriptionEditor from "../components/descriptioneditor";
 import { db } from "@/app/_lib/prisma";
 import { Sheet, SheetTrigger } from "@/app/_components/ui/sheet";
 import Sidebarbotton from "@/app/_components/sidebar";
+import Header from "@/app/_components/header";
 
 interface ConsultaPageProps {
   params: {
@@ -21,7 +22,7 @@ interface ConsultaPageProps {
 const ConsultaPage = async ({ params }: ConsultaPageProps) => {
   // Verifica a ausencia do ID
   if (!params.id) {
-    return <h1>Consulta não encontrada</h1>;
+    return <h1>Consulta n?o encontrada</h1>;
   }
 
   const consultas = await db.consultas.findUnique({
@@ -46,29 +47,20 @@ const ConsultaPage = async ({ params }: ConsultaPageProps) => {
 
   return (
     <div>
+      <Header />
       <header>
-        <Button
-          size="icon"
-          variant="secondary"
-          className="absolute left-5 top-5"
-          asChild
-        >
-          <Link href="/">
-            <ChevronLeftIcon />
-          </Link>
-        </Button>
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button
-              size="icon"
-              variant="outline"
-              className="absolute right-4 top-4"
-            >
-              <MenuIcon />
-            </Button>
-          </SheetTrigger>
-          <Sidebarbotton />
-        </Sheet>
+        <div className="flex items-center justify-between p-5">
+          <Button
+            size="icon"
+            variant="secondary"
+            className="left-5 top-6"
+            asChild
+          >
+            <Link href="/">
+              <ChevronLeftIcon />
+            </Link>
+          </Button>
+        </div>
       </header>
 
       <main className="pl-5 pt-20">

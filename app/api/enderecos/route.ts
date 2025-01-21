@@ -17,7 +17,7 @@ export async function handler(req: Request) {
     case "GET":
       return await handleGet(req);
     case "POST":
-      return await handlePost(req);
+      return await handlePost(req, session);
     case "PATCH":
       return await handlePatch(req);
     case "DELETE":
@@ -30,10 +30,14 @@ export async function handler(req: Request) {
   }
 }
 
-async function handlePost(req: Request) {
+async function handlePost(req: Request, session: any) {
   try {
-    const { CEP, numero, rua, bairro, municipio, UF, nome, userId, unidadeId } =
+    const { CEP, numero, rua, bairro, municipio, UF, nome, unidadeId } =
       await req.json();
+
+    // Use o userId da sess?o
+    const userId = session.user.id; // O id do usuário logado
+
     const novoEndereco = await db.endereco.create({
       data: {
         CEP,
@@ -43,13 +47,14 @@ async function handlePost(req: Request) {
         municipio,
         UF,
         nome,
-        userId,
+        userId, // Associando o endereço ao usuário logado
         unidadeId,
       },
     });
     return NextResponse.json(novoEndereco);
   } catch (error) {
     return NextResponse.json(
+      { error: "Erro ao salvar o endereço" },
       { status: 500 },
     );
   }
@@ -83,7 +88,7 @@ async function handleGet(req: Request) {
       return NextResponse.json(enderecos);
     } catch (error) {
       return NextResponse.json(
-        { error: "Falha ao buscar os endereço" },
+        { error: "Falha ao buscar os endereços" },
         { status: 500 },
       );
     }

@@ -2,19 +2,19 @@ import { db } from "@/app/_lib/prisma";
 import { getSession } from "next-auth/react";
 import { NextResponse } from "next/server";
 
-// FunÁ?o para garantir que o usu·rio esteja logado
+// Fun√ß?o para garantir que o usu√°rio esteja logado
 async function checkAuth(req: Request) {
   const session = await getSession({ req });
   if (!session) {
     return NextResponse.json(
-      { error: "Usu·rio n?o autenticado" },
+      { error: "Usu√°rio n?o autenticado" },
       { status: 401 },
     );
   }
   return session;
 }
 
-// ExportaÁ?o dos mÈtodos para cada tipo de requisiÁ?o HTTP
+// Exporta√ß?o dos m√©todos para cada tipo de requisi√ß?o HTTP
 export async function GET(req: Request) {
   const session = await checkAuth(req);
   if (!session) return;
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   const unidadeId = url.searchParams.get("id");
 
   if (unidadeId) {
-    // Obter uma unidade especÌfica
+    // Obter uma unidade espec√≠fica
     try {
       const unidade = await db.unidadeDeSaude.findUnique({
         where: { id: unidadeId },
@@ -101,7 +101,7 @@ export async function DELETE(req: Request) {
 
   if (!unidadeId) {
     return NextResponse.json(
-      { error: "ID da unidade È necess·rio" },
+      { error: "ID da unidade √© necess√°rio" },
       { status: 400 },
     );
   }
