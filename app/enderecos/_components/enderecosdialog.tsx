@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/app/_components/ui/form";
 import { Input } from "@/app/_components/ui/input";
-import { getSession } from "next-auth/react"; // Importando o getSession do next-auth
+import { getSession } from "next-auth/react";
 
 type EnderecoForm = {
   CEP: string;
@@ -31,13 +31,8 @@ type EnderecoForm = {
   nome: string;
 };
 
-type EnderecoDialogProps = {
-  onSave: (data: EnderecoForm) => void;
-};
-
-const EnderecoDialog: React.FC<EnderecoDialogProps> = ({ onSave }) => {
+const EnderecoDialog: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [userLoggedIn, setUserLoggedIn] = useState(false); // Variável para verificar se o usuário está logado
   const form = useForm<EnderecoForm>({
     defaultValues: {
       CEP: "",
@@ -50,16 +45,33 @@ const EnderecoDialog: React.FC<EnderecoDialogProps> = ({ onSave }) => {
     },
   });
 
-  // Função chamada ao submeter o formulário
-  const handleSubmit = (data: EnderecoForm) => {
-    onSave(data); // Envia o endereço criado ao componente pai
-    form.reset(); // Limpa o formulário
-    setOpen(false); // Fecha o diálogo
+  // Função para salvar o endereço
+  const handleSubmit = async (data: EnderecoForm) => {
+    try {
+      const response = await fetch("/api/enderecos", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao salvar o endereço.");
+      }
+
+      alert("Endereço salvo com sucesso!");
+      form.reset();
+      setOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert("Ocorreu um erro ao salvar o endereço.");
+    }
   };
 
-  // Função para verificar o CEP e preencher os campos
+  // Função para consultar o CEP
   const checkCEP = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const cep = e.target.value.replace(/\D/g, ""); // Remove qualquer caractere não numérico
+    const cep = e.target.value.replace(/\D/g, "");
     if (cep.length === 8) {
       fetch(`https://viacep.com.br/ws/${cep}/json/`)
         .then((res) => res.json())
@@ -67,7 +79,6 @@ const EnderecoDialog: React.FC<EnderecoDialogProps> = ({ onSave }) => {
           if (data.erro) {
             alert("CEP não encontrado!");
           } else {
-            // Preenche os campos com os dados retornados pela API
             form.setValue("rua", data.logradouro);
             form.setValue("bairro", data.bairro);
             form.setValue("municipio", data.localidade);
@@ -80,34 +91,6 @@ const EnderecoDialog: React.FC<EnderecoDialogProps> = ({ onSave }) => {
         });
     }
   };
-
-  useEffect(() => {
-    // Verifica se o usuário está logado assim que o componente é montado
-    const checkUserSession = async () => {
-      const session = await getSession();
-      if (session && session.user) {
-        setUserLoggedIn(true); // Se o usuário estiver logado, define como true
-      } else {
-        setUserLoggedIn(false); // Se o usuário não estiver logado, define como false
-      }
-    };
-
-    checkUserSession();
-  }, []);
-
-  if (!userLoggedIn) {
-    return (
-      <div>
-        <p>Você precisa estar logado para adicionar um endereço.</p>
-        <Button
-          variant="primary"
-          onClick={() => (window.location.href = "/login")}
-        >
-          Ir para o login
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

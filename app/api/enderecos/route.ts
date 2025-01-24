@@ -1,66 +1,54 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
 
-export async function handler(req: Request) {
-  const { method } = req;
-  const session = await getServerSession(req);
-
-  if (!session) {
-    return NextResponse.json(
-      { error: "Usu�rio n?o autenticado" },
-      { status: 401 },
-    );
-  }
-
-  switch (method) {
-    case "GET":
-      return await handleGet(req);
-    case "POST":
-      return await handlePost(req, session);
-    case "PATCH":
-      return await handlePatch(req);
-    case "DELETE":
-      return await handleDelete(req);
-    default:
-      return NextResponse.json(
-        { error: "M�todo n?o permitido" },
-        { status: 405 },
-      );
-  }
-}
-
-async function handlePost(req: Request, session: any) {
+// MĂ©todo POST: Criar um novo endereĂ§o
+export async function POST(req: Request) {
   try {
     const { CEP, numero, rua, bairro, municipio, UF, nome, unidadeId } =
       await req.json();
 
-    // Use o userId da sess?o
-    const userId = session.user.id; // O id do usu�rio logado
+    // ValidaĂ§ĂŁo de dados
+    if (
+      !CEP ||
+      !numero ||
+      !rua ||
+      !bairro ||
+      !municipio ||
+      !UF ||
+      !nome ||
+      isNaN(parseInt(numero, 10))
+    ) {
+      return NextResponse.json(
+        { error: "Preencha todos os campos corretamente." },
+        { status: 400 },
+      );
+    }
 
     const novoEndereco = await db.endereco.create({
       data: {
         CEP,
-        numero,
+        numero: parseInt(numero, 10),
         rua,
         bairro,
         municipio,
         UF,
         nome,
-        userId, // Associando o endere�o ao usu�rio logado
-        unidadeId,
+        unidadeId: unidadeId || null, // Unidade Ă© opcional
       },
     });
+
     return NextResponse.json(novoEndereco);
   } catch (error) {
+    console.error("Erro ao salvar o endereĂ§o:", error);
     return NextResponse.json(
-      { error: "Erro ao salvar o endere�o" },
+      { error: "Erro ao salvar o endereĂ§o." },
       { status: 500 },
     );
   }
 }
 
-async function handleGet(req: Request) {
+// MĂ©todo GET: Obter endereĂ§os ou um endereĂ§o especĂ­fico
+export async function GET(req: Request) {
   const url = new URL(req.url);
   const enderecoId = url.searchParams.get("id");
 
@@ -69,16 +57,19 @@ async function handleGet(req: Request) {
       const endereco = await db.endereco.findUnique({
         where: { id: enderecoId },
       });
+
       if (!endereco) {
         return NextResponse.json(
-          { error: "Endere�o n?o encontrado" },
+          { error: "EndereĂ§o nĂŁo encontrado" },
           { status: 404 },
         );
       }
+
       return NextResponse.json(endereco);
     } catch (error) {
+      console.error("Erro ao buscar o endereço:", error);
       return NextResponse.json(
-        { error: "Falha ao buscar o endere�o" },
+        { error: "Falha ao buscar o endereço." },
         { status: 500 },
       );
     }
@@ -87,71 +78,72 @@ async function handleGet(req: Request) {
       const enderecos = await db.endereco.findMany();
       return NextResponse.json(enderecos);
     } catch (error) {
+      console.error("Erro ao buscar os endereços:", error);
       return NextResponse.json(
-        { error: "Falha ao buscar os endere�os" },
+        { error: "Falha ao buscar os endereços." },
         { status: 500 },
       );
     }
   }
 }
 
-async function handlePatch(req: Request) {
+// MĂ©todo PATCH: Atualizar um endereĂ§o
+export async function PATCH(req: Request) {
   try {
-    const {
-      id,
-      CEP,
-      numero,
-      rua,
-      bairro,
-      municipio,
-      UF,
-      nome,
-      userId,
-      unidadeId,
-    } = await req.json();
+    const { id, CEP, numero, rua, bairro, municipio, UF, nome, unidadeId } =
+      await req.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "ID do endereço e necessario." },
+        { status: 400 },
+      );
+    }
+
     const enderecoAtualizado = await db.endereco.update({
       where: { id },
       data: {
         CEP,
-        numero,
+        numero: parseInt(numero, 10),
         rua,
         bairro,
         municipio,
         UF,
         nome,
-        userId,
         unidadeId,
       },
     });
+
     return NextResponse.json(enderecoAtualizado);
   } catch (error) {
+    console.error("Erro ao atualizar o endereco:", error);
     return NextResponse.json(
-      { error: "Falha ao atualizar o endere�o" },
+      { error: "Falha ao atualizar o endereco." },
       { status: 500 },
     );
   }
 }
 
-async function handleDelete(req: Request) {
+// MĂ©todo DELETE: Deletar um endereĂ§o
+export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const enderecoId = url.searchParams.get("id");
 
   if (!enderecoId) {
     return NextResponse.json(
-      { error: "ID do endere�o � necess�rio" },
+      { error: "ID do endereco e necessario." },
       { status: 400 },
     );
   }
 
   try {
     await db.endereco.delete({ where: { id: enderecoId } });
-    return NextResponse.json({ message: "Endere�o deletado com sucesso!" });
+    return NextResponse.json({ message: "Endereco deletado com sucesso!" });
   } catch (error) {
+    console.error("Erro ao deletar o endereco:", error);
     return NextResponse.json(
-      { error: "Falha ao deletar o endere�o" },
+      { error: "Falha ao deletar o endereco." },
       { status: 500 },
     );
   }
 }
-
-export default handler;
