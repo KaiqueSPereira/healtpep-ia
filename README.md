@@ -63,8 +63,6 @@ Copiar
 Editar
 git push origin minha-nova-feature
 Abra um Pull Request.
-📜 Licença
-Este projeto está licenciado sob a MIT License. Consulte o arquivo LICENSE para mais informações.
 
 ✨ Créditos
 Desenvolvido com ❤️ por Kaique de Souza @oi_levi.
