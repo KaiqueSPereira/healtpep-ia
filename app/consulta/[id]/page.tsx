@@ -76,7 +76,7 @@ const ConsultaPage = async ({ params }: ConsultaPageProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Anotações sobre a consulta</CardTitle>
+            <CardTitle>Anota�?es sobre a consulta</CardTitle>
           </CardHeader>
           <CardContent>
             <p>{consultas.queixas || "Nenhuma queixa registrada"}</p>

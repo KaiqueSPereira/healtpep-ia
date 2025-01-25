@@ -29,12 +29,12 @@ const MenuUnidades: React.FC = () => {
   useEffect(() => {
     const fetchUnidades = async () => {
       try {
-        const res = await fetch("/api/unidadesaude"); // Aqui, você pode usar sua API
+        const res = await fetch("/api/unidadesaude"); // Aqui, vocĂŞ pode usar sua API
         if (!res.ok) {
           throw new Error("Erro ao carregar as unidades");
         }
         const data: Unidade[] = await res.json();
-        console.log("Unidades recebidas:", data); // Verifique se as unidades estão sendo recebidas corretamente
+        console.log("Unidades recebidas:", data); // Verifique se as unidades estĂŁo sendo recebidas corretamente
         setUnidades(data);
       } catch (err: any) {
         console.error("Erro:", err.message);
@@ -91,7 +91,7 @@ const MenuUnidades: React.FC = () => {
                             : "opacity-0"
                         }`}
                       />
-                      {unidade.nome} - {unidade.tipo} - {unidade.endereco}
+                      {unidade.nome} - {unidade.tipo}
                     </CommandItem>
                   ))
                 )}
@@ -102,7 +102,7 @@ const MenuUnidades: React.FC = () => {
                 key="add-new-unit"
                 value="add-new-unit"
                 onSelect={() => {
-                  window.location.href = "/unidades/[unidadeId]"; // Redireciona para a página de adicionar unidade
+                  window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pĂˇgina de adicionar unidade
                 }}
               >
                 <Check className="mr-2 h-4 w-4 opacity-0" />
@@ -118,8 +118,7 @@ const MenuUnidades: React.FC = () => {
         <div>
           <h3>Unidade Selecionada:</h3>
           <p>
-            {selectedUnidade.nome} - {selectedUnidade.tipo} -{" "}
-            {selectedUnidade.endereco}
+            {selectedUnidade.nome} - {selectedUnidade.tipo}
           </p>
         </div>
       )}

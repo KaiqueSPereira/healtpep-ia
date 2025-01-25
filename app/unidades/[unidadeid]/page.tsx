@@ -60,28 +60,28 @@ const UnidadePage = () => {
     },
   });
 
-  const [enderecos, setEnderecos] = useState<Endereco[]>([]); // Adicionado tipo explícito
+  const [enderecos, setEnderecos] = useState<Endereco[]>([]);
   const [selectedEndereco, setSelectedEndereco] = useState<Endereco | null>(
     null,
-  ); // Adicionado tipo explícito
+  );
 
   useEffect(() => {
     if (unidadeid) {
-      fetchUnidadeById(unidadeid); // Carrega os dados da unidade ao editar
+      fetchUnidadeById(unidadeid);
     }
-    fetchEnderecos(); // Sempre carrega os endereços existentes
+    fetchEnderecos();
   }, [unidadeid]);
 
   const fetchUnidadeById = async (unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidades/${unidadeid}`);
+      if (!response.ok) throw new Error("Erro ao buscar unidade");
+
       const data: { unidade: Unidade; endereco: Endereco } =
-        await response.json(); // Tipagem explícita
-      if (data) {
-        form.setValue("unidade", data.unidade);
-        form.setValue("endereco", data.endereco);
-        setSelectedEndereco(data.endereco); // Define o endereço selecionado
-      }
+        await response.json();
+      form.setValue("unidade", data.unidade);
+      form.setValue("endereco", data.endereco);
+      setSelectedEndereco(data.endereco);
     } catch (error) {
       console.error("Erro ao buscar unidade:", error);
     }
@@ -90,37 +90,41 @@ const UnidadePage = () => {
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
-      const data: Endereco[] = await response.json(); // Tipagem explícita
+      if (!response.ok) throw new Error("Erro ao buscar endereços");
+
+      const data: Endereco[] = await response.json();
       setEnderecos(data);
     } catch (error) {
       console.error("Erro ao buscar endereços:", error);
     }
   };
 
-  const createUnidade = async (data: FormData) => {
-    try {
-      const response = await fetch("/api/unidadesaude", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nome: data.unidade.nome,
-          tipo: data.unidade.tipo,
-          endereco: {
-            id: selectedEndereco?.id, // Envia somente o ID do endereço existente
-          },
-        }),
-      });
-      if (response.ok) {
-        router.push("/");
-      } else {
-        console.error("Erro ao criar unidade");
-      }
-    } catch (error) {
-      console.error("Erro ao criar unidade:", error);
-    }
-  };
+ const createUnidade = async (data: FormData) => {
+   try {
+     const response = await fetch("/api/unidadesaude", {
+       method: "POST",
+       headers: {
+         "Content-Type": "application/json",
+       },
+       body: JSON.stringify({
+         nome: data.unidade.nome,
+         tipo: data.unidade.tipo,
+         enderecoId: selectedEndereco?.id, // Ajustado para enviar enderecoId como string
+       }),
+     });
+
+     if (response.ok) {
+       router.push("/");
+     } else {
+       console.error("Erro ao criar unidade");
+       const errorDetails = await response.json();
+       console.error("Detalhes do erro:", errorDetails);
+     }
+   } catch (error) {
+     console.error("Erro ao criar unidade:", error);
+   }
+ };
+
 
   const updateUnidade = async (data: FormData) => {
     try {
@@ -134,22 +138,25 @@ const UnidadePage = () => {
           endereco: data.endereco,
         }),
       });
-      if (response.ok) {
-        router.push("/");
-      } else {
-        console.error("Erro ao atualizar unidade");
-      }
+      if (!response.ok) throw new Error("Erro ao atualizar unidade");
+
+      router.push("/");
     } catch (error) {
       console.error("Erro ao atualizar unidade:", error);
     }
   };
 
   const handleSubmit = async (data: FormData) => {
+    if (!selectedEndereco) {
+      alert("Selecione um endereço antes de salvar.");
+      return;
+    }
+
     try {
       if (unidadeid) {
-        await updateUnidade(data); // Atualiza a unidade existente
+        await updateUnidade(data);
       } else {
-        await createUnidade(data); // Cria uma nova unidade
+        await createUnidade(data);
       }
     } catch (error) {
       console.error("Erro ao salvar:", error);
