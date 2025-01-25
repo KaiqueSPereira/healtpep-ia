@@ -41,6 +41,8 @@ Implementar paginação na listagem de profissionais.
 Criar busca avançada por especialidades.
 Melhorar a responsividade da interface para dispositivos móveis.
 Adicionar suporte para múltiplos idiomas.
+
+
 🤝 Contribuições
 Contribuições são bem-vindas! Se você deseja contribuir:
 
