@@ -44,14 +44,14 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   // Lida com dados opcionais
   const profissionalNome =
-    profissional?.nome || "Profissional n?o especificado";
-  const unidadeNome = unidade?.nome || "Unidade n?o especificada";
+    profissional?.nome || "Profissional não especificado";
+  const unidadeNome = unidade?.nome || "Unidade não especificada";
 
   return (
     <div className="w-full md:w-auto">
       <Card className="min-w-[280px] max-w-[320px] text-gray-300">
         <CardContent className="flex justify-between p-0">
-          {/* InformaÄ‚Â§Ä‚Âµes do agendamento */}
+          {/* InformaĂ„â€šĂ‚Â§Ă„â€šĂ‚Âµes do agendamento */}
           <div className="flex flex-col gap-2 py-5 pl-5">
             <h3 className="text-lg font-bold text-red-500">{tipo}</h3>
             <p className="truncate text-sm font-semibold text-gray-300">
@@ -63,9 +63,9 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
             </Button>
           </div>
 
-          {/* InformaÄ‚Â§Ä‚Âµes de data e hora */}
-          <div className="flex flex-col items-center justify-between py-5 px-5 border-l-2 border-red-500">
-            <p className="text-sm text-gray-400 capitalize">{mes}</p>
+          {/* InformaĂ„â€šĂ‚Â§Ă„â€šĂ‚Âµes de data e hora */}
+          <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5">
+            <p className="text-sm capitalize text-gray-400">{mes}</p>
             <p className="text-2xl font-bold text-gray-300">{dia}</p>
             <p className="text-sm text-gray-400">{horaFormatada}</p>
           </div>

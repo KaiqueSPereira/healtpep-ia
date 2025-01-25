@@ -15,7 +15,7 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
 import Link from "next/link";
-import { ChevronLeftIcon } from "lucide-react";
+import { Check, ChevronLeftIcon } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -29,29 +29,41 @@ import {
   CommandItem,
   CommandList,
 } from "@/app/_components/ui/command";
-import EnderecoDialog from "@/app/enderecos/_components/enderecosdialog";
+
+// Tipagem para os dados da unidade de saúde
+interface Unidade {
+  nome: string;
+  tipo: string;
+}
+
+// Tipagem para os dados do endereço
+interface Endereco {
+  id: string;
+  nome: string;
+  bairro: string;
+}
+
+// Tipagem geral para os formulários
+interface FormData {
+  unidade: Unidade;
+  endereco?: Endereco;
+}
 
 const UnidadePage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const unidadeid = searchParams.get("unidadeid");
 
-  const form = useForm({
+  const form = useForm<FormData>({
     defaultValues: {
       unidade: { nome: "", tipo: "" },
-      endereco: {
-        CEP: "",
-        numero: "",
-        rua: "",
-        bairro: "",
-        municipio: "",
-        UF: "",
-      },
     },
   });
 
-  const [enderecos, setEnderecos] = useState([]);
-  const [selectedEndereco, setSelectedEndereco] = useState(null);
+  const [enderecos, setEnderecos] = useState<Endereco[]>([]); // Adicionado tipo explícito
+  const [selectedEndereco, setSelectedEndereco] = useState<Endereco | null>(
+    null,
+  ); // Adicionado tipo explícito
 
   useEffect(() => {
     if (unidadeid) {
@@ -63,7 +75,8 @@ const UnidadePage = () => {
   const fetchUnidadeById = async (unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidades/${unidadeid}`);
-      const data = await response.json();
+      const data: { unidade: Unidade; endereco: Endereco } =
+        await response.json(); // Tipagem explícita
       if (data) {
         form.setValue("unidade", data.unidade);
         form.setValue("endereco", data.endereco);
@@ -76,28 +89,31 @@ const UnidadePage = () => {
 
   const fetchEnderecos = async () => {
     try {
-      const response = await fetch("/api/endereco");
-      const data = await response.json();
+      const response = await fetch("/api/enderecos");
+      const data: Endereco[] = await response.json(); // Tipagem explícita
       setEnderecos(data);
     } catch (error) {
       console.error("Erro ao buscar endereços:", error);
     }
   };
 
-  const createUnidade = async (data) => {
+  const createUnidade = async (data: FormData) => {
     try {
-      const response = await fetch("/api/unidades", {
+      const response = await fetch("/api/unidadesaude", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          unidade: data.unidade,
-          endereco: data.endereco,
+          nome: data.unidade.nome,
+          tipo: data.unidade.tipo,
+          endereco: {
+            id: selectedEndereco?.id, // Envia somente o ID do endereço existente
+          },
         }),
       });
       if (response.ok) {
-        router.push("/unidades");
+        router.push("/");
       } else {
         console.error("Erro ao criar unidade");
       }
@@ -106,9 +122,9 @@ const UnidadePage = () => {
     }
   };
 
-  const updateUnidade = async (data) => {
+  const updateUnidade = async (data: FormData) => {
     try {
-      const response = await fetch(`/api/unidades/${unidadeid}`, {
+      const response = await fetch(`/api/unidadesaude/${unidadeid}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -119,7 +135,7 @@ const UnidadePage = () => {
         }),
       });
       if (response.ok) {
-        router.push("/unidades");
+        router.push("/");
       } else {
         console.error("Erro ao atualizar unidade");
       }
@@ -128,13 +144,7 @@ const UnidadePage = () => {
     }
   };
 
-  const handleSaveEndereco = (novoEndereco) => {
-    setEnderecos([...enderecos, novoEndereco]); // Adiciona o novo endereço à lista
-    setSelectedEndereco(novoEndereco); // Define o novo endereço como selecionado
-    form.setValue("endereco", novoEndereco); // Atualiza o formulário com o novo endereço
-  };
-
-  const handleSubmit = async (data) => {
+  const handleSubmit = async (data: FormData) => {
     try {
       if (unidadeid) {
         await updateUnidade(data); // Atualiza a unidade existente
@@ -156,7 +166,7 @@ const UnidadePage = () => {
           className="left-5 top-6"
           asChild
         >
-          <Link href="/unidades">
+          <Link href="/">
             <ChevronLeftIcon />
           </Link>
         </Button>
@@ -207,7 +217,7 @@ const UnidadePage = () => {
                     className="w-full justify-between"
                   >
                     {selectedEndereco
-                      ? selectedEndereco.rua
+                      ? selectedEndereco.nome
                       : "Selecione um Endereço..."}
                     <ChevronLeftIcon className="ml-2 h-4 w-4" />
                   </Button>
@@ -218,27 +228,17 @@ const UnidadePage = () => {
                     <CommandList>
                       <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
                       <CommandGroup>
-                        {enderecos.length === 0 ? (
-                          <CommandItem disabled>
-                            Carregando endereços...
+                        {enderecos.map((endereco) => (
+                          <CommandItem
+                            key={endereco.id}
+                            onSelect={() => {
+                              setSelectedEndereco(endereco);
+                              form.setValue("endereco", endereco);
+                            }}
+                          >
+                            {endereco.nome} - {endereco.bairro}
                           </CommandItem>
-                        ) : (
-                          enderecos.map((endereco, index) => (
-                            <CommandItem
-                              key={index}
-                              value={endereco.id}
-                              onSelect={() => {
-                                setSelectedEndereco(endereco);
-                                form.setValue("endereco", endereco);
-                              }}
-                            >
-                              {endereco.nome} - {endereco.bairro}
-                            </CommandItem>
-                          ))
-                        )}
-                        <CommandItem>
-                          <EnderecoDialog onSave={handleSaveEndereco} />
-                        </CommandItem>
+                        ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>

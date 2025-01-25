@@ -121,7 +121,7 @@ model Endereco {
   unidadeId String?
 
   usuario   User?            @relation(fields: [userId], references: [id])
-  unidade   UnidadeDeSaude?  @relation(fields: [unidadeId], references: [id], onDelete: SetNull)
+   unidadeSaude  UnidadeDeSaude? // Relacionamento inverso (1:1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -158,9 +158,9 @@ model UnidadeDeSaude {
   id            String          @id @default(uuid())
   nome          String
   tipo          String?
-  enderecoId    String?
-
-  endereco      Endereco[]
+ enderecoId    String?         @unique // Cada unidade tem um único endereço
+  
+  endereco      Endereco?       @relation(fields: [enderecoId], references: [id])
   consultas     Consultas[]
   profissionais Profissional[]
 
