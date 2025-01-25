@@ -1,46 +1,20 @@
-// /app/api/medicos/route.ts
 import { db } from "@/app/_lib/prisma";
-import { getSession } from "next-auth/react";
 import { NextResponse } from "next/server";
 
-export async function handler(req: Request) {
-  const { method } = req;
-  const session = await getSession({ req });
-
-  if (!session) {
-    return NextResponse.json(
-      { error: "Usuário n?o autenticado" },
-      { status: 401 },
-    );
-  }
-  switch (method) {
-    case "GET":
-      return await handleGet(req);
-    case "POST":
-      return await handlePost(req);
-    case "PATCH":
-      return await handlePatch(req);
-    case "DELETE":
-      return await handleDelete(req);
-    default:
-      return NextResponse.json(
-        { error: "Método n?o permitido" },
-        { status: 405 },
-      );
-  }
-}
-
-async function handleGet(req: Request) {
+// MÃ©todo GET
+export async function GET(req: Request) {
   const url = new URL(req.url);
   const profissionalId = url.searchParams.get("id");
 
   if (profissionalId) {
-    // Obter um médico específico
     try {
-      const profissional = await db.profissional.findUnique({ where: { id: profissionalId } });
+      const profissional = await db.profissional.findUnique({
+        where: { id: profissionalId },
+        include: { unidade: true },
+      });
       if (!profissional) {
         return NextResponse.json(
-          { error: "Especialista n?o encontrado" },
+          { error: "Especialista nÃ£o encontrado" },
           { status: 404 },
         );
       }
@@ -52,10 +26,11 @@ async function handleGet(req: Request) {
       );
     }
   } else {
-    // Listar todos os médicos
     try {
-      const profissional = await db.profissional.findMany();
-      return NextResponse.json(profissional);
+      const profissionais = await db.profissional.findMany({
+        include: { unidade: true },
+      });
+      return NextResponse.json(profissionais);
     } catch {
       return NextResponse.json(
         { error: "Falha ao buscar os profissionais" },
@@ -65,27 +40,39 @@ async function handleGet(req: Request) {
   }
 }
 
-async function handlePost(req: Request) {
+// MÃ©todo POST
+export async function POST(req: Request) {
   try {
-    const { nome, especialidade, NumClasse } = await req.json();
+    const { nome, especialidade, NumClasse, unidadeId } = await req.json();
     const novoprofissional = await db.profissional.create({
-      data: { nome, especialidade, NumClasse },
+      data: {
+        nome,
+        especialidade,
+        NumClasse,
+        unidade: { connect: { id: unidadeId } },
+      },
     });
     return NextResponse.json(novoprofissional);
   } catch {
     return NextResponse.json(
-      { error: "Falha ao Cadastrar o profissional" },
+      { error: "Falha ao cadastrar o profissional" },
       { status: 500 },
     );
   }
 }
 
-async function handlePatch(req: Request) {
+// MÃ©todo PATCH
+export async function PATCH(req: Request) {
   try {
-    const { nome, especialidade, NumClasse, id } = await req.json();
+    const { nome, especialidade, NumClasse, unidadeId, id } = await req.json();
     const profissionalAtualizado = await db.profissional.update({
       where: { id },
-      data: { nome, especialidade, NumClasse },
+      data: {
+        nome,
+        especialidade,
+        NumClasse,
+        unidade: { connect: { id: unidadeId } },
+      },
     });
     return NextResponse.json(profissionalAtualizado);
   } catch {
@@ -96,13 +83,14 @@ async function handlePatch(req: Request) {
   }
 }
 
-async function handleDelete(req: Request) {
+// MÃ©todo DELETE
+export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const medicoId = url.searchParams.get("id");
 
   if (!medicoId) {
     return NextResponse.json(
-      { error: "ID do profissional é necessário" },
+      { error: "ID do profissional Ã© necessÃ¡rio" },
       { status: 400 },
     );
   }
@@ -117,5 +105,3 @@ async function handleDelete(req: Request) {
     );
   }
 }
-
-export default handler;

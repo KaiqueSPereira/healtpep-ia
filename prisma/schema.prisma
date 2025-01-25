@@ -137,8 +137,7 @@ model Profissional {
   
   tratamentos   Tratamento[]    @relation("ProfissionalTratamentos")
   consultas     Consultas[]
-  unidadeId     String?
-  unidade       UnidadeDeSaude? @relation(fields: [unidadeId], references: [id], onDelete: SetNull)
+  unidades      UnidadeDeSaude[] @relation("ProfissionalUnidades")
 }
 
 model Tratamento {
@@ -158,11 +157,11 @@ model UnidadeDeSaude {
   id            String          @id @default(uuid())
   nome          String
   tipo          String?
- enderecoId    String?         @unique // Cada unidade tem um único endereço
+ enderecoId    String?         @unique // Cada unidade tem um Ãºnico endereÃ§o
   
   endereco      Endereco?       @relation(fields: [enderecoId], references: [id])
   consultas     Consultas[]
-  profissionais Profissional[]
+  profissionais Profissional[] @relation("ProfissionalUnidades")
 
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt

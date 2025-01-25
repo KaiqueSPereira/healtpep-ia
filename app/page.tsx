@@ -1,4 +1,4 @@
-import Header from "./_components/header";
+﻿import Header from "./_components/header";
 import AgendamentoItem from "./_components/agendamentosItem";
 import { db } from "./_lib/prisma";
 import { Inter, Roboto_Mono } from "next/font/google";
@@ -19,7 +19,7 @@ const Home = async () => {
   let agendamentos = [];
 
   try {
-    // Consulta os agendamentos com os relacionamentos necessÄ‚Ë‡rios
+    // Consulta os agendamentos com os relacionamentos necessĂ„â€šĂ‹â€ˇrios
     agendamentos = await db.consultas.findMany({
       include: {
         profissional: {
@@ -35,7 +35,7 @@ const Home = async () => {
       },
     });
 
-    // Verifique se agendamentos Ä‚Â© nulo ou vazio
+    // Verifique se agendamentos Ă„â€šĂ‚Â© nulo ou vazio
     if (!agendamentos || agendamentos.length === 0) {
       console.error("Nenhum agendamento encontrado.");
       return;
@@ -48,22 +48,22 @@ const Home = async () => {
   // Filtra agendamentos futuros e passados
   const agendamentosFuturos = agendamentos.filter((agendamento) => {
     const dataAgendamento = new Date(agendamento.data);
-    // Verifica se a data Ä‚Â© vÄ‚Ë‡lida antes de comparar
+    // Verifica se a data Ă„â€šĂ‚Â© vĂ„â€šĂ‹â€ˇlida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data invĂˇlida para o agendamento ${agendamento.id}`);
+      console.error(`Data invÄ‚Ë‡lida para o agendamento ${agendamento.id}`);
       return false;
     }
-    return dataAgendamento >= new Date(); // Verifica se Ä‚Â© futuro
+    return dataAgendamento >= new Date(); // Verifica se Ă„â€šĂ‚Â© futuro
   });
 
   const agendamentosPassados = agendamentos.filter((agendamento) => {
     const dataAgendamento = new Date(agendamento.data);
-    // Verifica se a data Ä‚Â© vÄ‚Ë‡lida antes de comparar
+    // Verifica se a data Ă„â€šĂ‚Â© vĂ„â€šĂ‹â€ˇlida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data invĂˇlida para o agendamento ${agendamento.id}`);
+      console.error(`Data invÄ‚Ë‡lida para o agendamento ${agendamento.id}`);
       return false;
     }
-    return dataAgendamento < new Date(); // Verifica se Ä‚Â© passado
+    return dataAgendamento < new Date(); // Verifica se Ă„â€šĂ‚Â© passado
   });
 
   // Formata a data atual
@@ -81,7 +81,7 @@ const Home = async () => {
     <div>
       <Header />
       <div className="p-5">
-        {/* Nome do usuÄ‚Ë‡rio dinÄ‚Ë�mico pode ser passado aqui */}
+        {/* Nome do usuĂ„â€šĂ‹â€ˇrio dinĂ„â€šĂ‹ďż˝mico pode ser passado aqui */}
         <h2 className="text-2xl font-bold">Ola, Kaique</h2>
         <p>{formattedDate}</p>
         <div className="mt-6">

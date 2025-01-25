@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,21 +29,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/app/_components/ui/command";
+import { Endereco } from "@/app/_components/types";
 
-// Tipagem para os dados da unidade de saúde
+// Tipagem para os dados da unidade de saĂşde
 interface Unidade {
   nome: string;
   tipo: string;
 }
 
-// Tipagem para os dados do endereço
-interface Endereco {
-  id: string;
-  nome: string;
-  bairro: string;
-}
+// Tipagem para os dados do endereĂ§o
 
-// Tipagem geral para os formulários
+// Tipagem geral para os formulĂˇrios
 interface FormData {
   unidade: Unidade;
   endereco?: Endereco;
@@ -90,41 +86,40 @@ const UnidadePage = () => {
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
-      if (!response.ok) throw new Error("Erro ao buscar endereços");
+      if (!response.ok) throw new Error("Erro ao buscar endereĂ§os");
 
       const data: Endereco[] = await response.json();
       setEnderecos(data);
     } catch (error) {
-      console.error("Erro ao buscar endereços:", error);
+      console.error("Erro ao buscar endereĂ§os:", error);
     }
   };
 
- const createUnidade = async (data: FormData) => {
-   try {
-     const response = await fetch("/api/unidadesaude", {
-       method: "POST",
-       headers: {
-         "Content-Type": "application/json",
-       },
-       body: JSON.stringify({
-         nome: data.unidade.nome,
-         tipo: data.unidade.tipo,
-         enderecoId: selectedEndereco?.id, // Ajustado para enviar enderecoId como string
-       }),
-     });
+  const createUnidade = async (data: FormData) => {
+    try {
+      const response = await fetch("/api/unidadesaude", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome: data.unidade.nome,
+          tipo: data.unidade.tipo,
+          enderecoId: selectedEndereco?.id, // Ajustado para enviar enderecoId como string
+        }),
+      });
 
-     if (response.ok) {
-       router.push("/");
-     } else {
-       console.error("Erro ao criar unidade");
-       const errorDetails = await response.json();
-       console.error("Detalhes do erro:", errorDetails);
-     }
-   } catch (error) {
-     console.error("Erro ao criar unidade:", error);
-   }
- };
-
+      if (response.ok) {
+        router.push("/");
+      } else {
+        console.error("Erro ao criar unidade");
+        const errorDetails = await response.json();
+        console.error("Detalhes do erro:", errorDetails);
+      }
+    } catch (error) {
+      console.error("Erro ao criar unidade:", error);
+    }
+  };
 
   const updateUnidade = async (data: FormData) => {
     try {
@@ -148,7 +143,7 @@ const UnidadePage = () => {
 
   const handleSubmit = async (data: FormData) => {
     if (!selectedEndereco) {
-      alert("Selecione um endereço antes de salvar.");
+      alert("Selecione um endereĂ§o antes de salvar.");
       return;
     }
 
@@ -212,9 +207,9 @@ const UnidadePage = () => {
               )}
             />
 
-            <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
+            <h2 className="mt-6 text-xl font-semibold">EndereĂ§o</h2>
             <div>
-              <label>Escolher Endereço Existente</label>
+              <label>Escolher EndereĂ§o Existente</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -225,15 +220,15 @@ const UnidadePage = () => {
                   >
                     {selectedEndereco
                       ? selectedEndereco.nome
-                      : "Selecione um Endereço..."}
+                      : "Selecione um EndereĂ§o..."}
                     <ChevronLeftIcon className="ml-2 h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Buscar endereço..." />
+                    <CommandInput placeholder="Buscar endereĂ§o..." />
                     <CommandList>
-                      <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
+                      <CommandEmpty>Nenhum endereĂ§o encontrado.</CommandEmpty>
                       <CommandGroup>
                         {enderecos.map((endereco) => (
                           <CommandItem

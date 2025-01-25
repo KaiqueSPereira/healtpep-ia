@@ -1,6 +1,7 @@
 "use client";
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
-import MenuUnidades from "@/app/_components/menuunidades";
+import MenuUnidades from "@/app/unidades/_components/menuunidades";
+import { Profissional, Unidade } from "@/app/_components/types";
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
 import {
@@ -12,8 +13,9 @@ import {
 } from "@/app/_components/ui/sheet";
 import { ptBR } from "date-fns/locale";
 import React, { useEffect, useState } from "react";
+import MenuProfissionais from "@/app/profissionais/_components/munuprofissionais";
 
-// Lista de horários disponíveis
+// Lista de horĂˇrios disponĂ­veis
 const TIME_LIST = [
   "07:00",
   "07:30",
@@ -53,6 +55,9 @@ const NovaConsulta = () => {
     undefined,
   );
   const [inputValue, setInputValue] = useState<string>("");
+  const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
+  const [selectedProfissional, setSelectedProfissional] =
+    useState<Profissional | null>(null);
 
   // Buscar os tipos de consulta da API
   useEffect(() => {
@@ -79,6 +84,9 @@ const NovaConsulta = () => {
     setSelectedTime(undefined);
   };
   const handleTipoSelect = (tipo: string) => setSelectedTipo(tipo);
+  const handleUnidadeSelect = (unidade: Unidade) => setSelectedUnidade(unidade);
+  const handleProfissionalSelect = (profissional: Profissional | null) =>
+    setSelectedProfissional(profissional);
 
   return (
     <div>
@@ -126,7 +134,7 @@ const NovaConsulta = () => {
               />
             </div>
           )}
-          {selectedDay && (
+          {selectedTime && (
             <div className="py-5">
               <ConsultaTipoSelector
                 consultaTipos={consultaTipos}
@@ -135,7 +143,21 @@ const NovaConsulta = () => {
               />
             </div>
           )}
-          <MenuUnidades />
+          {selectedTipo && (
+            <MenuUnidades
+              onUnidadeSelect={handleUnidadeSelect}
+              selectedUnidade={selectedUnidade}
+            />
+          )}
+          {selectedUnidade && (
+            <div className="py-5">
+              <h3>Unidade selecionada: {selectedUnidade.nome}</h3>
+            </div>
+          )}
+          <MenuProfissionais
+            onprofissionalSelect={handleProfissionalSelect}
+            selectedProfissional={selectedProfissional}
+          />
         </SheetContent>
       </Sheet>
     </div>

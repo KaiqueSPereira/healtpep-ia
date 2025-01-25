@@ -2,8 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Button } from "./ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../../_components/ui/popover";
+import { Button } from "../../_components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -11,16 +15,15 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "./ui/command";
+} from "../../_components/ui/command";
+import { Unidade } from "../../_components/types";
 
-interface Unidade {
-  id: string;
-  nome: string;
-  tipo: string;
-  endereco: string;
+interface MenuUnidadesProps {
+  onUnidadeSelect: (unidade: Unidade) => void; // Função para selecionar a unidade
+  selectedUnidade: Unidade | null;
 }
 
-const MenuUnidades: React.FC = () => {
+const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [open, setOpen] = useState(false);
@@ -29,12 +32,11 @@ const MenuUnidades: React.FC = () => {
   useEffect(() => {
     const fetchUnidades = async () => {
       try {
-        const res = await fetch("/api/unidadesaude"); // Aqui, vocĂŞ pode usar sua API
+        const res = await fetch("/api/unidadesaude");
         if (!res.ok) {
           throw new Error("Erro ao carregar as unidades");
         }
         const data: Unidade[] = await res.json();
-        console.log("Unidades recebidas:", data); // Verifique se as unidades estĂŁo sendo recebidas corretamente
         setUnidades(data);
       } catch (err: any) {
         console.error("Erro:", err.message);
@@ -42,6 +44,11 @@ const MenuUnidades: React.FC = () => {
     };
     fetchUnidades();
   }, []);
+
+  const handleUnidadeSelect = (unidade: Unidade) => {
+    setSelectedUnidade(unidade);
+    onUnidadeSelect(unidade); // Atualizar a unidade selecionada no componente pai
+  };
 
   return (
     <div>
@@ -73,31 +80,17 @@ const MenuUnidades: React.FC = () => {
                     <CommandItem
                       key={unidade.id}
                       value={unidade.id}
-                      onSelect={(currentValue) => {
-                        // Atualiza a unidade selecionada
-                        const selected = unidades.find(
-                          (u) => u.id === currentValue,
-                        );
-                        if (selected) {
-                          setSelectedUnidade(selected);
-                          setOpen(false);
-                        }
-                      }}
+                      onSelect={() => handleUnidadeSelect(unidade)}
                     >
                       <Check
-                        className={`mr-2 h-4 w-4 ${
-                          selectedUnidade?.id === unidade.id
-                            ? "opacity-100"
-                            : "opacity-0"
-                        }`}
+                        className={`mr-2 h-4 w-4 ${selectedUnidade?.id === unidade.id ? "opacity-100" : "opacity-0"}`}
                       />
-                      {unidade.nome} - {unidade.tipo}
+                      {unidade.nome}
                     </CommandItem>
                   ))
                 )}
               </CommandGroup>
 
-              {/* Adicionar Nova Unidade */}
               <CommandItem
                 key="add-new-unit"
                 value="add-new-unit"
@@ -112,16 +105,6 @@ const MenuUnidades: React.FC = () => {
           </Command>
         </PopoverContent>
       </Popover>
-
-      {/* Exibir a unidade selecionada */}
-      {selectedUnidade && (
-        <div>
-          <h3>Unidade Selecionada:</h3>
-          <p>
-            {selectedUnidade.nome} - {selectedUnidade.tipo}
-          </p>
-        </div>
-      )}
     </div>
   );
 };
