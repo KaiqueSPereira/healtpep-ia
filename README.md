@@ -1,68 +1,69 @@
 HealthPep-IA
-Um sistema de gerenciamento de consultas, resultados de exames e medicamentos, relacionando-os com os profissionais responsáveis. O projeto também utiliza a análise da IA ChatGPT para interpretar os resultados dos exames. Este projeto foi desenvolvido utilizando Next.js 13 com as novas funcionalidades do App Router e integraç?o com banco de dados via Prisma.
+Um sistema de gerenciamento de consultas, resultados de exames e medicamentos, relacionando-os com os profissionais responsÃ¡veis. O projeto tambÃ©m utiliza a anÃ¡lise da IA ChatGPT para interpretar os resultados dos exames. Este projeto foi desenvolvido utilizando Next.js 13 com as novas funcionalidades do App Router e integraÃ§Ã£o com banco de dados via Prisma.
 
-?? Tecnologias Utilizadas
-Next.js 13: Framework React para renderizaç?o no servidor e funcionalidades modernas.
-Prisma: ORM para interaç?es com o banco de dados.
-NextAuth.js: Autenticaç?o e gerenciamento de sess?es.
-TypeScript: Tipagem estática para maior confiabilidade no código.
-TailwindCSS: Estilizaç?o rápida e responsiva.
-Lucide Icons: Ícones modernos para UI.
-Shadcn/ui: Componentes de IU personalizáveis.
-?? Funcionalidades
-Módulo de Profissionais
+ğŸ’» Tecnologias Utilizadas
+Next.js 13: Framework React para renderizaÃ§Ã£o no servidor e funcionalidades modernas.
+Prisma: ORM para interaÃ§Ãµes com o banco de dados.
+NextAuth.js: AutenticaÃ§Ã£o e gerenciamento de sessÃµes.
+TypeScript: Tipagem estÃ¡tica para maior confiabilidade no cÃ³digo.
+TailwindCSS: EstilizaÃ§Ã£o rÃ¡pida e responsiva.
+Lucide Icons: Ãcones modernos para UI.
+Shadcn/ui: Componentes de IU personalizÃ¡veis.
+
+âš™ï¸ Funcionalidades
+MÃ³dulo de Profissionais
 Cadastro de profissionais com:
 Nome
 Especialidade
-Número de Classe
-Unidades de Saúde em que atuam
+NÃºmero de Classe
+Unidades de SaÃºde em que atuam
 Tratamentos prescritos
-Módulo de Unidades de Saúde
-Cadastro de unidades de saúde com:
+MÃ³dulo de Unidades de SaÃºde
+Cadastro de unidades de saÃºde com:
 Nome
 Tipo de atendimento
-Endereço
-Associaç?o com profissionais e consultas
-Módulo de Consultas
+EndereÃ§o
+AssociaÃ§Ã£o com profissionais e consultas
+MÃ³dulo de Consultas
 Cadastro de consultas com:
-Data e horário
+Data e horÃ¡rio
 Motivo da consulta
-Queixas e anotaç?es
-Associaç?o ao usuário e profissional que realizou a consulta
-Autenticaç?o
-Cadastro de usuários via Google utilizando NextAuth.js
-Acesso restrito apenas para usuários autenticados
-??? Melhorias Futuras
-Adicionar o módulo de Controle de Medicamentos:
-Cadastro e gerenciamento de medicamentos em uso pelos pacientes.
-Adicionar o módulo de Exames:
-Cadastro de exames realizados, com análise automatizada dos resultados via IA ChatGPT.
-Implementar paginaç?o na listagem de profissionais.
-Criar busca avançada por especialidades.
-Melhorar a responsividade da interface para dispositivos móveis.
-Adicionar suporte para múltiplos idiomas.
-?? Contribuiç?es
-Contribuiç?es s?o bem-vindas! Se voc? deseja contribuir:
+Queixas e anotaÃ§Ãµes
+AssociaÃ§Ã£o ao usuÃ¡rio e profissional que realizou a consulta
+AutenticaÃ§Ã£o
+Cadastro de usuÃ¡rios via Google utilizando NextAuth.js
+Acesso restrito apenas para usuÃ¡rios autenticados
 
-Faça um fork do projeto.
+ğŸ› ï¸ Melhorias Futuras
+Adicionar o mÃ³dulo de Controle de Medicamentos:
+Cadastro e gerenciamento de medicamentos em uso pelos pacientes.
+Adicionar o mÃ³dulo de Exames:
+Cadastro de exames realizados, com anÃ¡lise automatizada dos resultados via IA ChatGPT.
+Implementar paginaÃ§Ã£o na listagem de profissionais.
+Criar busca avanÃ§ada por especialidades.
+Melhorar a responsividade da interface para dispositivos mÃ³veis.
+Adicionar suporte para mÃºltiplos idiomas.
+
+ğŸ¤ ContribuiÃ§Ãµes
+ContribuiÃ§Ãµes sÃ£o bem-vindas! Se vocÃª deseja contribuir:
+
+FaÃ§a um fork do projeto.
 Crie uma nova branch:
 bash
 Copiar
 Editar
 git checkout -b minha-nova-feature
-Faça suas alteraç?es e comite:
+FaÃ§a suas alteraÃ§Ãµes e comite:
 bash
 Copiar
 Editar
 git commit -m "Adiciona nova feature"
-Envie suas mudanças:
+Envie suas mudanÃ§as:
 bash
 Copiar
 Editar
 git push origin minha-nova-feature
 Abra um Pull Request.
-?? Licença
-Este projeto está licenciado sob a MIT License. Consulte o arquivo LICENSE para mais informaç?es.
 
-? Créditos
-Desenvolvido com ?? por Kaique de Souza @oi_levi.
+âœ¨ CrÃ©ditos
+Desenvolvido com â¤ï¸ por Kaique de Souza @oi_levi.

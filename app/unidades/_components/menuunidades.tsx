@@ -88,19 +88,18 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
                       {unidade.nome}
                     </CommandItem>
                   ))
-                )}
+                )}{" "}
+                <CommandItem
+                  key="add-new-unit"
+                  value="add-new-unit"
+                  onSelect={() => {
+                    window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pĂˇgina de adicionar unidade
+                  }}
+                >
+                  <Check className="mr-2 h-4 w-4 opacity-0" />
+                  Adicionar Nova Unidade
+                </CommandItem>
               </CommandGroup>
-
-              <CommandItem
-                key="add-new-unit"
-                value="add-new-unit"
-                onSelect={() => {
-                  window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pĂˇgina de adicionar unidade
-                }}
-              >
-                <Check className="mr-2 h-4 w-4 opacity-0" />
-                Adicionar Nova Unidade
-              </CommandItem>
             </CommandList>
           </Command>
         </PopoverContent>

@@ -143,7 +143,7 @@ const UnidadePage = () => {
 
   const handleSubmit = async (data: FormData) => {
     if (!selectedEndereco) {
-      alert("Selecione um endereĂ§o antes de salvar.");
+      alert("Selecione um endereço antes de salvar.");
       return;
     }
 
@@ -207,9 +207,9 @@ const UnidadePage = () => {
               )}
             />
 
-            <h2 className="mt-6 text-xl font-semibold">EndereĂ§o</h2>
+            <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
             <div>
-              <label>Escolher EndereĂ§o Existente</label>
+              <label>Escolher Endereço Existente</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -220,15 +220,15 @@ const UnidadePage = () => {
                   >
                     {selectedEndereco
                       ? selectedEndereco.nome
-                      : "Selecione um EndereĂ§o..."}
+                      : "Selecione um Endereço..."}
                     <ChevronLeftIcon className="ml-2 h-4 w-4" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
                   <Command>
-                    <CommandInput placeholder="Buscar endereĂ§o..." />
+                    <CommandInput placeholder="Buscar endereço..." />
                     <CommandList>
-                      <CommandEmpty>Nenhum endereĂ§o encontrado.</CommandEmpty>
+                      <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
                       <CommandGroup>
                         {enderecos.map((endereco) => (
                           <CommandItem
@@ -241,6 +241,16 @@ const UnidadePage = () => {
                             {endereco.nome} - {endereco.bairro}
                           </CommandItem>
                         ))}
+                        <CommandItem
+                          key="add-new-unit"
+                          value="add-new-unit"
+                          onSelect={() => {
+                            window.location.href = "/enderecos/[enderecoId]"; // Redireciona para a pÄ‚Ë‡gina de adicionar unidade
+                          }}
+                        >
+                          <Check className="mr-2 h-4 w-4 opacity-0" />
+                          Adicionar Novo Endereço
+                        </CommandItem>
                       </CommandGroup>
                     </CommandList>
                   </Command>

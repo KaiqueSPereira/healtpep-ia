@@ -1,4 +1,5 @@
 "use client";
+
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
 import MenuUnidades from "@/app/unidades/_components/menuunidades";
 import { Profissional, Unidade } from "@/app/_components/types";
@@ -14,8 +15,18 @@ import {
 import { ptBR } from "date-fns/locale";
 import React, { useEffect, useState } from "react";
 import MenuProfissionais from "@/app/profissionais/_components/munuprofissionais";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/app/_components/ui/form";
+import { Textarea } from "@/app/_components/ui/textarea";
 
-// Lista de horĂˇrios disponĂ­veis
+// Lista de horários disponíveis
 const TIME_LIST = [
   "07:00",
   "07:30",
@@ -45,6 +56,10 @@ const TIME_LIST = [
   "19:30",
 ];
 
+const formSchema = z.object({
+  queixas: z.string().min(1, "A descrição da consulta é obrigatória."),
+});
+
 const NovaConsulta = () => {
   const [selectedDay, setSelectedDay] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(
@@ -58,6 +73,10 @@ const NovaConsulta = () => {
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
+
+  const form = useForm({
+    defaultValues: { queixas: "" },
+  });
 
   // Buscar os tipos de consulta da API
   useEffect(() => {
@@ -80,8 +99,13 @@ const NovaConsulta = () => {
   const handleDateSelect = (date: Date | undefined) => setSelectedDay(date);
   const handleTimeSelect = (time: string | undefined) => setSelectedTime(time);
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-    setSelectedTime(undefined);
+    const value = e.target.value;
+    if (/^([01]\d|2[0-3]):([0-5]\d)$/.test(value)) {
+      setInputValue(value);
+      setSelectedTime(value);
+    } else {
+      setInputValue(value);
+    }
   };
   const handleTipoSelect = (tipo: string) => setSelectedTipo(tipo);
   const handleUnidadeSelect = (unidade: Unidade) => setSelectedUnidade(unidade);
@@ -98,21 +122,17 @@ const NovaConsulta = () => {
           <SheetHeader>
             <SheetTitle>Nova Consulta</SheetTitle>
           </SheetHeader>
-          <div className="border-b border-solid py-5">
+          <div className="border-b py-5">
             <Calendar
               mode="single"
               locale={ptBR}
               selected={selectedDay}
               onSelect={handleDateSelect}
-              styles={{
-                head_cell: { width: "100%", textTransform: "capitalize" },
-                caption: { textTransform: "capitalize" },
-              }}
             />
           </div>
           {selectedDay && (
             <div className="flex flex-col gap-3 p-5">
-              <div className="flex gap-3 overflow-auto [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-3 overflow-auto">
                 {TIME_LIST.map((time) => (
                   <Button
                     key={time}
@@ -127,21 +147,18 @@ const NovaConsulta = () => {
               </div>
               <input
                 type="time"
-                placeholder="Digite a hora"
-                className="rounded border bg-black p-2 text-white"
+                className="rounded border p-2"
                 onChange={handleInputChange}
                 value={inputValue}
               />
             </div>
           )}
           {selectedTime && (
-            <div className="py-5">
-              <ConsultaTipoSelector
-                consultaTipos={consultaTipos}
-                selectedTipo={selectedTipo}
-                onTipoSelect={handleTipoSelect}
-              />
-            </div>
+            <ConsultaTipoSelector
+              consultaTipos={consultaTipos}
+              selectedTipo={selectedTipo}
+              onTipoSelect={handleTipoSelect}
+            />
           )}
           {selectedTipo && (
             <MenuUnidades
@@ -150,14 +167,30 @@ const NovaConsulta = () => {
             />
           )}
           {selectedUnidade && (
-            <div className="py-5">
-              <h3>Unidade selecionada: {selectedUnidade.nome}</h3>
-            </div>
+            <MenuProfissionais
+              onProfissionalSelect={handleProfissionalSelect}
+              selectedProfissional={selectedProfissional}
+            />
           )}
-          <MenuProfissionais
-            onprofissionalSelect={handleProfissionalSelect}
-            selectedProfissional={selectedProfissional}
-          />
+          <Form {...form}>
+            <form>
+              <FormField
+                control={form.control}
+                name="queixas"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Escreva aqui as informações sobre a consulta..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </form>
+          </Form>
         </SheetContent>
       </Sheet>
     </div>

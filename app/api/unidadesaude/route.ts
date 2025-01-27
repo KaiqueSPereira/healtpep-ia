@@ -2,7 +2,7 @@ import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 
-// Método GET
+// MĂ©todo GET
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const unidadeId = url.searchParams.get("id");
@@ -10,11 +10,11 @@ export async function GET(req: Request) {
 
   try {
     if (unidadeId) {
-      // Buscar uma unidade específica
+      // Buscar uma unidade especĂ­fica
       const unidade = await db.unidadeDeSaude.findUnique({
         where: { id: unidadeId },
         include: {
-          endereco: true, // `endereco` é agora um único objeto
+          endereco: true, // `endereco` Ă© agora um Ăşnico objeto
           consultas: true,
           profissionais: true,
         },
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
       if (!unidade) {
         return NextResponse.json(
-          { error: `Unidade com ID ${unidadeId} não encontrada` },
+          { error: `Unidade com ID ${unidadeId} nĂŁo encontrada` },
           { status: 404 },
         );
       }
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       const unidades = await db.unidadeDeSaude.findMany({
         where: filtro,
         include: {
-          endereco: true, // `endereco` é um único objeto
+          endereco: true, // `endereco` Ă© um Ăşnico objeto
         },
       });
 
@@ -57,36 +57,36 @@ export async function GET(req: Request) {
   }
 }
 
-// Método POST
+// MĂ©todo POST
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const nome = body.nome; // Nome da unidade
     const { tipo, enderecoId } = body;
 
-    // Validação dos campos obrigatórios
+    // ValidaĂ§ĂŁo dos campos obrigatĂłrios
     if (!nome || typeof nome !== "string") {
       return NextResponse.json(
-        { error: "O campo 'nome' é obrigatório e deve ser uma string válida" },
+        { error: "O campo 'nome' é obrigatorio e deve ser uma string valida" },
         { status: 400 },
       );
     }
 
     if (!enderecoId || typeof enderecoId !== "string") {
       return NextResponse.json(
-        { error: "O campo 'enderecoId' é obrigatório e deve ser um ID válido" },
+        { error: "O campo 'enderecoId' é obrigatorio e deve ser um ID valido" },
         { status: 400 },
       );
     }
 
-    // Verificar se o endereço existe e está disponível
+    // Verificar se o endereĂ§o existe e estĂˇ disponĂ­vel
     const enderecoExistente = await db.endereco.findUnique({
       where: { id: enderecoId },
     });
 
     if (!enderecoExistente) {
       return NextResponse.json(
-        { error: `Endereço com ID '${enderecoId}' não encontrado` },
+        { error: `Endereco com ID '${enderecoId}' nao encontrado` },
         { status: 404 },
       );
     }
@@ -94,19 +94,19 @@ export async function POST(req: Request) {
     if (enderecoExistente.unidadeId) {
       return NextResponse.json(
         {
-          error: `Endereço com ID '${enderecoId}' já está associado a uma unidade de saúde`,
+          error: `EndereĂ§o com ID '${enderecoId}' jĂˇ estĂˇ associado a uma unidade de saĂşde`,
         },
         { status: 400 },
       );
     }
 
-    // Criar nova unidade de saúde associada ao endereço
+    // Criar nova unidade de saĂşde associada ao endereĂ§o
     const novaUnidade = await db.unidadeDeSaude.create({
       data: {
         nome,
         tipo,
         endereco: {
-          connect: { id: enderecoId }, // Associa o endereço ao criar a unidade
+          connect: { id: enderecoId }, // Associa o endereĂ§o ao criar a unidade
         },
       },
     });
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     );
   }
 }
-// Método PATCH
+// MĂ©todo PATCH
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
@@ -128,7 +128,7 @@ export async function PATCH(req: Request) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "O campo 'id' é obrigatório" },
+        { error: "O campo 'id' Ă© obrigatĂłrio" },
         { status: 400 },
       );
     }
@@ -141,8 +141,8 @@ export async function PATCH(req: Request) {
         endereco: endereco
           ? {
               upsert: {
-                update: endereco, // Atualizar endereço existente
-                create: endereco, // Criar novo endereço se não existir
+                update: endereco, // Atualizar endereĂ§o existente
+                create: endereco, // Criar novo endereĂ§o se nĂŁo existir
               },
             }
           : undefined,
@@ -159,14 +159,14 @@ export async function PATCH(req: Request) {
   }
 }
 
-// Método DELETE
+// MĂ©todo DELETE
 export async function DELETE(req: Request) {
   const url = new URL(req.url);
   const unidadeId = url.searchParams.get("id");
 
   if (!unidadeId) {
     return NextResponse.json(
-      { error: "O campo 'id' é obrigatório para deletar uma unidade" },
+      { error: "O campo 'id' Ă© obrigatĂłrio para deletar uma unidade" },
       { status: 400 },
     );
   }
