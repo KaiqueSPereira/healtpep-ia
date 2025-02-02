@@ -81,7 +81,6 @@ const Home = async () => {
     <div>
       <Header />
       <div className="p-5">
-        {/* Nome do usuĂ„â€šĂ‹â€ˇrio dinĂ„â€šĂ‹ďż˝mico pode ser passado aqui */}
         <h2 className="text-2xl font-bold">Ola, Kaique</h2>
         <p>{formattedDate}</p>
         <div className="mt-6">

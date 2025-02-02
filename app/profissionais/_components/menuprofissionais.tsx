@@ -17,52 +17,45 @@ import {
   CommandList,
 } from "../../_components/ui/command";
 import { Profissional } from "@/app/_components/types";
-import { se } from "date-fns/locale";
 
 interface MenuProfissionaisProps {
-  onprofissionalSelect: (profissional: Profissional) => void; // Função para selecionar a unidade
-  selectedProfissional: Profissional | null;
+  profissionais: Profissional[]; // Lista completa de profissionais
+  onProfissionalSelect: (profissional: Profissional) => void; // Callback ao selecionar um profissional
+  selectedProfissional: Profissional | null; // Profissional atualmente selecionado
+  unidadeId?: string; // Agora o unidadeId é opcional
 }
 
 const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
-  onprofissionalSelect,
+  profissionais,
+  onProfissionalSelect,
+  selectedProfissional,
+  unidadeId,
 }) => {
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-  const [selectedProfissional, setSelectedProfissional] =
-    useState<Profissional | null>(null);
   const [open, setOpen] = useState(false);
+  const [filteredProfissionais, setFilteredProfissionais] = useState<
+    Profissional[]
+  >([]);
 
-  // Carregar as unidades da API
+  // Filtramos os profissionais caso unidadeId seja passado
   useEffect(() => {
-    const fetchProfissionais = async () => {
-      try {
-        const res = await fetch("/api/profissional");
-        if (!res.ok) {
-          throw new Error("Erro ao carregar os dados dos especialistas");
-        }
-        const data: Profissional[] = await res.json();
-        setProfissionais(data);
-      } catch (err: any) {
-        console.error("Erro:", err.message);
-      }
-    };
-    fetchProfissionais();
-  }, []);
-
-  const handleProfissionalSelect = (profissional: Profissional) => {
-    setSelectedProfissional(profissional);
-    onprofissionalSelect(profissional); // Atualizar a unidade selecionada no componente pai
-  };
+    if (unidadeId) {
+      setFilteredProfissionais(
+        profissionais.filter((p) => p.unidades.some((u) => u.id === unidadeId)),
+      );
+    } else {
+      setFilteredProfissionais(profissionais); // Sem unidadeId, exibe todos os profissionais
+    }
+  }, [unidadeId, profissionais]);
 
   return (
-    <div>
+    <div className="w-full">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[200px] justify-between"
+            className="w-full justify-between"
           >
             {selectedProfissional
               ? selectedProfissional.nome
@@ -71,37 +64,40 @@ const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[200px] p-0">
+        <PopoverContent className="w-full p-0">
           <Command>
             <CommandInput placeholder="Buscar especialista..." />
             <CommandList>
               <CommandEmpty>Nenhum especialista encontrado</CommandEmpty>
               <CommandGroup>
-                {profissionais.length === 0 ? (
+                {filteredProfissionais.length === 0 ? (
                   <CommandItem disabled>
-                    Carregando Especialistas...
+                    Nenhum especialista disponível
                   </CommandItem>
                 ) : (
-                  profissionais.map((profissionais) => (
+                  filteredProfissionais.map((profissional) => (
                     <CommandItem
-                      key={profissionais.id}
-                      value={profissionais.id}
-                      onSelect={() => handleProfissionalSelect(profissionais)}
+                      key={profissional.id}
+                      value={profissional.id}
+                      onSelect={() => onProfissionalSelect(profissional)}
                     >
                       <Check
-                        className={`mr-2 h-4 w-4 ${selectedProfissional?.id === profissionais.id ? "opacity-100" : "opacity-0"}`}
+                        className={`mr-2 h-4 w-4 ${
+                          selectedProfissional?.id === profissional.id
+                            ? "opacity-100"
+                            : "opacity-0"
+                        }`}
                       />
-                      {profissionais.nome}
+                      {profissional.nome} - {profissional.especialidade}
                     </CommandItem>
                   ))
                 )}
               </CommandGroup>
-
               <CommandItem
                 key="add-new-unit"
                 value="add-new-unit"
                 onSelect={() => {
-                  window.location.href = "/profissionais/[profissionalId]"; // Redireciona para a pĂˇgina de adicionar unidade
+                  window.location.href = "/profissionais/[profissionalId]";
                 }}
               >
                 <Check className="mr-2 h-4 w-4 opacity-0" />

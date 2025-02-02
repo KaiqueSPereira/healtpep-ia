@@ -1,118 +1,126 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { getSession } from "next-auth/react";
+import { getServerSession } from "next-auth"; // Pegando a sessão diretamente
+import { getToken } from "next-auth/jwt";
 
-export async function handler(req: Request) {
-  const { method } = req;
-  const session = await getSession({ req });
-
-  if (!session || !session.user || !session.user.id) {
-    return NextResponse.json(
-      { error: "Usu�rio n?o autorizado" },
-      { status: 401 },
-    );
-  }
-
-  const userId = session.user.id;
-
-  switch (method) {
-    case "GET":
-      return await handleGet(req);
-    case "POST":
-      return await handlePost(req, userId);
-    case "PATCH":
-      return await handlePatch(req);
-    case "DELETE":
-      return await handleDelete(req);
-    default:
-      return NextResponse.json(
-        { error: "M�todo n?o permitido" },
-        { status: 405 },
-      );
-  }
-}
-
-async function handlePost(req: Request, userId: string) {
+// 📌 GET - Busca tratamentos ou um tratamento específico por ID
+export async function GET(req: Request) {
   try {
-    const { nome, profissionalId } = await req.json();
-    const novoTratamento = await db.tratamento.create({
-      data: { nome, profissionalId, userId },
-    });
-    return NextResponse.json(novoTratamento);
+    const url = new URL(req.url);
+    const tratamentoId = url.searchParams.get("id");
+
+    if (tratamentoId) {
+      const tratamento = await db.tratamento.findUnique({
+        where: { id: tratamentoId },
+      });
+
+      if (!tratamento) {
+        return NextResponse.json(
+          { error: "Tratamento não encontrado" },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json(tratamento);
+    }
+
+    const tratamentos = await db.tratamento.findMany();
+    return NextResponse.json(tratamentos);
   } catch (error) {
+    console.error("Erro ao buscar tratamentos:", error);
     return NextResponse.json(
+      { error: "Erro interno do servidor" },
       { status: 500 },
     );
   }
 }
 
-async function handleGet(req: Request) {
-  const url = new URL(req.url);
-  const tratamentoId = url.searchParams.get("id");
+// 📌 POST - Cria um novo tratamento
+export async function POST(req: Request) {
+  try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
-  if (tratamentoId) {
-    try {
-      const tratamento = await db.tratamento.findUnique({
-        where: { id: tratamentoId },
-      });
-      if (!tratamento) {
-        return NextResponse.json(
-          { error: "Tratamento n?o encontrado" },
-          { status: 404 },
-        );
-      }
-      return NextResponse.json(tratamento);
-    } catch (error) {
+    if (!token || !token.sub) {
       return NextResponse.json(
-        { status: 500 },
+        { error: "Usuário não autorizado" },
+        { status: 401 },
       );
     }
-  } else {
-    try {
-      const tratamentos = await db.tratamento.findMany();
-      return NextResponse.json(tratamentos);
-    } catch (error) {
+
+    const { nome, profissionalId } = await req.json();
+
+    if (!nome || !profissionalId) {
       return NextResponse.json(
-        { status: 500 },
+        { error: "Nome e profissional são obrigatórios" },
+        { status: 400 },
       );
     }
+
+    const novoTratamento = await db.tratamento.create({
+      data: {
+        nome,
+        profissionalId,
+        userId: token.sub, // ✅ Usa o ID do usuário do token JWT
+      },
+    });
+
+    return NextResponse.json(novoTratamento, { status: 201 });
+  } catch (error) {
+    console.error("Erro ao criar tratamento:", error);
+    return NextResponse.json(
+      { error: "Erro ao criar tratamento" },
+      { status: 500 },
+    );
   }
 }
-
-async function handlePatch(req: Request) {
+// 📌 PATCH - Atualiza um tratamento existente
+export async function PATCH(req: Request) {
   try {
     const { id, nome } = await req.json();
+
+    if (!id || !nome) {
+      return NextResponse.json(
+        { error: "ID e novo nome são obrigatórios" },
+        { status: 400 },
+      );
+    }
+
     const tratamentoAtualizado = await db.tratamento.update({
       where: { id },
       data: { nome },
     });
+
     return NextResponse.json(tratamentoAtualizado);
   } catch (error) {
+    console.error("Erro ao atualizar tratamento:", error);
     return NextResponse.json(
+      { error: "Erro ao atualizar tratamento" },
       { status: 500 },
     );
   }
 }
 
-async function handleDelete(req: Request) {
-  const url = new URL(req.url);
-  const tratamentoId = url.searchParams.get("id");
-
-  if (!tratamentoId) {
-    return NextResponse.json(
-      { error: "ID do tratamento � necess�rio" },
-      { status: 400 },
-    );
-  }
-
+// 📌 DELETE - Remove um tratamento pelo ID
+export async function DELETE(req: Request) {
   try {
+    const url = new URL(req.url);
+    const tratamentoId = url.searchParams.get("id");
+
+    if (!tratamentoId) {
+      return NextResponse.json(
+        { error: "ID do tratamento é obrigatório" },
+        { status: 400 },
+      );
+    }
+
     await db.tratamento.delete({ where: { id: tratamentoId } });
+
     return NextResponse.json({ message: "Tratamento deletado com sucesso!" });
   } catch (error) {
+    console.error("Erro ao deletar tratamento:", error);
     return NextResponse.json(
+      { error: "Erro ao deletar tratamento" },
       { status: 500 },
     );
   }
 }
-
-export default handler;

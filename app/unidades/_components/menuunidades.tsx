@@ -19,7 +19,7 @@ import {
 import { Unidade } from "../../_components/types";
 
 interface MenuUnidadesProps {
-  onUnidadeSelect: (unidade: Unidade) => void; // Função para selecionar a unidade
+  onUnidadeSelect: (unidade: Unidade) => void; // FunĂ§ĂŁo para selecionar a unidade
   selectedUnidade: Unidade | null;
 }
 
@@ -51,14 +51,14 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
   };
 
   return (
-    <div>
+    <div className="w-full">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[200px] justify-between"
+            className="w-full justify-between"
           >
             {selectedUnidade
               ? selectedUnidade.nome
@@ -67,7 +67,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent className="w-[200px] p-0">
+        <PopoverContent className="w-full p-0">
           <Command>
             <CommandInput placeholder="Buscar unidade..." />
             <CommandList>
@@ -93,7 +93,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
                   key="add-new-unit"
                   value="add-new-unit"
                   onSelect={() => {
-                    window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pĂˇgina de adicionar unidade
+                    window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pÄ‚Ë‡gina de adicionar unidade
                   }}
                 >
                   <Check className="mr-2 h-4 w-4 opacity-0" />
