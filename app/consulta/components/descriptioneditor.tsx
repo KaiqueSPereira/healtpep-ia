@@ -28,7 +28,9 @@ interface DescriptionEditorProps {
 }
 
 const formSchema = z.object({
-  queixas: z.string().min(1, { message: "A descrição não pode estar vazia" }),
+  queixas: z
+    .string()
+    .min(1, { message: "A descriĂ§ĂŁo nĂŁo pode estar vazia" }),
 });
 
 const DescriptionEditor = ({
@@ -51,14 +53,14 @@ const DescriptionEditor = ({
       });
 
       if (response.ok) {
-        alert("Descrição salva com sucesso!");
+        alert("registro salvo com sucesso!");
         setIsDialogOpen(false);
         router.refresh();
       } else {
-        alert("Erro ao salvar a descrição. Tente novamente.");
+        alert("Erro ao salvar o registro. Tente novamente.");
       }
     } catch {
-      alert("Erro ao salvar a descrição. Tente novamente.");
+      alert("Erro ao salvar o registro. Tente novamente.");
     }
   };
 
@@ -67,13 +69,13 @@ const DescriptionEditor = ({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogTrigger asChild>
           <Button variant="secondary" className="mt-3">
-            {descricao ? "Editar Descrição" : "Fazer anotação"}
+            {descricao ? "Editar Registro" : "Fazer anotação"}
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {descricao ? "Editar Descrição" : "Fazer anotação"}
+              {descricao ? "Editar Registro" : "Fazer anotação"}
             </DialogTitle>
           </DialogHeader>
           <Form {...form}>
@@ -85,7 +87,7 @@ const DescriptionEditor = ({
                   <FormItem className="w-full">
                     <FormControl>
                       <Textarea
-                        placeholder="Escreva aqui as informações sobre a consulta..."
+                        placeholder="Escreva aqui as dados sobre a consulta..."
                         {...field}
                         className="mt-2 w-full"
                       />

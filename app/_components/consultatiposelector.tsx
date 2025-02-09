@@ -18,7 +18,7 @@ const ConsultaTipoSelector: React.FC<ConsultaTipoSelectorProps> = ({
     <RadioGroup
       value={selectedTipo}
       onValueChange={onTipoSelect}
-      className="flex flex-col gap-3"
+      className="flex-col gap-3 grid grid-cols-2"
     >
       {consultaTipos.map((tipo) => (
         <div key={tipo} className="flex items-center space-x-2">

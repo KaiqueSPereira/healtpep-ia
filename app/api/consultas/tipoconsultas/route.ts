@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 
 // Definindo as opções do ENUM diretamente no código
-const consultaTiposEnum = ["Rotina", "Exame", "Emergencia"];
+const consultaTiposEnum = ["Exame", "Emergencia","Retorno","Rotina","Tratamento" ];
 
 // Exportando a função para o método GET
 export async function GET() {

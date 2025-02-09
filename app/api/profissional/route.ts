@@ -4,10 +4,10 @@ import { z } from "zod"; // Biblioteca de validação (opcional, mas recomendada
 
 // Definição do schema para validação dos dados
 const profissionalSchema = z.object({
-  nome: z.string().min(1, "O nome é obrigatório."),
-  especialidade: z.string().min(1, "A especialidade é obrigatória."),
-  NumClasse: z.string().min(1, "O número de classe é obrigatório."),
-  unidadeId: z.string().uuid("ID da unidade inválido."),
+  nome: z.string().min(1, "O nome e obrigatorio."),
+  especialidade: z.string().min(1, "A especialidade e obrigatoria."),
+  NumClasse: z.string().min(1, "O numero de classe e obrigatorio."),
+  unidadeId: z.string().uuid("ID da unidade invalido."),
 });
 
 // Método GET (Buscar profissionais)
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
       if (!profissional) {
         return NextResponse.json(
-          { error: "Especialista não encontrado" },
+          { error: "Especialista n?o encontrado" },
           { status: 404 },
         );
       }
@@ -74,8 +74,9 @@ export async function POST(req: Request) {
     return NextResponse.json(novoprofissional);
   } catch (error) {
     console.error("Erro ao cadastrar o profissional:", error);
+    const errorMessage = (error as Error).message || "Falha ao cadastrar o profissional";
     return NextResponse.json(
-      { error: error.message || "Falha ao cadastrar o profissional" },
+      { error: errorMessage },
       { status: 400 },
     );
   }

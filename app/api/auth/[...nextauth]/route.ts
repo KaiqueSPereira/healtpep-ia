@@ -15,25 +15,25 @@ const handler = NextAuth({
   ],
   secret: process.env.NEXTAUTH_SECRET,
   session: {
-    strategy: "jwt", // Usando JWT para sessões
+    strategy: "jwt", // Usando JWT para sessĂµes
   },
   jwt: {
     secret: process.env.NEXTAUTH_SECRET, // Segredo para tokens JWT
   },
   callbacks: {
-    async session({ session, token }) {
-      // Adiciona o ID do usuário na sessão
-      if (token.id) {
-        session.user.id = token.id;
-      }
-      return session;
-    },
     async jwt({ token, user }) {
-      // Adiciona o ID do usuário no token JWT
+      // Adiciona o ID do usuĂˇrio no token JWT
       if (user) {
         token.id = user.id;
       }
       return token;
+    },
+    async session({ session, token }) {
+      // Adiciona o ID do usuĂˇrio na sessĂŁo
+      if (token.id) {
+        session.user.id = token.id;
+      }
+      return session;
     },
   },
   logger: {

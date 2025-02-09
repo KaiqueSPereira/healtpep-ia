@@ -37,7 +37,7 @@ const ConsultaPage = async ({ params }: ConsultaPageProps) => {
   if (!consultas) {
     return (
       <div className="p-8 text-center">
-        <h1>Consulta n?o encontrada</h1>
+        <h1>Consulta nao encontrada</h1>
         <Link href="/">
           <Button variant="secondary">Voltar para Home</Button>
         </Link>
@@ -76,7 +76,7 @@ const ConsultaPage = async ({ params }: ConsultaPageProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Anotaç?es sobre a consulta</CardTitle>
+            <CardTitle>Registros sobre a consulta</CardTitle>
           </CardHeader>
           <CardContent>
             <p>{consultas.queixas || "Nenhuma queixa registrada"}</p>

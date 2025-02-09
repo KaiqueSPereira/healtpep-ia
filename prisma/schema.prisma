@@ -103,9 +103,11 @@ model Consultas {
 }
 
 enum Consultatype {
-  Rotina
   Exame
   Emergencia
+  Rotina
+  Retorno
+  Tratamento
 }
 
 model Endereco {

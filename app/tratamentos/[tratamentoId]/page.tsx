@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // 🔹 Importando o router para redirecionamento
+import { useRouter } from "next/navigation"; // đź”ą Importando o router para redirecionamento
 import { useSession, signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
@@ -27,7 +27,7 @@ type TratamentoForm = {
 
 const NewTratamento: React.FC = () => {
   const { data: session, status } = useSession();
-  const router = useRouter(); // 🔹 Criando o objeto router para navegação
+  const router = useRouter();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
@@ -105,7 +105,7 @@ const NewTratamento: React.FC = () => {
       form.reset();
       setSelectedProfissional(null);
 
-      // 🔹 Redireciona para a tela inicial após 1 segundo
+      // đź”ą Redireciona para a tela inicial apĂłs 1 segundo
       setTimeout(() => {
         router.push("/");
       }, 1000);
@@ -154,7 +154,7 @@ const NewTratamento: React.FC = () => {
                       />
                     ) : (
                       <p className="text-gray-500">
-                        Nenhum profissional disponível.
+                        Nenhum profissional disponĂ­vel.
                       </p>
                     )}
                   </FormControl>

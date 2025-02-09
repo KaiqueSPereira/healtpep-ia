@@ -1,3 +1,4 @@
+
 export interface Unidade {
   id: string;
   nome: string;
@@ -16,4 +17,11 @@ export interface Endereco {
   id: string;
   nome: string;
   bairro: string;
+}
+
+export interface Tratamento {
+  id: string;
+  nome: string;
+  profissionalId: string;
+  userId: string;
 }

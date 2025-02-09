@@ -26,62 +26,27 @@ import {
   FormMessage,
 } from "@/app/_components/ui/form";
 import { Textarea } from "@/app/_components/ui/textarea";
-import { set } from "date-fns";
 import { useSession } from "next-auth/react";
 import { toast } from "@/app/_hooks/use-toast";
-import { createConsulta } from "@/app/_actions/create-consulta";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
-
-// Lista de horários disponíveis
-const TIME_LIST = [
-  "07:00",
-  "07:30",
-  "08:00",
-  "08:30",
-  "09:00",
-  "09:30",
-  "10:00",
-  "10:30",
-  "11:00",
-  "11:30",
-  "12:00",
-  "12:30",
-  "13:00",
-  "13:30",
-  "14:00",
-  "14:30",
-  "15:00",
-  "15:30",
-  "16:00",
-  "16:30",
-  "17:00",
-  "17:30",
-  "18:00",
-  "18:30",
-  "19:00",
-  "19:30",
-];
+import { createConsulta } from "@/app/_actions/create-consulta";
+import { set } from "date-fns";
 
 const NovaConsulta = () => {
   const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
-  const [selectedTime, setSelectedTime] = useState<string | undefined>();
+  const [manualTime, setManualTime] = useState<string>("");
   const [consultaTipos, setConsultaTipos] = useState<string[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<string | undefined>();
-  const [inputValue, setInputValue] = useState<string>("");
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
-  const [loading, setLoading] = useState(false);
-  const form = useForm({ defaultValues: { queixas: "" } });
-
-  // Estado para tratamentos do usuário logado
   const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
   const [selectedTratamento, setSelectedTratamento] =
     useState<Tratamento | null>(null);
+  const form = useForm({ defaultValues: { queixas: "" } });
 
-  // Buscar tipos de consulta
   useEffect(() => {
     const fetchConsultaTipos = async () => {
       try {
@@ -89,12 +54,12 @@ const NovaConsulta = () => {
         if (!response.ok)
           throw new Error("Erro ao buscar os tipos de consulta");
         const tipos = await response.json();
-        setConsultaTipos(tipos);
+        setConsultaTipos(Array.isArray(tipos) ? tipos : []);
       } catch (error) {
         console.error("Erro ao buscar os tipos de consulta:", error);
         toast({
           title: "Erro ao carregar tipos de consulta.",
-          status: "error",
+          variant: "destructive",
         });
       }
     };
@@ -102,7 +67,6 @@ const NovaConsulta = () => {
     fetchConsultaTipos();
   }, []);
 
-  // Buscar profissionais da unidade selecionada
   useEffect(() => {
     const fetchProfissionais = async () => {
       if (!selectedUnidade?.id) {
@@ -115,38 +79,80 @@ const NovaConsulta = () => {
           `/api/unidadesaude?id=${encodeURIComponent(selectedUnidade.id)}`,
         );
         if (!response.ok) throw new Error("Erro ao buscar os dados da unidade");
-
         const unidade = await response.json();
         setProfissionais(unidade.profissionais || []);
       } catch (error) {
         console.error("Erro ao buscar os profissionais:", error);
-        toast({ title: "Erro ao carregar profissionais.", status: "error" });
+        toast({
+          title: "Erro ao carregar profissionais.",
+          variant: "destructive",
+        });
       }
     };
 
     fetchProfissionais();
   }, [selectedUnidade]);
 
-  // Buscar tratamentos do usuário logado
-  useEffect(() => {
-    const fetchTratamentos = async () => {
-      if (!session?.user?.id) return;
+   useEffect(() => {
+     const fetchTratamentos = async () => {
+       if (!session?.user?.id) return;
 
-      try {
-        const response = await fetch(
-          `/api/tratamento?userId=${session.user.id}`,
-        );
-        if (!response.ok) throw new Error("Erro ao buscar tratamentos");
+       try {
+         const response = await fetch(
+           `/api/tratamento?userId=${session.user.id}`,
+         );
+         if (!response.ok) throw new Error("Erro ao buscar tratamentos");
 
-        const data = await response.json();
-        setTratamentos(data || []); // Garantindo que sempre será um array
-      } catch (error) {
-        console.error("Erro ao buscar tratamentos:", error);
-      }
-    };
+         const data = await response.json();
+         setTratamentos(data || []); // Garantindo que sempre será um array
+       } catch (error) {
+         console.error("Erro ao buscar tratamentos:", error);
+       }
+     };
 
-    fetchTratamentos();
-  }, [session?.user?.id]);
+     fetchTratamentos();
+   }, [session?.user?.id]);
+
+
+
+  const handleSaveConsulta = async() => {
+    if (!selectedDay || !manualTime) return;
+    const hour = Number(manualTime.split(":")[0]);
+    const minute = Number(manualTime.split(":")[1]);
+    const newDate = set( selectedDay, {
+      minutes: minute,
+      hours: hour,
+    })
+    await createConsulta({
+      userId: session?.user?.id || "",
+      data: newDate,
+      tipo: selectedTipo || "",
+      unidadeId: selectedUnidade?.id || "",
+      profissionalId: selectedProfissional?.id || "",
+      tratamento: selectedTratamento?.id || "",
+      queixas: form.getValues("queixas"),
+    });
+    if (
+      !selectedDay ||
+      !manualTime ||
+      !selectedTipo ||
+      !selectedUnidade ||
+      !selectedProfissional ||
+      !selectedTratamento
+    ) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos antes de salvar.",
+        variant: "error",
+      });
+      return;
+    }
+    toast({
+      title: "Sucesso",
+      description: "Consulta salva com sucesso!",
+      variant: "success",
+    });
+  };
 
   return (
     <div className="p-2 md:p-5">
@@ -169,32 +175,23 @@ const NovaConsulta = () => {
 
           {selectedDay && (
             <div className="flex flex-col gap-3 p-3 md:p-5">
-              <div className="flex gap-3 overflow-auto">
-                {TIME_LIST.map((time) => (
-                  <Button
-                    key={time}
-                    variant={selectedTime === time ? "default" : "outline"}
-                    onClick={() => setSelectedTime(time)}
-                  >
-                    {time}
-                  </Button>
-                ))}
-              </div>
               <input
                 type="time"
                 className="rounded border bg-black p-2 text-white"
-                onChange={(e) => setInputValue(e.target.value)}
-                value={inputValue}
+                onChange={(e) => setManualTime(e.target.value)}
+                value={manualTime}
               />
             </div>
           )}
 
-          {selectedTime && (
-            <ConsultaTipoSelector
-              consultaTipos={consultaTipos}
-              selectedTipo={selectedTipo}
-              onTipoSelect={setSelectedTipo}
-            />
+          {manualTime && (
+            <div className="grid grid-cols-2 gap-4">
+              <ConsultaTipoSelector
+                consultaTipos={consultaTipos}
+                selectedTipo={selectedTipo}
+                onTipoSelect={setSelectedTipo}
+              />
+            </div>
           )}
           {selectedTipo && (
             <MenuUnidades
@@ -209,14 +206,15 @@ const NovaConsulta = () => {
               selectedProfissional={selectedProfissional}
             />
           )}
-
-          {selectedProfissional && (<MenuTratamentos
-            nome=""
-            userId={session?.user?.id || ""}
-            tratamentos={tratamentos}
-            onTratamentoSelect={setSelectedTratamento}
-            selectedTratamento={selectedTratamento}
-          />)}
+          {selectedProfissional && (
+            <MenuTratamentos
+              nome=""
+              userId={session?.user?.id || ""}
+              tratamentos={tratamentos}
+              onTratamentoSelect={setSelectedTratamento}
+              selectedTratamento={selectedTratamento}
+            />
+          )}
 
           {selectedProfissional && (
             <Form {...form}>
@@ -244,10 +242,7 @@ const NovaConsulta = () => {
           {selectedProfissional && (
             <SheetFooter>
               <SheetClose asChild>
-                <Button
-                  className="w-full"
-                  onClick={() => handleSaveConsulta(selectedProfissional)}
-                >
+                <Button className="w-full" onClick={handleSaveConsulta}>
                   Salvar
                 </Button>
               </SheetClose>
