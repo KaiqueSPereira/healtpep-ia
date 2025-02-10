@@ -50,7 +50,7 @@ const Home = async () => {
     const dataAgendamento = new Date(agendamento.data);
     // Verifica se a data Ă„â€šĂ‚Â© vĂ„â€šĂ‹â€ˇlida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data invÄ‚Ë‡lida para o agendamento ${agendamento.id}`);
+      console.error(`Data invalida para o agendamento ${agendamento.id}`);
       return false;
     }
     return dataAgendamento >= new Date(); // Verifica se Ă„â€šĂ‚Â© futuro
@@ -60,7 +60,7 @@ const Home = async () => {
     const dataAgendamento = new Date(agendamento.data);
     // Verifica se a data Ă„â€šĂ‚Â© vĂ„â€šĂ‹â€ˇlida antes de comparar
     if (isNaN(dataAgendamento)) {
-      console.error(`Data invÄ‚Ë‡lida para o agendamento ${agendamento.id}`);
+      console.error(`Data invalida para o agendamento ${agendamento.id}`);
       return false;
     }
     return dataAgendamento < new Date(); // Verifica se Ă„â€šĂ‚Â© passado
