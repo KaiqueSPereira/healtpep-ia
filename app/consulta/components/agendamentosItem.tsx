@@ -21,7 +21,7 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
   }
 
   const {
-    tipo = "Tipo n?o especificado",
+    tipo = "Tipo não especificado",
     profissional,
     unidade,
     data,
@@ -32,16 +32,16 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   const mes = dataObj
     ? new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj)
-    : "M?s n?o especificado";
+    : "Mês não especificado";
 
-  const dia = dataObj ? dataObj.getDate().toString() : "Dia n?o especificado";
+  const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
 
   const horaFormatada = dataObj
     ? dataObj.toLocaleTimeString("pt-BR", {
         hour: "2-digit",
         minute: "2-digit",
       })
-    : "Hora n?o especificada";
+    : "Hora não especificada";
 
   // Lida com dados opcionais
   const profissionalNome =
@@ -52,7 +52,7 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
     <div className="w-full md:w-auto">
       <Card className="min-w-[280px] max-w-[320px] text-gray-300">
         <CardContent className="flex justify-between p-0">
-          {/* InformaĂ„â€šĂ‚Â§Ă„â€šĂ‚Âµes do agendamento */}
+          {/* Informações do agendamento */}
           <div className="flex flex-col gap-2 py-5 pl-5">
             <h3 className="text-lg font-bold text-red-500">{tipo}</h3>
             <p className="truncate text-sm font-semibold text-gray-300">

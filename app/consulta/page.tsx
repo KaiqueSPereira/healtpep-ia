@@ -1,5 +1,6 @@
-import AgendamentoItem from "../_components/agendamentosItem";
+
 import { db } from "../_lib/prisma";
+import AgendamentoItem from "./components/agendamentosItem";
 
 
 
