@@ -6,17 +6,12 @@ import { Avatar, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
 import {
   Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import Image from "next/image";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import SingInDialog from "./sing-in-dialog";
 const Sidebarbotton = () => {
   const { data } = useSession();
-  const handleloginifgoogleclick = () => signIn("google");
   const handlelogoutclick = () => signOut();
 
   return (
@@ -45,27 +40,7 @@ const Sidebarbotton = () => {
                   <LogInIcon />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="w-[70%]">
-                <DialogHeader>
-                  <DialogTitle>Faça o seu login</DialogTitle>
-                  <DialogDescription>
-                    Conecte-se usando a sua conta Google
-                  </DialogDescription>
-                  <Button
-                    variant="outline"
-                    className="gap-2 font-bold"
-                    onClick={handleloginifgoogleclick}
-                  >
-                    <Image
-                      src="/icons-google.svg"
-                      width={18}
-                      height={18}
-                      alt="Google Icon"
-                    />
-                    Google
-                  </Button>
-                </DialogHeader>
-              </DialogContent>
+              <SingInDialog />
             </Dialog>
           </>
         )}

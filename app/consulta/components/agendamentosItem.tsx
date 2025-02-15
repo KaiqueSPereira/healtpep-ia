@@ -1,6 +1,7 @@
+import { Button } from "@/app/_components/ui/button";
+import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+
 
 interface AgendamentoItemProps {
   consultas: {
@@ -15,7 +16,7 @@ interface AgendamentoItemProps {
 const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
   if (!consultas) {
     return (
-      <p className="text-gray-300">Dados do agendamento n?o encontrados.</p>
+      <p className="text-gray-300">Dados do agendamento não encontrados.</p>
     );
   }
 
@@ -62,8 +63,7 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
               <Link href={`/consulta/${consultas.id}`}>Detalhes</Link>
             </Button>
           </div>
-
-          {/* InformaĂ„â€šĂ‚Â§Ă„â€šĂ‚Âµes de data e hora */}
+          {/* Data e hora do agendamento */}
           <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5">
             <p className="text-sm capitalize text-gray-400">{mes}</p>
             <p className="text-2xl font-bold text-gray-300">{dia}</p>

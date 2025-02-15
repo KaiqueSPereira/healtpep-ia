@@ -14,7 +14,7 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/app/_components/ui/sheet";
-import { ptBR } from "date-fns/locale";
+import {ptBR } from "date-fns/locale";
 import React, { useEffect, useState } from "react";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { useForm } from "react-hook-form";
@@ -31,6 +31,7 @@ import { toast } from "@/app/_hooks/use-toast";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
 import { createConsulta } from "@/app/_actions/create-consulta";
 import { set } from "date-fns";
+
 
 const NovaConsulta = () => {
   const { data: session } = useSession();
@@ -124,7 +125,6 @@ const NovaConsulta = () => {
       hours: hour,
     })
     await createConsulta({
-      userId: session?.user?.id || "",
       data: newDate,
       tipo: selectedTipo || "",
       unidadeId: selectedUnidade?.id || "",
@@ -153,7 +153,7 @@ const NovaConsulta = () => {
       variant: "success",
     });
   };
-
+  
   return (
     <div className="p-2 md:p-5">
       <Sheet>
@@ -250,6 +250,7 @@ const NovaConsulta = () => {
           )}
         </SheetContent>
       </Sheet>
+      
     </div>
   );
 };
