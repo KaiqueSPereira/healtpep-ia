@@ -5,12 +5,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/_components/ui/card";
-import { ChevronLeftIcon, MenuIcon } from "lucide-react";
+import { ChevronLeftIcon} from "lucide-react";
 import Link from "next/link";
 import DescriptionEditor from "../components/descriptioneditor";
 import { db } from "@/app/_lib/prisma";
-import { Sheet, SheetTrigger } from "@/app/_components/ui/sheet";
-import Sidebarbotton from "@/app/_components/sidebar";
 import Header from "@/app/_components/header";
 
 interface ConsultaPageProps {

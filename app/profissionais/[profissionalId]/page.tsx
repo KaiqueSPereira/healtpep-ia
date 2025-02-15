@@ -15,7 +15,7 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
 import Link from "next/link";
-import { Check, ChevronDown, ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -30,6 +30,7 @@ import {
   CommandList,
 } from "@/app/_components/ui/command";
 import { Profissional, Unidade } from "@/app/_components/types";
+import { toast } from "@/app/_hooks/use-toast";
 
 // Tipagem geral para os formulários
 interface FormData {
@@ -72,6 +73,10 @@ const ProfissionalPage = () => {
       setSelectedUnidade(data.unidade);
     } catch (error) {
       console.error("Erro ao buscar profissional:", error);
+      toast({
+        title: "Erro ao buscar profissional.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -84,6 +89,10 @@ const ProfissionalPage = () => {
       setUnidades(data);
     } catch (error) {
       console.error("Erro ao buscar unidades:", error);
+      toast({
+        title: "Erro ao buscar unidades.",
+        variant: "destructive",
+      });
     }
   };
 

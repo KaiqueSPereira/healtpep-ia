@@ -1,6 +1,5 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth"; // Pegando a sessão diretamente
 import { getToken } from "next-auth/jwt";
 
 // 📌 GET - Busca tratamentos ou um tratamento específico por ID
@@ -38,7 +37,7 @@ export async function GET(req: Request) {
 // 📌 POST - Cria um novo tratamento
 export async function POST(req: Request) {
   try {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
 
     if (!token || !token.sub) {
       return NextResponse.json(

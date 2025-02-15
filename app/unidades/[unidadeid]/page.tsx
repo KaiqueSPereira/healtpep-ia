@@ -30,6 +30,7 @@ import {
   CommandList,
 } from "@/app/_components/ui/command";
 import { Endereco } from "@/app/_components/types";
+import { toast } from "@/app/_hooks/use-toast";
 
 // Tipagem para os dados da unidade de saĂşde
 interface Unidade {
@@ -86,12 +87,16 @@ const UnidadePage = () => {
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
-      if (!response.ok) throw new Error("Erro ao buscar endereĂ§os");
+      if (!response.ok) throw new Error("Erro ao buscar endereços");
 
       const data: Endereco[] = await response.json();
       setEnderecos(data);
     } catch (error) {
-      console.error("Erro ao buscar endereĂ§os:", error);
+      console.error("Erro ao buscar endereços", error);
+      toast({
+        title: "Erro ao buscar endereços.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -115,6 +120,10 @@ const UnidadePage = () => {
         console.error("Erro ao criar unidade");
         const errorDetails = await response.json();
         console.error("Detalhes do erro:", errorDetails);
+        toast({
+          title: "Erro ao criar unidade.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Erro ao criar unidade:", error);
@@ -138,6 +147,10 @@ const UnidadePage = () => {
       router.push("/");
     } catch (error) {
       console.error("Erro ao atualizar unidade:", error);
+      toast({
+        title: "Erro ao atualizar unidade.",
+        variant: "destructive",
+      });
     }
   };
 

@@ -16,7 +16,7 @@ export async function PATCH(
       data: { queixas },
     });
     return NextResponse.json(updatedConsulta);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Falha ao atualizar a descriĂ§ĂŁo" },
       { status: 500 },
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
       },
     });
     return NextResponse.json(novaConsulta);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Falha ao criar a consulta" },
       { status: 500 },

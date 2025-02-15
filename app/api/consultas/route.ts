@@ -80,10 +80,16 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json(novaConsulta);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Erro ao salvar a consulta:", error);
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message || "Falha ao salvar a consulta" },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      { error: error.message || "Falha ao salvar a consulta" },
+      { error: "Falha ao salvar a consulta" },
       { status: 400 },
     );
   }

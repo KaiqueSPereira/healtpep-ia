@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState} from "react";
 import { useForm } from "react-hook-form";
 import {
   Dialog,
@@ -19,7 +19,7 @@ import {
   FormMessage,
 } from "@/app/_components/ui/form";
 import { Input } from "@/app/_components/ui/input";
-import { getSession } from "next-auth/react";
+import { toast } from "@/app/_hooks/use-toast";
 
 type EnderecoForm = {
   CEP: string;
@@ -60,12 +60,18 @@ const EnderecoDialog: React.FC = () => {
         throw new Error("Erro ao salvar o endereço.");
       }
 
-      alert("Endereço salvo com sucesso!");
+      toast({
+        title: "Endereço salvo com sucesso!",
+        type: "foreground",
+      })
       form.reset();
       setOpen(false);
     } catch (error) {
       console.error(error);
-      alert("Ocorreu um erro ao salvar o endereço.");
+      toast({
+        title: "Erro ao salvar o endereço.",
+        type: "foreground",
+      });
     }
   };
 
@@ -95,7 +101,7 @@ const EnderecoDialog: React.FC = () => {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="primary">Adicionar Novo Endereço</Button>
+        <Button variant="default">Adicionar Novo Endereço</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -208,7 +214,7 @@ const EnderecoDialog: React.FC = () => {
               <Button variant="secondary" onClick={() => setOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="default">
                 Salvar
               </Button>
             </DialogFooter>

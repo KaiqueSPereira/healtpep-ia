@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
@@ -14,6 +14,7 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
+import { toast } from "@/app/_hooks/use-toast";
 
 type EnderecoForm = {
   CEP: string;
@@ -52,7 +53,11 @@ const EnderecoDialog: React.FC = () => {
   // Função para salvar o endereço
   const handleSubmit = async (data: EnderecoForm) => {
     if (!session?.user?.id) {
-      alert("Usuário não autenticado.");
+      console.error("Usuário não autenticado.");
+      toast({
+        title: "Usuário não autenticado.",
+        type: "foreground",
+      });
       return;
     }
 
@@ -76,11 +81,17 @@ const EnderecoDialog: React.FC = () => {
         throw new Error(error.error || "Erro ao salvar o endereço.");
       }
 
-      alert("Endereço salvo com sucesso!");
+      toast({
+        title: "Endereço salvo com sucesso!",
+        type: "foreground",
+      });
       form.reset();
     } catch (error) {
       console.error("Erro ao salvar o endereço:", error);
-      alert(error.message || "Ocorreu um erro ao salvar o endereço.");
+      toast({
+        title: "Erro ao salvar o endereço",
+        type: "foreground",
+      });
     }
   };
 
@@ -102,7 +113,10 @@ const EnderecoDialog: React.FC = () => {
         })
         .catch((error) => {
           console.error("Erro ao consultar o CEP:", error);
-          alert("Erro ao consultar o CEP.");
+          toast({
+            title: "Erro ao consultar o CEP",
+            type: "foreground",
+          });
         });
     }
   };
@@ -222,7 +236,7 @@ const EnderecoDialog: React.FC = () => {
                 </div>
               </div>
               <div className="mt-4 flex justify-center space-x-4">
-                <Button type="submit" variant="primary">
+                <Button type="submit" variant="default">
                   Salvar
                 </Button>
               </div>
