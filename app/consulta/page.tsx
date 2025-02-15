@@ -1,4 +1,5 @@
 
+import { Consultatype } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
 
@@ -84,7 +85,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
           { queixas: { startsWith: search, mode: "insensitive" } }, // Alternativa: startsWith
           { tratamento: { endsWith: search, mode: "insensitive" } }, // Alternativa: endsWith
           { tipodeexame: { equals: search, mode: "insensitive" } }, // Alternativa: equals
-          { tipo: { contains: search, mode: "insensitive" } }, // Voltar ao contains se necessário
+          { tipo: { equals: search as Consultatype } }, // Voltar ao equals se necessário
           {
             profissional: { nome: { startsWith: search, mode: "insensitive" } },
           }, // Alternativa: startsWith
@@ -102,7 +103,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
       <div className="grid grid-cols-3 gap-4">
         {consultas.length > 0 ? (
           consultas.map((consulta) => (
-            <AgendamentoItem key={consulta.id} consultas={consulta} />
+            <AgendamentoItem key={consulta.id} consultas={{ ...consulta, data: consulta.data.toISOString() }} />
           ))
         ) : (
           <p>Nenhum resultado encontrado.</p>

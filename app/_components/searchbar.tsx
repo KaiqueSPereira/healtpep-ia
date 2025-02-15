@@ -12,7 +12,7 @@ const formSchema = z.object({
   search: z.string().min(1, { message: "Digite o que deseja buscar" }).optional(),
 });
 
-const search = () => {
+const Search = () => {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -22,7 +22,7 @@ const search = () => {
 
   const router = useRouter();
   const handleSearch = (data: z.infer<typeof formSchema>) => {
-    router.push("/consulta?search=${data.search}");
+    router.push(`/consulta?search=${data.search}`);
   };
 
   return (
@@ -49,8 +49,7 @@ const search = () => {
         />
         <Button
           size="icon"
-          variant="primary"
-          onClick={handleSearch}
+          variant="default"
           type="submit"
         >
           <SearchIcon />
@@ -61,4 +60,4 @@ const search = () => {
 };
 <></>;
 
-export default search;
+export default Search;
