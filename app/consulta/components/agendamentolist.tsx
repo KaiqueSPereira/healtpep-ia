@@ -3,13 +3,23 @@ import { useState, useEffect } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
 
+interface Agendamento {
+  id: string;
+  data: string;
+  tipo: string;
+  profissional?: { nome: string };
+  unidade?: {
+    nome: string;
+  };
+}
+
 interface AgendamentosListProps {
   userId: string;
 }
 
 const AgendamentosList = ({ userId }: AgendamentosListProps) => {
-  const [agendamentosFuturos, setAgendamentosFuturos] = useState<any[]>([]);
-  const [agendamentosPassados, setAgendamentosPassados] = useState<any[]>([]);
+  const [agendamentosFuturos, setAgendamentosFuturos] = useState<Agendamento[]>([]);
+  const [agendamentosPassados, setAgendamentosPassados] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,10 +33,10 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         const agora = new Date();
 
         const futuros = agendamentos.filter(
-          (agendamento) => new Date(agendamento.data) >= agora,
+          (agendamento: Agendamento) => new Date(agendamento.data) >= agora,
         );
         const passados = agendamentos.filter(
-          (agendamento) => new Date(agendamento.data) < agora,
+          (agendamento: Agendamento) => new Date(agendamento.data) < agora,
         );
 
         setAgendamentosFuturos(futuros);

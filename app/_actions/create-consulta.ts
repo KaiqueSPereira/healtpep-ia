@@ -1,9 +1,9 @@
 "use server";
 
-import { Consultatype } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../_lib/auth";
+import { Consultatype } from "@prisma/client";
 
 
 interface createConsultaParams {
@@ -11,7 +11,7 @@ interface createConsultaParams {
     data: Date;
     tratamento: string;
     tipodeexame: string;
-    tipo: string;
+    tipo: Consultatype;
     profissionalId: string;
     unidadeId: string;
 }
@@ -23,7 +23,7 @@ export const createConsulta = async (params: createConsultaParams) => {
     }
     
     await db.consultas.create({
-        data: {...params, userId: (user.user as any).id}
+        data: {...params, userId: (user.user as { id: string }).id}
     });
 
         }

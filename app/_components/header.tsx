@@ -11,7 +11,6 @@ const Header = () => {
     <Card>
       <CardContent className="flex flex-row items-center justify-between p-4">
         <Image src="/iconprontuario.png" alt="icon" width={80} height={80} />
-        <h1 className="text-xl font-bold">Health Pep</h1>
         <Sheet>
           <SheetTrigger asChild>
             <Button size="icon" variant="outline">

@@ -15,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="pt-br" className="dark">
       <body className="font-sans">
+        <link rel="icon" href="/iconprontuario.png" />
         <AuthProvider>{children}</AuthProvider>
         <Toaster />
       </body>

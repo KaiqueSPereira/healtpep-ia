@@ -29,8 +29,8 @@ import { Textarea } from "@/app/_components/ui/textarea";
 import { useSession } from "next-auth/react";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
-import { createConsulta } from "@/app/_actions/create-consulta";
 import { set } from "date-fns";
+import { Consultatype } from "@prisma/client";
 
 
 const NovaConsulta = () => {
@@ -38,7 +38,8 @@ const NovaConsulta = () => {
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
   const [consultaTipos, setConsultaTipos] = useState<string[]>([]);
-  const [selectedTipo, setSelectedTipo] = useState<string | undefined>();
+  
+  const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
@@ -120,18 +121,18 @@ const NovaConsulta = () => {
     if (!selectedDay || !manualTime) return;
     const hour = Number(manualTime.split(":")[0]);
     const minute = Number(manualTime.split(":")[1]);
-    const newDate = set( selectedDay, {
+    const newDate = set(selectedDay, {
       minutes: minute,
       hours: hour,
-    })
-    await createConsulta({
+    });
+    const consultaData = {
+      tipo: selectedTipo as Consultatype,
       data: newDate,
-      tipo: selectedTipo || "",
       unidadeId: selectedUnidade?.id || "",
       profissionalId: selectedProfissional?.id || "",
       tratamento: selectedTratamento?.id || "",
       queixas: form.getValues("queixas"),
-    });
+    };
     if (
       !selectedDay ||
       !manualTime ||
@@ -143,15 +144,34 @@ const NovaConsulta = () => {
       toast({
         title: "Erro",
         description: "Preencha todos os campos antes de salvar.",
-        variant: "error",
+        variant: "destructive",
       });
       return;
     }
-    toast({
-      title: "Sucesso",
-      description: "Consulta salva com sucesso!",
-      variant: "success",
-    });
+    try {
+      const response = await fetch("/api/consultas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(consultaData),
+      });
+
+      if (!response.ok) throw new Error("Erro ao salvar a consulta");
+
+      toast({
+        title: "Sucesso",
+        description: "Consulta salva com sucesso!",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error("Erro ao salvar a consulta:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar a consulta.",
+        variant: "destructive",
+      });
+    }
   };
   
   return (
@@ -208,8 +228,6 @@ const NovaConsulta = () => {
           )}
           {selectedProfissional && (
             <MenuTratamentos
-              nome=""
-              userId={session?.user?.id || ""}
               tratamentos={tratamentos}
               onTratamentoSelect={setSelectedTratamento}
               selectedTratamento={selectedTratamento}
