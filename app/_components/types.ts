@@ -11,6 +11,7 @@ export interface Profissional {
   nome: string;
   especialidade: string;
   NumClasse: string;
+  unidades: Unidade[];
 }
 
 export interface Endereco {

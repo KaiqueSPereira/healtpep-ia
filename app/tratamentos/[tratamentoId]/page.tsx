@@ -71,7 +71,7 @@ const NewTratamento: React.FC = () => {
       console.error("Usuário não autenticado.");
       toast({
         title: "Usuário não autenticado.",
-        status: "error",
+        variant: "destructive",
       });
       return;
     }
@@ -99,7 +99,7 @@ const NewTratamento: React.FC = () => {
       console.log("Tratamento salvo com sucesso.");
       toast({
         title: "Tratamento salvo com sucesso.",
-        status: "success",
+        variant: "default",
       });
 
       form.reset();
@@ -113,7 +113,7 @@ const NewTratamento: React.FC = () => {
       console.error("Erro ao salvar o tratamento:", error);
       toast({
         title: "Ocorreu um erro ao salvar o tratamento.",
-        status: "error",
+        variant: "destructive",
       });
     }
   };
@@ -163,10 +163,8 @@ const NewTratamento: React.FC = () => {
               <div className="mt-4 flex justify-center space-x-4">
                 <Button
                   type="submit"
-                  variant="primary"
-                  disabled={status === "loading"}
+                  variant="default"
                 >
-                  {status === "loading" ? "Salvando..." : "Salvar"}
                 </Button>
               </div>
             </form>
