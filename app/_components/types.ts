@@ -35,7 +35,7 @@ export interface Agendamento {
 }
 
 export interface AgendamentoItemProps {
-  consultas: Agendamento[];
-  profissional?: {nome: string} 
-  unidade?: string; 
+  consultas: Agendamento; 
+  profissional: string; 
+  unidade: string; 
 }
