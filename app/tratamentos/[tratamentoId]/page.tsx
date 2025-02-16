@@ -154,7 +154,7 @@ const NewTratamento: React.FC = () => {
                       />
                     ) : (
                       <p className="text-gray-500">
-                        Nenhum profissional disponĂ­vel.
+                        Nenhum profissional disponí­vel.
                       </p>
                     )}
                   </FormControl>

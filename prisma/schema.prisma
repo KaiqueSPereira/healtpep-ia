@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,22 +6,22 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 model User {
   id            String          @id @default(cuid())
   name          String?
   email         String          @unique
   emailVerified DateTime?
   image         String?
-  CNS           BigInt?             @unique
+  CNS           BigInt?         @unique
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
   accounts      Account[]
-  sessions      Session[]
+  Authenticator Authenticator[]
   consultas     Consultas[]
   endereco      Endereco[]
+  sessions      Session[]
   tratamentos   Tratamento[]
-  Authenticator Authenticator[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Account {
@@ -42,11 +36,9 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([provider, providerAccountId])
 }
@@ -55,10 +47,9 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model VerificationToken {
@@ -78,93 +69,84 @@ model Authenticator {
   credentialDeviceType String
   credentialBackedUp   Boolean
   transports           String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, credentialID])
 }
 
 model Consultas {
-  id              String          @id @default(uuid())
-  data            DateTime
-  queixas         String
-  tratamento      String?
-  tipodeexame     String?
-  tipo            Consultatype
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  userId          String
-  profissionalId  String
-  unidadeId       String?
-
-  usuario         User            @relation(fields: [userId], references: [id])
-  profissional    Profissional    @relation(fields: [profissionalId], references: [id])
-  unidade         UnidadeDeSaude? @relation(fields: [unidadeId], references: [id], onDelete: SetNull)
-}
-
-enum Consultatype {
-  Exame
-  Emergencia
-  Rotina
-  Retorno
-  Tratamento
+  id             String          @id @default(uuid())
+  data           DateTime
+  queixas        String
+  tratamento     String?
+  tipodeexame    String?
+  tipo           Consultatype
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  userId         String
+  profissionalId String
+  unidadeId      String?
+  profissional   Profissional    @relation(fields: [profissionalId], references: [id])
+  unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
+  usuario        User            @relation(fields: [userId], references: [id])
 }
 
 model Endereco {
-  id        String   @id @default(uuid())
-  CEP       String
-  numero    Int
-  rua       String
-  bairro    String
-  municipio String
-  UF        String
-  nome      String
-  userId    String?
-  unidadeId String?
-
-  usuario   User?            @relation(fields: [userId], references: [id])
-   unidadeSaude  UnidadeDeSaude? // Relacionamento inverso (1:1)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String          @id @default(uuid())
+  CEP          String
+  numero       Int
+  rua          String
+  bairro       String
+  municipio    String
+  UF           String
+  nome         String
+  userId       String?
+  unidadeId    String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  usuario      User?           @relation(fields: [userId], references: [id])
+  unidadeSaude UnidadeDeSaude?
 }
 
 model Profissional {
-  id            String          @id @default(uuid())
+  id            String           @id @default(uuid())
   nome          String
   especialidade String
-  NumClasse     String          @unique
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  
-  tratamentos   Tratamento[]    @relation("ProfissionalTratamentos")
+  NumClasse     String           @unique
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   consultas     Consultas[]
+  tratamentos   Tratamento[]     @relation("ProfissionalTratamentos")
   unidades      UnidadeDeSaude[] @relation("ProfissionalUnidades")
 }
 
 model Tratamento {
-  id            String         @id @default(uuid())
-  nome          String
+  id             String       @id @default(uuid())
+  nome           String
   profissionalId String
-  userId        String
-
-  profissional  Profissional   @relation(fields: [profissionalId], references: [id], name: "ProfissionalTratamentos")
-  usuario       User           @relation(fields: [userId], references: [id])
-
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  userId         String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  profissional   Profissional @relation("ProfissionalTratamentos", fields: [profissionalId], references: [id])
+  usuario        User         @relation(fields: [userId], references: [id])
 }
 
 model UnidadeDeSaude {
-  id            String          @id @default(uuid())
+  id            String         @id @default(uuid())
   nome          String
   tipo          String?
- enderecoId    String?         @unique // Cada unidade tem um único endereço
-  
-  endereco      Endereco?       @relation(fields: [enderecoId], references: [id])
+  enderecoId    String?        @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   consultas     Consultas[]
+  endereco      Endereco?      @relation(fields: [enderecoId], references: [id])
   profissionais Profissional[] @relation("ProfissionalUnidades")
+}
 
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+enum Consultatype {
+  Rotina
+  Exame
+  Emergencia
+  Retorno
+  Tratamento
 }
