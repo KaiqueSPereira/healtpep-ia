@@ -54,13 +54,6 @@ const ProfissionalPage = () => {
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  useEffect(() => {
-    if (profissionalid) {
-      fetchProfissionalById(profissionalid);
-    }
-    fetchUnidades();
-  }, [profissionalid]);
-
   const fetchProfissionalById = async (profissionalid: string) => {
     try {
       const response = await fetch(`/api/profissional/${profissionalid}`);
@@ -79,6 +72,14 @@ const ProfissionalPage = () => {
       });
     }
   };
+
+  useEffect(() => {
+    if (profissionalid) {
+      fetchProfissionalById(profissionalid);
+    }
+    fetchUnidades();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profissionalid]);
 
   const fetchUnidades = async () => {
     try {

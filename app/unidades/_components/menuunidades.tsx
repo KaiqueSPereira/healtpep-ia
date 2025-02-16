@@ -38,8 +38,12 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
         }
         const data: Unidade[] = await res.json();
         setUnidades(data);
-      } catch (err: any) {
-        console.error("Erro:", err.message);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          console.error("Erro:", err.message);
+        } else {
+          console.error("Erro desconhecido:", err);
+        }
       }
     };
     fetchUnidades();

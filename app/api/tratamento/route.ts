@@ -37,6 +37,7 @@ export async function GET(req: Request) {
 // 📌 POST - Cria um novo tratamento
 export async function POST(req: Request) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
 
     if (!token || !token.sub) {

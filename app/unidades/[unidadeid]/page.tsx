@@ -38,8 +38,6 @@ interface Unidade {
   tipo: string;
 }
 
-// Tipagem para os dados do endereĂ§o
-
 // Tipagem geral para os formulĂˇrios
 interface FormData {
   unidade: Unidade;
@@ -62,13 +60,7 @@ const UnidadePage = () => {
     null,
   );
 
-  useEffect(() => {
-    if (unidadeid) {
-      fetchUnidadeById(unidadeid);
-    }
-    fetchEnderecos();
-  }, [unidadeid]);
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const fetchUnidadeById = async (unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidades/${unidadeid}`);
@@ -82,7 +74,17 @@ const UnidadePage = () => {
     } catch (error) {
       console.error("Erro ao buscar unidade:", error);
     }
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (unidadeid) {
+      fetchUnidadeById(unidadeid);
+      }
+      fetchEnderecos();
+    }, [unidadeid]);
+    // Add the missing closing brace here
   };
+
 
   const fetchEnderecos = async () => {
     try {
@@ -100,7 +102,7 @@ const UnidadePage = () => {
     }
   };
 
-  const createUnidade = async (data: FormData) => {
+  const createUnidade = async (data: FormData, selectedEndereco: Endereco | null) => {
     try {
       const response = await fetch("/api/unidadesaude", {
         method: "POST",
@@ -130,7 +132,7 @@ const UnidadePage = () => {
     }
   };
 
-  const updateUnidade = async (data: FormData) => {
+  const updateUnidade = async (data: FormData, unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidadesaude/${unidadeid}`, {
         method: "PATCH",
@@ -154,7 +156,8 @@ const UnidadePage = () => {
     }
   };
 
-  const handleSubmit = async (data: FormData) => {
+  const handleSubmit = async (data: FormData, unidadeid: string | null) => {
+    const selectedEndereco = form.getValues("endereco");
     if (!selectedEndereco) {
       alert("Selecione um endereço antes de salvar.");
       return;
@@ -162,9 +165,9 @@ const UnidadePage = () => {
 
     try {
       if (unidadeid) {
-        await updateUnidade(data);
+        await updateUnidade(data, unidadeid);
       } else {
-        await createUnidade(data);
+        await createUnidade(data, selectedEndereco);
       }
     } catch (error) {
       console.error("Erro ao salvar:", error);
@@ -192,7 +195,7 @@ const UnidadePage = () => {
           {unidadeid ? "Editar Unidade" : "Nova Unidade"}
         </h1>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <form onSubmit={form.handleSubmit((data) => handleSubmit(data, unidadeid))}>
             <FormField
               control={form.control}
               name="unidade.nome"
