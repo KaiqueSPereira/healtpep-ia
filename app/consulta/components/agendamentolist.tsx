@@ -1,21 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
-import { toast } from "@/app/_hooks/use-toast";
-import AgendamentoItem from "./agendamentosItem";
-
-interface Agendamento {
-  id: string;
-  data: string;
-  tipo: string;
-  profissional?: { nome: string };
-  unidade?: {
-    nome: string;
-  };
-}
 
 interface AgendamentosListProps {
   userId: string;
 }
+import { toast } from "@/app/_hooks/use-toast";
+import AgendamentoItem from "./agendamentosItem";
+import { Agendamento } from "@/app/_components/types";
 
 const AgendamentosList = ({ userId }: AgendamentosListProps) => {
   const [agendamentosFuturos, setAgendamentosFuturos] = useState<Agendamento[]>([]);

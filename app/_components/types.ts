@@ -25,3 +25,17 @@ export interface Tratamento {
   profissionalId: string;
   userId: string;
 }
+
+export interface Agendamento {
+  id: string;
+  tipo: string;
+  data: string;
+  profissional?: { nome: string };
+  unidade?: { nome: string };
+}
+
+export interface AgendamentoItemProps {
+  consultas: Agendamento[];
+  profissional?: {nome: string} 
+  unidade?: string; 
+}
