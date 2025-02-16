@@ -2,7 +2,6 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 
-// Atualizar a descriĂ§ĂŁo da consulta
 export async function PATCH(
   req: Request,
   { params }: { params: { consultaId: string } },
@@ -18,15 +17,14 @@ export async function PATCH(
     return NextResponse.json(updatedConsulta);
   } catch {
     return NextResponse.json(
-      { error: "Falha ao atualizar a descriĂ§ĂŁo" },
+      { error: "Falha ao atualizar a descrição" },
       { status: 500 },
     );
   }
 }
 
-// Obter uma consulta especĂ­fica
 export async function getConsultaById(
-  req: Request,
+  _: Request,
   { params }: { params: { consultaId: string } },
 ) {
   try {
@@ -38,7 +36,7 @@ export async function getConsultaById(
 
     if (!consulta) {
       return NextResponse.json(
-        { error: "Consulta nĂŁo encontrada" },
+        { error: "Consulta não encontrada" },
         { status: 404 },
       );
     }
@@ -51,7 +49,6 @@ export async function getConsultaById(
   }
 }
 
-// Deletar uma consulta
 export async function DELETE(
   req: Request,
   { params }: { params: { consultaId: string } },
@@ -71,7 +68,6 @@ export async function DELETE(
   }
 }
 
-// Criar uma nova consulta
 export async function POST(req: Request) {
   try {
     const {
@@ -106,7 +102,6 @@ export async function POST(req: Request) {
   }
 }
 
-// Listar todas as consultas
 export async function getAllConsultas() {
   try {
     const consultas = await db.consultas.findMany();
