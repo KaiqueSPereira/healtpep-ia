@@ -209,7 +209,9 @@ const NovaConsulta = () => {
               <ConsultaTipoSelector
                 consultaTipos={consultaTipos}
                 selectedTipo={selectedTipo}
-                onTipoSelect={setSelectedTipo}
+                onTipoSelect={(tipo: string) =>
+                  setSelectedTipo(tipo as Consultatype)
+                }
               />
             </div>
           )}
@@ -268,7 +270,6 @@ const NovaConsulta = () => {
           )}
         </SheetContent>
       </Sheet>
-      
     </div>
   );
 };
