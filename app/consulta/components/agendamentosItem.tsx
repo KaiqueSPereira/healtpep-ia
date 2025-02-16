@@ -2,15 +2,16 @@ import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
 
+interface Agendamento {
+  id: string;
+  tipo: string;
+  data: string;
+  profissional?: { nome: string };
+  unidade?: { nome: string };
+}
 
 interface AgendamentoItemProps {
-  consultas: {
-    id: string;
-    tipo: string;
-    data: string;
-    profissional?: { nome: string };
-    unidade?: { nome: string };
-  };
+  consultas: Agendamento;
 }
 
 const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {

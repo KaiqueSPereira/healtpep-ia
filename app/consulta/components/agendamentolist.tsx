@@ -1,16 +1,20 @@
 "use client";
 import { useState, useEffect } from "react";
-
-interface AgendamentosListProps {
-  userId: string;
-}
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
 import { Agendamento } from "@/app/_components/types";
 
+interface AgendamentosListProps {
+  userId: string;
+}
+
 const AgendamentosList = ({ userId }: AgendamentosListProps) => {
-  const [agendamentosFuturos, setAgendamentosFuturos] = useState<Agendamento[]>([]);
-  const [agendamentosPassados, setAgendamentosPassados] = useState<Agendamento[]>([]);
+  const [agendamentosFuturos, setAgendamentosFuturos] = useState<Agendamento[]>(
+    [],
+  );
+  const [agendamentosPassados, setAgendamentosPassados] = useState<
+    Agendamento[]
+  >([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -62,10 +66,6 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
                   <AgendamentoItem
                     key={agendamento.id}
                     consultas={agendamento}
-                    profissional={
-                      agendamento.profissional?.nome || "Desconhecido"
-                    }
-                    unidade={agendamento.unidade?.nome || "Desconhecida"}
                   />
                 ))
               ) : (
@@ -84,10 +84,6 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
                   <AgendamentoItem
                     key={agendamento.id}
                     consultas={agendamento}
-                    profissional={
-                      agendamento.profissional?.nome || "Desconhecido"
-                    }
-                    unidade={agendamento.unidade?.nome || "Desconhecida"}
                   />
                 ))
               ) : (
