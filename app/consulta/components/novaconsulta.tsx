@@ -53,7 +53,7 @@ const NovaConsulta = () => {
   useEffect(() => {
     const fetchConsultaTipos = async () => {
       try {
-        const response = await fetch("/api/consultas/tipoconsultas");
+        const response = await fetch("api/consultas?tipo=true");
         if (!response.ok)
           throw new Error("Erro ao buscar os tipos de consulta");
         const tipos = await response.json();
