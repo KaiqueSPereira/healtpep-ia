@@ -37,7 +37,7 @@ const NovaConsulta = () => {
   const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
-  const [consultaTipos, setConsultaTipos] = useState<string[]>([]);
+  const [selectedTipos, setConsultaTipos] = useState<string[]>([]);
   
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
@@ -207,11 +207,8 @@ const NovaConsulta = () => {
           {manualTime && (
             <div className="grid grid-cols-2 gap-4">
               <ConsultaTipoSelector
-                consultaTipos={consultaTipos}
                 selectedTipo={selectedTipo}
-                onTipoSelect={(tipo: string) =>
-                  setSelectedTipo(tipo as Consultatype)
-                }
+                onTipoSelect={setSelectedTipo}
               />
             </div>
           )}
