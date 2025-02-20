@@ -37,6 +37,7 @@ const NovaConsulta = () => {
   const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedTipos, setConsultaTipos] = useState<string[]>([]);
   
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
