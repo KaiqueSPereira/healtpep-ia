@@ -18,19 +18,21 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!userId) return;
+
     const fetchAgendamentos = async () => {
+      setLoading(true);
       try {
-        const res = await fetch("/api/agendamento");
+        const res = await fetch(`/api/consultas?userId=${userId}`);
         if (!res.ok) throw new Error("Erro ao buscar agendamentos");
 
-        const agendamentos = await res.json();
-
+        const { consultas } = await res.json(); // Ajuste para a estrutura da nova API
         const agora = new Date();
 
-        const futuros = agendamentos.filter(
+        const futuros = consultas.filter(
           (agendamento: Agendamento) => new Date(agendamento.data) >= agora,
         );
-        const passados = agendamentos.filter(
+        const passados = consultas.filter(
           (agendamento: Agendamento) => new Date(agendamento.data) < agora,
         );
 
@@ -56,45 +58,41 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         <p className="text-gray-500">Carregando agendamentos...</p>
       ) : (
         <>
-          <div className="mt-5">
-            <h2 className="text-xs font-bold uppercase text-gray-400">
-              Agendamentos
-            </h2>
-            <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
-              {agendamentosFuturos.length > 0 ? (
-                agendamentosFuturos.map((agendamento) => (
-                  <AgendamentoItem
-                    key={agendamento.id}
-                    consultas={agendamento}
-                  />
-                ))
-              ) : (
-                <p className="text-gray-500">Nenhum agendamento futuro.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <h2 className="text-xs font-bold uppercase text-gray-400">
-              Últimas Consultas
-            </h2>
-            <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
-              {agendamentosPassados.length > 0 ? (
-                agendamentosPassados.map((agendamento) => (
-                  <AgendamentoItem
-                    key={agendamento.id}
-                    consultas={agendamento}
-                  />
-                ))
-              ) : (
-                <p className="text-gray-500">Nenhuma consulta passada.</p>
-              )}
-            </div>
-          </div>
+          <AgendamentoSection
+            title="Agendamentos"
+            agendamentos={agendamentosFuturos}
+          />
+          <AgendamentoSection
+            title="Últimas Consultas"
+            agendamentos={agendamentosPassados}
+          />
         </>
       )}
     </div>
   );
 };
+
+interface AgendamentoSectionProps {
+  title: string;
+  agendamentos: Agendamento[];
+}
+
+const AgendamentoSection = ({
+  title,
+  agendamentos,
+}: AgendamentoSectionProps) => (
+  <div className="mt-5">
+    <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
+    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
+      {agendamentos.length > 0 ? (
+        agendamentos.map((agendamento) => (
+          <AgendamentoItem key={agendamento.id} consultas={agendamento} />
+        ))
+      ) : (
+        <p className="text-gray-500">Nenhum {title.toLowerCase()}.</p>
+      )}
+    </div>
+  </div>
+);
 
 export default AgendamentosList;

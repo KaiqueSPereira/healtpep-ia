@@ -39,9 +39,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(novoEndereco);
   } catch (error) {
-    console.error("Erro ao salvar o endereĂ§o:", error);
+    console.error("Erro ao salvar o endereço:", error);
     return NextResponse.json(
-      { error: "Erro ao salvar o endereĂ§o." },
+      { error: "Erro ao salvar o endereço." },
       { status: 500 },
     );
   }
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 
       if (!endereco) {
         return NextResponse.json(
-          { error: "EndereĂ§o nĂŁo encontrado" },
+          { error: "Endereço não encontrado" },
           { status: 404 },
         );
       }

@@ -1,14 +1,17 @@
-// app/api/consultas/tipoconsultas/route.ts
 import { NextResponse } from "next/server";
+import { db } from "@/app/_lib/prisma";
 
-// Definindo as opções do ENUM diretamente no código
-const consultaTiposEnum = ["Exame", "Emergencia","Retorno","Rotina","Tratamento" ];
-
-// Exportando a função para o método GET
 export async function GET() {
   try {
-    // Retornando as opções do ENUM diretamente com NextResponse
-    return NextResponse.json(consultaTiposEnum);
+    // Buscar os valores do ENUM no PostgreSQL
+    const consultaTipos: { tipo: string }[] = await db.$queryRaw`
+      SELECT e.enumlabel AS tipo
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'Consultatype';
+    `;
+
+    return NextResponse.json(consultaTipos.map((row) => row.tipo));
   } catch (error) {
     console.error("Erro ao buscar os tipos de consulta:", error);
     return NextResponse.json(
