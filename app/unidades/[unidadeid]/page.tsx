@@ -30,13 +30,14 @@ import {
   CommandList,
 } from "@/app/_components/ui/command";
 import { Endereco } from "@/app/_components/types";
-import { toast } from "@/app/_hooks/use-toast";
 
 // Tipagem para os dados da unidade de saĂşde
 interface Unidade {
   nome: string;
   tipo: string;
 }
+
+// Tipagem para os dados do endereĂ§o
 
 // Tipagem geral para os formulĂˇrios
 interface FormData {
@@ -60,7 +61,13 @@ const UnidadePage = () => {
     null,
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  useEffect(() => {
+    if (unidadeid) {
+      fetchUnidadeById(unidadeid);
+    }
+    fetchEnderecos();
+  }, [unidadeid]);
+
   const fetchUnidadeById = async (unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidades/${unidadeid}`);
@@ -74,35 +81,21 @@ const UnidadePage = () => {
     } catch (error) {
       console.error("Erro ao buscar unidade:", error);
     }
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (unidadeid) {
-      fetchUnidadeById(unidadeid);
-      }
-      fetchEnderecos();
-    }, [unidadeid]);
-    // Add the missing closing brace here
   };
-
 
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
-      if (!response.ok) throw new Error("Erro ao buscar endereços");
+      if (!response.ok) throw new Error("Erro ao buscar endereçeos");
 
       const data: Endereco[] = await response.json();
       setEnderecos(data);
     } catch (error) {
-      console.error("Erro ao buscar endereços", error);
-      toast({
-        title: "Erro ao buscar endereços.",
-        variant: "destructive",
-      });
+      console.error("Erro ao buscar endereços:", error);
     }
   };
 
-  const createUnidade = async (data: FormData, selectedEndereco: Endereco | null) => {
+  const createUnidade = async (data: FormData) => {
     try {
       const response = await fetch("/api/unidadesaude", {
         method: "POST",
@@ -122,17 +115,13 @@ const UnidadePage = () => {
         console.error("Erro ao criar unidade");
         const errorDetails = await response.json();
         console.error("Detalhes do erro:", errorDetails);
-        toast({
-          title: "Erro ao criar unidade.",
-          variant: "destructive",
-        });
       }
     } catch (error) {
       console.error("Erro ao criar unidade:", error);
     }
   };
 
-  const updateUnidade = async (data: FormData, unidadeid: string) => {
+  const updateUnidade = async (data: FormData) => {
     try {
       const response = await fetch(`/api/unidadesaude/${unidadeid}`, {
         method: "PATCH",
@@ -149,25 +138,20 @@ const UnidadePage = () => {
       router.push("/");
     } catch (error) {
       console.error("Erro ao atualizar unidade:", error);
-      toast({
-        title: "Erro ao atualizar unidade.",
-        variant: "destructive",
-      });
     }
   };
 
-  const handleSubmit = async (data: FormData, unidadeid: string | null) => {
-    const selectedEndereco = form.getValues("endereco");
+  const handleSubmit = async (data: FormData) => {
     if (!selectedEndereco) {
-      alert("Selecione um endereço antes de salvar.");
+      alert("Selecione um endereĂ§o antes de salvar.");
       return;
     }
 
     try {
       if (unidadeid) {
-        await updateUnidade(data, unidadeid);
+        await updateUnidade(data);
       } else {
-        await createUnidade(data, selectedEndereco);
+        await createUnidade(data);
       }
     } catch (error) {
       console.error("Erro ao salvar:", error);
@@ -195,7 +179,7 @@ const UnidadePage = () => {
           {unidadeid ? "Editar Unidade" : "Nova Unidade"}
         </h1>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => handleSubmit(data, unidadeid))}>
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
             <FormField
               control={form.control}
               name="unidade.nome"

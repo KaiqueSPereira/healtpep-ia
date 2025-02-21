@@ -77,16 +77,16 @@ model Authenticator {
 model Consultas {
   id             String          @id @default(uuid())
   data           DateTime
-  queixas        String
+  queixas        String?
   tratamento     String?
   tipodeexame    String?
   tipo           Consultatype
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   userId         String
-  profissionalId String
+  profissionalId String        ?
   unidadeId      String?
-  profissional   Profissional    @relation(fields: [profissionalId], references: [id])
+  profissional   Profissional  ? @relation(fields: [profissionalId], references: [id])
   unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario        User            @relation(fields: [userId], references: [id])
 }
