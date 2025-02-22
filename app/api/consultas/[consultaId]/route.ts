@@ -58,7 +58,7 @@ export async function PATCH(
     const consultaAtualizada = await db.consultas.update({
       where: { id: consultaId },
       data: {
-        data: body.data ? new Date(body.data) : undefined,
+        data: body.data ? new Date(body.data) : consulta.data,
         queixas: body.queixas,
         tratamento: body.tratamento,
         tipodeexame: body.tipodeexame,

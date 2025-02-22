@@ -1,18 +1,8 @@
+import { authOptions } from "@/app/_lib/auth";
 import { db } from "@/app/_lib/prisma";
+import { Consultatype } from "@prisma/client";
+import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { z } from "zod";
-
-// 📌 Validação de dados com Zod
-const consultaSchema = z.object({
-  data: z.string().min(1, "A data é obrigatória."),
-  queixas: z.string().min(1, "As queixas são obrigatórias."),
-  tratamento: z.string().min(1, "O tratamento é obrigatório."),
-  tipodeexame: z.string().min(1, "O tipo de exame é obrigatório."),
-  tipo: z.enum(["Rotina", "Exame", "Emergencia"]),
-  userId: z.string().uuid(),
-  profissionalId: z.string().uuid(),
-  unidadeId: z.string().uuid().optional(),
-});
 
 // 📌 GET - Buscar consultas ou tipos de consulta
 export async function GET(req: Request) {
@@ -57,30 +47,69 @@ export async function GET(req: Request) {
 }
 
 // 📌 POST - Criar uma nova consulta
-export async function POST(req: Request) {
+export async function POST(req: { json: () => Promise<{ data: string; tipo: Consultatype; profissionalId?: string; unidadeId?: string; tratamentoId?: string; queixas?: string; tipoexame?: string; }> }) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Usuário não autenticado" },
+        { status: 401 },
+      );
+    }
+
     const body = await req.json();
-    const parsedData = consultaSchema.parse(body);
+    const { data, tipo, profissionalId, unidadeId, tratamentoId, queixas, tipoexame } = body;
+
+    if (!data || !tipo) {
+      return NextResponse.json(
+        { error: "Data e tipo são obrigatórios" },
+        { status: 400 },
+      );
+    }
+
+    // 📌 Validação específica para cada tipo de consulta
+    if (tipo === "Emergencia" && (!queixas || !unidadeId)) {
+      return NextResponse.json(
+        { error: "Emergência requer queixas e unidade." },
+        { status: 400 },
+      );
+    }
+
+    if (
+      ["Rotina", "Tratamento", "Retorno"].includes(tipo) &&
+      (!tratamentoId || !profissionalId || !unidadeId || !queixas)
+    ) {
+      return NextResponse.json(
+        { error: "Consultas requerem tratamento, profissional e unidade." },
+        { status: 400 },
+      );
+    }
+
+    if (tipo === "Exame" && (!tratamentoId || !profissionalId || !unidadeId || !tipoexame)) {
+      return NextResponse.json(
+        { error: "Exames requerem tipo de exame, profissional e unidade." },
+        { status: 400 },
+      );
+    }
 
     const novaConsulta = await db.consultas.create({
       data: {
-        data: new Date(parsedData.data),
-        queixas: parsedData.queixas,
-        tratamento: parsedData.tratamento,
-        tipodeexame: parsedData.tipodeexame,
-        tipo: parsedData.tipo,
-        userId: parsedData.userId,
-        profissionalId: parsedData.profissionalId,
-        unidadeId: parsedData.unidadeId ?? null,
+        userId: session.user.id,
+        data: new Date(data),
+        tipo,
+        profissionalId: profissionalId || null,
+        unidadeId: unidadeId || null,
+        tratamento: tratamentoId || null,
+        queixas: queixas || null,
       },
     });
 
-    return NextResponse.json(novaConsulta);
+    return NextResponse.json(novaConsulta, { status: 201 });
   } catch (error) {
-    console.error("Erro ao salvar a consulta:", error);
+    console.error("Erro ao criar consulta:", error);
     return NextResponse.json(
-      { error: "Falha ao salvar a consulta" },
-      { status: 400 },
+      { error: "Erro ao criar consulta" },
+      { status: 500 },
     );
   }
 }

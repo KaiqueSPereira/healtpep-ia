@@ -94,6 +94,8 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
       },
     });
   }
+  
+  
 
   return (
     <div>
