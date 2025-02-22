@@ -85,7 +85,7 @@ export async function POST(req: { json: () => Promise<{ data: string; tipo: Cons
       );
     }
 
-    if (tipo === "Exame" && (!tratamentoId || !profissionalId || !unidadeId || !tipoexame)) {
+    if (tipo === "Exame" && (!profissionalId || !unidadeId || !tipoexame)) {
       return NextResponse.json(
         { error: "Exames requerem tipo de exame, profissional e unidade." },
         { status: 400 },
@@ -101,6 +101,7 @@ export async function POST(req: { json: () => Promise<{ data: string; tipo: Cons
         unidadeId: unidadeId || null,
         tratamento: tratamentoId || null,
         queixas: queixas || null,
+        tipodeexame: tipoexame || null
       },
     });
 

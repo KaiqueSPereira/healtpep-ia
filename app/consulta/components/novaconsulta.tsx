@@ -14,7 +14,7 @@ import {
   SheetFooter,
   SheetClose,
 } from "@/app/_components/ui/sheet";
-import {ptBR } from "date-fns/locale";
+import { ptBR } from "date-fns/locale";
 import React, { useEffect, useState } from "react";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { useForm } from "react-hook-form";
@@ -31,15 +31,13 @@ import { toast } from "@/app/_hooks/use-toast";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
 import { set } from "date-fns";
 import { Consultatype } from "@prisma/client";
-
+import { Input } from "@/app/_components/ui/input";
 
 const NovaConsulta = () => {
   const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedTipos, setConsultaTipos] = useState<string[]>([]);
-  
+
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -48,28 +46,9 @@ const NovaConsulta = () => {
   const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
   const [selectedTratamento, setSelectedTratamento] =
     useState<Tratamento | null>(null);
-  const form = useForm({ defaultValues: { queixas: "" } });
+  const form = useForm({ defaultValues: { queixas: "", tipoexame: "" } });
 
-  useEffect(() => {
-    const fetchConsultaTipos = async () => {
-      try {
-        const response = await fetch("api/consultas?tipo=true");
-        if (!response.ok)
-          throw new Error("Erro ao buscar os tipos de consulta");
-        const tipos = await response.json();
-        setConsultaTipos(Array.isArray(tipos) ? tipos : []);
-      } catch (error) {
-        console.error("Erro ao buscar os tipos de consulta:", error);
-        toast({
-          title: "Erro ao carregar tipos de consulta.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    fetchConsultaTipos();
-  }, []);
-
+  // Buscar profissionais da unidade selecionada
   useEffect(() => {
     const fetchProfissionais = async () => {
       if (!selectedUnidade?.id) {
@@ -86,95 +65,104 @@ const NovaConsulta = () => {
         setProfissionais(unidade.profissionais || []);
       } catch (error) {
         console.error("Erro ao buscar os profissionais:", error);
-        toast({
-          title: "Erro ao carregar profissionais.",
-          variant: "destructive",
-        });
+        toast("Erro ao carregar profissionais.", "error", { duration: 5000 });
       }
     };
 
     fetchProfissionais();
   }, [selectedUnidade]);
 
-   useEffect(() => {
-     const fetchTratamentos = async () => {
-       if (!session?.user?.id) return;
+  // Buscar tratamentos do usuário logado
+  useEffect(() => {
+    const fetchTratamentos = async () => {
+      if (!session?.user?.id) return;
 
-       try {
-         const response = await fetch(
-           `/api/tratamento?userId=${session.user.id}`,
-         );
-         if (!response.ok) throw new Error("Erro ao buscar tratamentos");
+      try {
+        const response = await fetch(
+          `/api/tratamento?userId=${session.user.id}`,
+        );
+        if (!response.ok) throw new Error("Erro ao buscar tratamentos");
 
-         const data = await response.json();
-         setTratamentos(data || []); // Garantindo que sempre será um array
-       } catch (error) {
-         console.error("Erro ao buscar tratamentos:", error);
-       }
-     };
+        const data = await response.json();
+        setTratamentos(data || []);
+      } catch (error) {
+        console.error("Erro ao buscar tratamentos:", error);
+        toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
+      }
+    };
 
-     fetchTratamentos();
-   }, [session?.user?.id]);
+    fetchTratamentos();
+  }, [session?.user?.id]);
 
+  // 📌 Função para salvar a consulta
+  const handleSaveConsulta = async () => {
+    if (!selectedDay || !manualTime || !selectedTipo) {
+      console.error("Preencha a data, horário e tipo da consulta.");
+      toast("Preencha a data, horário e tipo da consulta.", "error", { duration: 5000 });
+      return;
+    }
+    const [hour, minute] = manualTime.split(":").map(Number);
+    const newDate = set(selectedDay, { hours: hour, minutes: minute });
 
-
-  const handleSaveConsulta = async() => {
-    if (!selectedDay || !manualTime) return;
-    const hour = Number(manualTime.split(":")[0]);
-    const minute = Number(manualTime.split(":")[1]);
-    const newDate = set(selectedDay, {
-      minutes: minute,
-      hours: hour,
-    });
     const consultaData = {
       tipo: selectedTipo as Consultatype,
       data: newDate,
-      unidadeId: selectedUnidade?.id || "",
-      profissionalId: selectedProfissional?.id || "",
-      tratamento: selectedTratamento?.id || "",
-      queixas: form.getValues("queixas"),
+      unidadeId: selectedUnidade?.id || null,
+      profissionalId: selectedProfissional?.id || null,
+      tratamentoId: selectedTratamento?.id || null,
+      ...(selectedTipo !== "Exame" && {queixas: form.getValues("queixas") || null}),
+      ...(selectedTipo === "Exame" && {tipoexame: form.getValues("tipoexame") || null}),
+    
     };
+
+    // 📌 Validação específica por tipo de consulta
     if (
-      !selectedDay ||
-      !manualTime ||
-      !selectedTipo ||
-      !selectedUnidade ||
-      !selectedProfissional ||
-      !selectedTratamento
+      selectedTipo === "Emergencia" &&
+      (!consultaData.queixas || !consultaData.unidadeId)
     ) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos antes de salvar.",
-        variant: "destructive",
-      });
+      console.error("Emergência requer queixas e unidade.");
+        toast("Emergência requer queixas e unidade.", "error", { duration: 5000 });
       return;
     }
+    if (
+      ["Rotina", "Tratamento", "Retorno"].includes(selectedTipo) &&
+      (!consultaData.tratamentoId ||
+        !consultaData.profissionalId ||
+        !consultaData.unidadeId)
+    ) {
+      console.error("Consultas requerem tratamento, profissional e unidade.");
+      toast("Consultas requerem tratamento, profissional e unidade.", "error", { duration: 5000 });
+      return;
+    }
+    if (
+      selectedTipo === "Exame" &&
+      (!consultaData.tratamentoId ||
+        !consultaData.profissionalId ||
+        !consultaData.unidadeId || 
+        !consultaData.tipoexame)
+    ) {
+      console.error("Exames requerem tipo de exame, profissional e unidade.");
+      toast("Exames requerem tipo de exame, profissional e unidade.", "error", { duration: 5000 });
+      return;
+    }
+    console.log("Dados enviados:", JSON.stringify(consultaData, null, 2));
     try {
       const response = await fetch("/api/consultas", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(consultaData),
       });
-
+      console.log(JSON.stringify(consultaData, null, 2));
       if (!response.ok) throw new Error("Erro ao salvar a consulta");
 
-      toast({
-        title: "Sucesso",
-        description: "Consulta salva com sucesso!",
-        variant: "default",
-      });
+      console.log("Consulta salva com sucesso!");
+      toast("Consulta salva com sucesso!", "success", { duration: 5000 });
     } catch (error) {
       console.error("Erro ao salvar a consulta:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao salvar a consulta.",
-        variant: "destructive",
-      });
+      toast("Erro ao salvar a consulta.", "error", { duration: 5000 });
     }
   };
-  
+
   return (
     <div className="p-2 md:p-5">
       <Sheet>
@@ -194,78 +182,98 @@ const NovaConsulta = () => {
             className="w-full"
           />
 
-          {selectedDay && (
-            <div className="flex flex-col gap-3 p-3 md:p-5">
-              <input
-                type="time"
-                className="rounded border bg-black p-2 text-white"
-                onChange={(e) => setManualTime(e.target.value)}
-                value={manualTime}
-              />
-            </div>
-          )}
+          <div className="flex flex-col gap-3 p-3 md:p-5">
+            <input
+              type="time"
+              className="rounded border bg-black p-2 text-white"
+              onChange={(e) => setManualTime(e.target.value)}
+              value={manualTime}
+            />
+          </div>
 
-          {manualTime && (
-            <div className="grid grid-cols-2 gap-4">
-              <ConsultaTipoSelector
-                selectedTipo={selectedTipo}
-                onTipoSelect={setSelectedTipo}
-              />
-            </div>
-          )}
+          <ConsultaTipoSelector
+            selectedTipo={selectedTipo}
+            onTipoSelect={setSelectedTipo}
+          />
+
           {selectedTipo && (
             <MenuUnidades
               onUnidadeSelect={setSelectedUnidade}
               selectedUnidade={selectedUnidade}
             />
           )}
-          {selectedUnidade && (
+          {selectedTipo && (
             <MenuProfissionais
               profissionais={profissionais}
               onProfissionalSelect={setSelectedProfissional}
               selectedProfissional={selectedProfissional}
             />
           )}
-          {selectedProfissional && (
-            <MenuTratamentos
-              tratamentos={tratamentos}
-              onTratamentoSelect={setSelectedTratamento}
-              selectedTratamento={selectedTratamento}
-            />
-          )}
+          {selectedTipo &&
+            (selectedTipo === "Rotina" ||
+              selectedTipo === "Tratamento" ||
+              selectedTipo === "Retorno" ||
+              selectedTipo === "Exame") && (
+              <MenuTratamentos
+                tratamentos={tratamentos}
+                onTratamentoSelect={setSelectedTratamento}
+                selectedTratamento={selectedTratamento}
+              />
+            )}
 
-          {selectedProfissional && (
+          {selectedTipo && 
+            (selectedTipo === "Emergencia" ||
+              selectedTipo === "Rotina" ||
+              selectedTipo === "Tratamento" ||
+              selectedTipo === "Retorno") && (
             <Form {...form}>
-              <form>
-                <FormField
-                  control={form.control}
-                  name="queixas"
-                  render={({ field }) => (
-                    <FormItem className="w-full">
-                      <FormControl>
-                        <Textarea
-                          placeholder="Escreva aqui as informações sobre a consulta..."
-                          {...field}
-                          className="mt-2 w-full"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </form>
+              <FormField
+                control={form.control}
+                name="queixas"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormControl>
+                      <Textarea
+                        placeholder="Oque te levou ao médico?"
+                        {...field}
+                        className="mt-2 w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </Form>
           )}
 
-          {selectedProfissional && (
-            <SheetFooter>
-              <SheetClose asChild>
-                <Button className="w-full" onClick={handleSaveConsulta}>
-                  Salvar
-                </Button>
-              </SheetClose>
-            </SheetFooter>
+          {selectedTipo && selectedTipo === "Exame" && (
+            <Form {...form}>
+              <FormField
+                control={form.control}
+                name="tipoexame"
+                render={({ field }) => (
+                  <FormItem className="w-full">
+                    <FormControl>
+                      <Input
+                        placeholder="Digite o tipo de exame..."
+                        {...field}
+                        className="mt-2 w-full"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </Form>
           )}
+
+          <SheetFooter>
+            <SheetClose asChild>
+              <Button className="w-full" onClick={handleSaveConsulta}>
+                Salvar
+              </Button>
+            </SheetClose>
+          </SheetFooter>
         </SheetContent>
       </Sheet>
     </div>
