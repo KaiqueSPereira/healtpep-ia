@@ -21,6 +21,7 @@ import {
 } from "@/app/_components/ui/form";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "@/app/_hooks/use-toast";
 
 interface DescriptionEditorProps {
   descricao: string;
@@ -30,7 +31,7 @@ interface DescriptionEditorProps {
 const formSchema = z.object({
   queixas: z
     .string()
-    .min(1, { message: "A descriĂ§ĂŁo nĂŁo pode estar vazia" }),
+    .min(1, { message: "A descricão da consulta não pode estar vazia" }),
 });
 
 const DescriptionEditor = ({
@@ -53,14 +54,17 @@ const DescriptionEditor = ({
       });
 
       if (response.ok) {
-        alert("registro salvo com sucesso!");
+        console.log("Registro salvo com sucesso!");
+        toast("Registro salvo com sucesso!", "success", { duration: 5000 });
         setIsDialogOpen(false);
         router.refresh();
       } else {
-        alert("Erro ao salvar o registro. Tente novamente.");
+        console.error("Erro ao salvar o registro. Tente novamente.");
+        toast("Erro ao salvar o registro. Tente novamente.", "error", { duration: 5000 });
       }
     } catch {
-      alert("Erro ao salvar o registro. Tente novamente.");
+      console.error("Erro ao salvar o registro. Tente novamente.");
+      toast("Erro ao salvar o registro. Tente novamente.", "error", { duration: 5000 });
     }
   };
 

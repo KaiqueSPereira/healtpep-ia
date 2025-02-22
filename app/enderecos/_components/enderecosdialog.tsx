@@ -62,7 +62,7 @@ const EnderecoDialog: React.FC = () => {
 
       toast({
         title: "Endereço salvo com sucesso!",
-        type: "foreground",
+        type: "foreground", 
       })
       form.reset();
       setOpen(false);
