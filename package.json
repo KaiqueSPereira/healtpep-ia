@@ -31,6 +31,7 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.5.2",
     "healtpep-ia": "file:",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.473.0",
     "next": "^14.2.23",
     "next-auth": "^4.24.11",
@@ -43,6 +44,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
