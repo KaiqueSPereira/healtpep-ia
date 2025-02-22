@@ -1,29 +1,32 @@
 import { db } from "@/app/_lib/prisma";
-import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { NextResponse, NextRequest } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/_lib/auth";
 
-// 📌 GET - Busca tratamentos ou um tratamento específico por ID
-export async function GET(req: Request) {
+
+// 📌 Função para obter o ID do usuário autenticado
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getUserId = async (req: NextRequest): Promise<string | null> => {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user || !session.user.id) {
+    console.error("Usuário não autenticado ou sem ID na sessão");
+    return null;
+  }
+  return session.user.id;
+};
+
+// 📌 GET - Busca tratamentos do usuário logado
+export async function GET(req: NextRequest) {
   try {
-    const url = new URL(req.url);
-    const tratamentoId = url.searchParams.get("id");
-
-    if (tratamentoId) {
-      const tratamento = await db.tratamento.findUnique({
-        where: { id: tratamentoId },
-      });
-
-      if (!tratamento) {
-        return NextResponse.json(
-          { error: "Tratamento não encontrado" },
-          { status: 404 },
-        );
-      }
-
-      return NextResponse.json(tratamento);
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autorizado" },
+        { status: 401 },
+      );
     }
 
-    const tratamentos = await db.tratamento.findMany();
+    const tratamentos = await db.tratamento.findMany({ where: { userId } });
     return NextResponse.json(tratamentos);
   } catch (error) {
     console.error("Erro ao buscar tratamentos:", error);
@@ -34,13 +37,11 @@ export async function GET(req: Request) {
   }
 }
 
-// 📌 POST - Cria um novo tratamento
-export async function POST(req: Request) {
+// 📌 POST - Cria um novo tratamento vinculado ao usuário logado
+export async function POST(req: NextRequest) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const token = await getToken({ req: req as any, secret: process.env.NEXTAUTH_SECRET });
-
-    if (!token || !token.sub) {
+    const userId = await getUserId(req);
+    if (!userId) {
       return NextResponse.json(
         { error: "Usuário não autorizado" },
         { status: 401 },
@@ -48,7 +49,6 @@ export async function POST(req: Request) {
     }
 
     const { nome, profissionalId } = await req.json();
-
     if (!nome || !profissionalId) {
       return NextResponse.json(
         { error: "Nome e profissional são obrigatórios" },
@@ -57,11 +57,7 @@ export async function POST(req: Request) {
     }
 
     const novoTratamento = await db.tratamento.create({
-      data: {
-        nome,
-        profissionalId,
-        userId: token.sub, // ✅ Usa o ID do usuário do token JWT
-      },
+      data: { nome, profissionalId, userId },
     });
 
     return NextResponse.json(novoTratamento, { status: 201 });
@@ -73,16 +69,29 @@ export async function POST(req: Request) {
     );
   }
 }
-// 📌 PATCH - Atualiza um tratamento existente
-export async function PATCH(req: Request) {
-  try {
-    const { id, nome } = await req.json();
 
+// 📌 PATCH - Atualiza um tratamento do usuário logado
+export async function PATCH(req: NextRequest) {
+  try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autorizado" },
+        { status: 401 },
+      );
+    }
+
+    const { id, nome } = await req.json();
     if (!id || !nome) {
       return NextResponse.json(
         { error: "ID e novo nome são obrigatórios" },
         { status: 400 },
       );
+    }
+
+    const tratamento = await db.tratamento.findUnique({ where: { id } });
+    if (!tratamento || tratamento.userId !== userId) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
     const tratamentoAtualizado = await db.tratamento.update({
@@ -100,17 +109,31 @@ export async function PATCH(req: Request) {
   }
 }
 
-// 📌 DELETE - Remove um tratamento pelo ID
-export async function DELETE(req: Request) {
+// 📌 DELETE - Remove um tratamento do usuário logado
+export async function DELETE(req: NextRequest) {
   try {
+    const userId = await getUserId(req);
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Usuário não autorizado" },
+        { status: 401 },
+      );
+    }
+
     const url = new URL(req.url);
     const tratamentoId = url.searchParams.get("id");
-
     if (!tratamentoId) {
       return NextResponse.json(
         { error: "ID do tratamento é obrigatório" },
         { status: 400 },
       );
+    }
+
+    const tratamento = await db.tratamento.findUnique({
+      where: { id: tratamentoId },
+    });
+    if (!tratamento || tratamento.userId !== userId) {
+      return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
     }
 
     await db.tratamento.delete({ where: { id: tratamentoId } });

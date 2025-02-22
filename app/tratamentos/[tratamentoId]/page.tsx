@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation"; // đź”ą Importando o router para redirecionamento
+import { useRouter } from "next/navigation";
 import { useSession, signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
@@ -22,9 +22,12 @@ import { Profissional } from "@/app/_components/types";
 type TratamentoForm = {
   nome: string;
   profissionalId: string;
-  userId: string;
 };
-
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+  }
+}
 const NewTratamento: React.FC = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -36,23 +39,23 @@ const NewTratamento: React.FC = () => {
     defaultValues: {
       nome: "",
       profissionalId: "",
-      userId: "",
     },
   });
 
+  // 🔹 Redireciona para login se não estiver autenticado
   useEffect(() => {
     if (status === "unauthenticated") {
       signIn();
     }
   }, [status]);
 
+  // 🔹 Busca os profissionais disponíveis
   useEffect(() => {
     async function fetchProfissionais() {
       try {
         const response = await fetch("/api/profissional");
         if (!response.ok) throw new Error("Erro ao buscar profissionais.");
         const data = await response.json();
-        console.log("Profissionais carregados:", data);
         setProfissionais(data || []);
       } catch (error) {
         console.error("Erro ao buscar profissionais:", error);
@@ -67,19 +70,14 @@ const NewTratamento: React.FC = () => {
   }
 
   const handleSubmit = async (data: TratamentoForm) => {
-    if (!session?.user?.id) {
-      console.error("Usuário não autenticado.");
-      toast({
-        title: "Usuário não autenticado.",
-        variant: "destructive",
-      });
+    if (!session?.user) {
+      toast("Usuário não autenticado.", "destructive", { title: "Usuário não autenticado." });
       return;
     }
 
     try {
       const tratamentoData = {
         ...data,
-        userId: session.user.id,
         profissionalId: selectedProfissional?.id || "",
       };
 
@@ -87,6 +85,7 @@ const NewTratamento: React.FC = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.accessToken}`, // ✅ Enviando o token JWT
         },
         body: JSON.stringify(tratamentoData),
       });
@@ -97,24 +96,14 @@ const NewTratamento: React.FC = () => {
       }
 
       console.log("Tratamento salvo com sucesso.");
-      toast({
-        title: "Tratamento salvo com sucesso.",
-        variant: "default",
-      });
+      toast("Tratamento salvo com sucesso.", "default", { title: "Tratamento salvo com sucesso." });
 
-      form.reset();
-      setSelectedProfissional(null);
-
-      // đź”ą Redireciona para a tela inicial apĂłs 1 segundo
       setTimeout(() => {
         router.push("/");
       }, 1000);
     } catch (error) {
       console.error("Erro ao salvar o tratamento:", error);
-      toast({
-        title: "Ocorreu um erro ao salvar o tratamento.",
-        variant: "destructive",
-      });
+      toast("Ocorreu um erro ao salvar o tratamento.", "destructive", { title: "Ocorreu um erro ao salvar o tratamento." });
     }
   };
 
@@ -154,17 +143,15 @@ const NewTratamento: React.FC = () => {
                       />
                     ) : (
                       <p className="text-gray-500">
-                        Nenhum profissional disponí­vel.
+                        Nenhum profissional disponível.
                       </p>
                     )}
                   </FormControl>
                 </FormItem>
               </div>
               <div className="mt-4 flex justify-center space-x-4">
-                <Button
-                  type="submit"
-                  variant="default"
-                >
+                <Button type="submit" variant="default">
+                  Salvar Tratamento
                 </Button>
               </div>
             </form>
