@@ -18,7 +18,7 @@ const BotaoEditarConsulta: React.FC<BotaoEditarConsultaProps> = ({
   };
 
   return (
-    <Button onClick={handleEdit} variant="outline">
+    <Button onClick={handleEdit}>
       <FilePenLine className="mr-2 h-4 w-4" />
       Editar consulta
     </Button>

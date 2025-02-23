@@ -85,7 +85,7 @@ const ConsultaPage = async ({ params }: ConsultaPageProps) => {
         </div>
 
         {consultas.tipo !== "Exame" && (
-          <Card>
+          <Card className="mt-5">
             <CardHeader>
               <CardTitle>Registros sobre a consulta</CardTitle>
             </CardHeader>
