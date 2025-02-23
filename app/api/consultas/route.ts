@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
 
-    // 🔍 Se a query string "tipo=true" estiver presente, retorna os tipos de consulta (ENUM)
+    // 🔍 Se a query string "tipo=true" estiver presente, retorna os tipos de consulta (ENUM.)
     if (searchParams.get("tipo") === "true") {
       const consultaTipos: { tipo: string }[] = await db.$queryRaw`
         SELECT e.enumlabel AS tipo
