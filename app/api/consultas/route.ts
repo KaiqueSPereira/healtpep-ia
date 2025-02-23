@@ -1,6 +1,5 @@
 import { authOptions } from "@/app/_lib/auth";
 import { db } from "@/app/_lib/prisma";
-import { Consultatype } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
@@ -27,7 +26,7 @@ export async function GET(req: Request) {
 
     const consultas = await db.consultas.findMany({
       include: {
-        usuario: { select: { name: true, email: true } }, // Ajustado para o nome correto no Prisma
+        usuario: { select: { name: true, email: true } },
         profissional: { select: { nome: true, especialidade: true } },
         unidade: { select: { nome: true } },
       },
@@ -47,8 +46,9 @@ export async function GET(req: Request) {
 }
 
 // 📌 POST - Criar uma nova consulta
-export async function POST(req: { json: () => Promise<{ data: string; tipo: Consultatype; profissionalId?: string; unidadeId?: string; tratamentoId?: string; queixas?: string; tipoexame?: string; }> }) {
+export async function POST(req: Request) {
   try {
+    // ⚠️ Certifique-se de que o Next.js reconhece a sessão corretamente
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json(
@@ -57,8 +57,19 @@ export async function POST(req: { json: () => Promise<{ data: string; tipo: Cons
       );
     }
 
+    // ✅ Agora `req.json()` está sendo chamado corretamente
     const body = await req.json();
-    const { data, tipo, profissionalId, unidadeId, tratamentoId, queixas, tipoexame } = body;
+
+    // ✅ Garantindo que os dados obrigatórios estão presentes
+    const {
+      data,
+      tipo,
+      profissionalId,
+      unidadeId,
+      tratamentoId,
+      queixas,
+      tipoexame,
+    } = body;
 
     if (!data || !tipo) {
       return NextResponse.json(
@@ -92,6 +103,7 @@ export async function POST(req: { json: () => Promise<{ data: string; tipo: Cons
       );
     }
 
+    // ✅ Criando a nova consulta no banco de dados
     const novaConsulta = await db.consultas.create({
       data: {
         userId: session.user.id,
@@ -101,7 +113,7 @@ export async function POST(req: { json: () => Promise<{ data: string; tipo: Cons
         unidadeId: unidadeId || null,
         tratamento: tratamentoId || null,
         queixas: queixas || null,
-        tipodeexame: tipoexame || null
+        tipodeexame: tipoexame || null,
       },
     });
 
