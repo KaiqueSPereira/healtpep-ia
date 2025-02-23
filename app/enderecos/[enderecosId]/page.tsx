@@ -54,10 +54,8 @@ const EnderecoDialog: React.FC = () => {
   const handleSubmit = async (data: EnderecoForm) => {
     if (!session?.user?.id) {
       console.error("Usuário não autenticado.");
-      toast({
-        title: "Usuário não autenticado.",
-        type: "foreground",
-      });
+      toast("Usuário não autenticado.","foreground",
+        { title: "Usuário não autenticado." });
       return;
     }
 
@@ -81,17 +79,13 @@ const EnderecoDialog: React.FC = () => {
         throw new Error(error.error || "Erro ao salvar o endereço.");
       }
 
-      toast({
-        title: "Endereço salvo com sucesso!",
-        type: "foreground",
-      });
+      toast("Endereço salvo com sucesso!","foreground",
+        { title: "Endereço salvo com sucesso!" });
       form.reset();
     } catch (error) {
       console.error("Erro ao salvar o endereço:", error);
-      toast({
-        title: "Erro ao salvar o endereço",
-        type: "foreground",
-      });
+      toast("Erro ao salvar o endereço","foreground",
+        { title: "Erro ao salvar o endereço" });
     }
   };
 
@@ -113,10 +107,8 @@ const EnderecoDialog: React.FC = () => {
         })
         .catch((error) => {
           console.error("Erro ao consultar o CEP:", error);
-          toast({
-            title: "Erro ao consultar o CEP",
-            type: "foreground",
-          });
+          toast("Erro ao consultar o CEP", "foreground", { title: "Erro ao consultar o CEP"}
+          );
         });
     }
   };

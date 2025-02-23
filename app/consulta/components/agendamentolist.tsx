@@ -26,7 +26,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         const res = await fetch(`/api/consultas?userId=${userId}`);
         if (!res.ok) throw new Error("Erro ao buscar agendamentos");
 
-        const { consultas } = await res.json(); // Ajuste para a estrutura da nova API
+        const { consultas } = await res.json(); 
         const agora = new Date();
 
         const futuros = consultas.filter(
