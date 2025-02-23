@@ -60,18 +60,14 @@ const EnderecoDialog: React.FC = () => {
         throw new Error("Erro ao salvar o endereço.");
       }
 
-      toast({
-        title: "Endereço salvo com sucesso!",
-        type: "foreground", 
-      })
+      toast("Endereço salvo com sucesso!","foreground", 
+      { duration: 5000 });
       form.reset();
       setOpen(false);
     } catch (error) {
       console.error(error);
-      toast({
-        title: "Erro ao salvar o endereço.",
-        type: "foreground",
-      });
+      toast( "Erro ao salvar o endereço.", "foreground",
+      { duration: 5000 });
     }
   };
 
@@ -83,7 +79,8 @@ const EnderecoDialog: React.FC = () => {
         .then((res) => res.json())
         .then((data) => {
           if (data.erro) {
-            alert("CEP não encontrado!");
+            toast("CEP não encontrado!", "foreground",
+            { duration: 5000 });
           } else {
             form.setValue("rua", data.logradouro);
             form.setValue("bairro", data.bairro);
@@ -93,7 +90,8 @@ const EnderecoDialog: React.FC = () => {
         })
         .catch((error) => {
           console.error("Erro ao consultar CEP:", error);
-          alert("Erro ao consultar o CEP.");
+          toast("Erro ao consultar CEP", "foreground",
+          { duration: 5000 });
         });
     }
   };

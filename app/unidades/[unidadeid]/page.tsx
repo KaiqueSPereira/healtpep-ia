@@ -61,13 +61,6 @@ const UnidadePage = () => {
     null,
   );
 
-  useEffect(() => {
-    if (unidadeid) {
-      fetchUnidadeById(unidadeid);
-    }
-    fetchEnderecos();
-  }, [unidadeid]);
-
   const fetchUnidadeById = async (unidadeid: string) => {
     try {
       const response = await fetch(`/api/unidades/${unidadeid}`);
@@ -83,10 +76,18 @@ const UnidadePage = () => {
     }
   };
 
+  useEffect(() => {
+    if (unidadeid) {
+      fetchUnidadeById(unidadeid);
+    }
+    fetchEnderecos();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadeid]);
+
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
-      if (!response.ok) throw new Error("Erro ao buscar endereçeos");
+      if (!response.ok) throw new Error("Erro ao buscar endereços");
 
       const data: Endereco[] = await response.json();
       setEnderecos(data);

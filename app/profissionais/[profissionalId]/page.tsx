@@ -66,10 +66,8 @@ const ProfissionalPage = () => {
       setSelectedUnidade(data.unidade);
     } catch (error) {
       console.error("Erro ao buscar profissional:", error);
-      toast({
-        title: "Erro ao buscar profissional.",
-        variant: "destructive",
-      });
+      toast("Erro ao buscar profissional.","destructive",
+     {duration: 5000});
     }
   };
 
@@ -90,10 +88,8 @@ const ProfissionalPage = () => {
       setUnidades(data);
     } catch (error) {
       console.error("Erro ao buscar unidades:", error);
-      toast({
-        title: "Erro ao buscar unidades.",
-        variant: "destructive",
-      });
+      toast("Erro ao buscar unidades.","destructive",
+     {duration: 5000});
     }
   };
 
