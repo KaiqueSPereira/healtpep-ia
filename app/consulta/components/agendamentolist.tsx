@@ -40,9 +40,8 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         setAgendamentosPassados(passados);
       } catch (error) {
         console.error("Erro ao buscar consultas:", error);
-        toast({
+        toast("Erro ao carregar as consultas.", "destructive", {
           title: "Erro ao carregar as consultas.",
-          variant: "destructive",
         });
       } finally {
         setLoading(false);
