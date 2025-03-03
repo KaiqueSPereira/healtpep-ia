@@ -1,9 +1,8 @@
-
 export interface Unidade {
   id: string;
   nome: string;
   tipo: string;
-  endereco: string;
+  endereco: { id: string; nome: string; bairro: string } | null;
 }
 
 export interface Profissional {
@@ -36,7 +35,33 @@ export interface Agendamento {
 }
 
 export interface AgendamentoItemProps {
-  consultas: Agendamento; 
-  profissional: string; 
-  unidade: string; 
+  consultas: Agendamento;
+  profissional: string;
+  unidade: string;
+}
+
+export interface Unidade {
+  id: string;
+  nome: string;
+  tipo: string;
+  endereco: {
+    id: string;
+    nome: string;
+    bairro: string;
+  } | null;
+}
+
+export interface Profissional {
+  id: string;
+  nome: string;
+  especialidade: string;
+  unidade?: {
+    endereco: Endereco; id: string; nome: string 
+};
+}
+
+export interface Endereco {
+  id: string;
+  nome: string;
+  bairro: string;
 }

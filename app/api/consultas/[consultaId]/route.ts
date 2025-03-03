@@ -1,7 +1,6 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 
-
 // 📌 GET - Buscar uma consulta específica
 export async function GET(
   req: Request,
