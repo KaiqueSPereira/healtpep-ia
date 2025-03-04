@@ -2,11 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, CalendarCheck } from "lucide-react";
+import { User, CalendarCheck, Loader2 } from "lucide-react";
 import Header from "../_components/header";
 import Footer from "../_components/footer";
-
-
+import Link from "next/link";
+import { Button } from "../_components/ui/button";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+} from "../_components/ui/dialog";
+import { useToast } from "../_hooks/use-toast";
 
 const UnidadesPage = () => {
   interface Unidade {
@@ -16,83 +24,129 @@ const UnidadesPage = () => {
   }
 
   const [unidades, setUnidades] = useState<Unidade[]>([]);
-  const [profissionaisPorUnidade, setProfissionaisPorUnidade] = useState<Record<string | number, number>>({});
-  const [consultasPorUnidade, setConsultasPorUnidade] = useState<Record<string | number, number>>({});
+  const [profissionaisPorUnidade, setProfissionaisPorUnidade] = useState<
+    Record<string | number, number>
+  >({});
+  const [consultasPorUnidade, setConsultasPorUnidade] = useState<
+    Record<string | number, number>
+  >({});
+  const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | number | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
+
+  const fetchJson = async (res: Response) => {
+    if (!res.ok) throw new Error(`Erro ao buscar ${res.url}`);
+    return res.json();
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [resUnidades, resProfissionais, resConsultas] = await Promise.all(
-          [
-            fetch("/api/unidadesaude"),
-            fetch("/api/profissional"),
-            fetch("/api/consultas"),
-          ],
-        );
+        const [unidadesData, profissionaisData, consultasData] =
+          await Promise.all([
+            fetch("/api/unidadesaude").then(fetchJson),
+            fetch("/api/profissional").then(fetchJson),
+            fetch("/api/consultas").then(fetchJson),
+          ]);
 
-        if (!resUnidades.ok || !resProfissionais.ok || !resConsultas.ok) {
-          throw new Error("Erro ao carregar dados");
-        }
-
-        // Unidades
-        const unidadesData = await resUnidades.json();
         setUnidades(unidadesData);
-
-        // Profissionais
-        const profissionaisData = await resProfissionais.json();
         const profissionaisArray = Array.isArray(profissionaisData)
           ? profissionaisData
           : [];
+        const consultasArray = Array.isArray(consultasData)
+          ? consultasData
+          : consultasData.consultas || [];
+
         const contagemProfissionais = profissionaisArray.reduce(
           (acc, profissional) => {
             if (Array.isArray(profissional.unidades)) {
-              profissional.unidades.forEach((unidade: { id: string | number; }) => {
-                if (unidade.id) {
-                  acc[unidade.id] = (acc[unidade.id] || 0) + 1;
-                }
-              });
+              profissional.unidades.forEach(
+                (unidade: { id: string | number }) => {
+                  if (unidade.id) {
+                    acc[unidade.id] = (acc[unidade.id] || 0) + 1;
+                  }
+                },
+              );
+            }
+            return acc;
+          },
+          {} as Record<string | number, number>,
+        );
+        setProfissionaisPorUnidade(contagemProfissionais);
+
+        const contagemConsultas = consultasArray.reduce(
+          (
+            acc: Record<string | number, number>,
+            consulta: { unidadeId: string | number },
+          ) => {
+            if (consulta.unidadeId) {
+              acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
             }
             return acc;
           },
           {},
         );
-        setProfissionaisPorUnidade(contagemProfissionais);
-
-        // Consultas
-        const consultasData = await resConsultas.json();
-        const consultasArray = Array.isArray(consultasData)
-          ? consultasData
-          : consultasData.consultas || [];
-        const contagemConsultas = consultasArray.reduce((acc: { [x: string]: number; }, consulta: { unidadeId: string | number; }) => {
-          if (consulta.unidadeId) {
-            acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
-          }
-          return acc;
-        }, {});
         setConsultasPorUnidade(contagemConsultas);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchData();
   }, []);
 
-  const handleEdit = (unidadeId: unknown) => {
+  const handleEdit = (unidadeId: string | number) => {
     router.push(`/unidades/editar/${unidadeId}`);
+  };
+
+  const confirmDelete = (unidadeId: string | number) => {
+    setDeleteId(unidadeId);
+  };
+
+  const handleDelete = () => {
+    if (!deleteId) return;
+    fetch(`/api/unidadesaude?id=${deleteId}`, {
+      method: "DELETE",
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          console.error("Erro ao apagar unidade:", text);
+          return;
+        }
+        setUnidades((unidades) =>
+          unidades.filter((unidade) => unidade.id !== deleteId),
+        );
+        toast("Unidade apagada com sucesso!", "success", { duration: 5000 });
+      })
+      .catch((error) => {
+        console.error("Erro ao apagar unidade:", error);
+      })
+      .finally(() => {
+        setDeleteId(null);
+      });
   };
 
   return (
     <div>
       <Header />
       <div className="container mx-auto p-4">
-        <h1 className="mb-4 text-2xl font-bold">Unidades de Saúde</h1>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {unidades.length === 0 ? (
-            <p>Carregando unidades...</p>
-          ) : (
-            unidades.map((unidade) => (
+        <div className="mt-8 flex justify-between">
+          <h1 className="mb-4 text-2xl font-bold">Unidades de Saúde</h1>
+          <Link href="/unidades/novo">
+            <Button>Adicionar Unidade</Button>
+          </Link>
+        </div>
+        {loading ? (
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-10 w-10 animate-spin text-gray-600" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {unidades.map((unidade) => (
               <div key={unidade.id} className="rounded-lg border p-4 shadow-lg">
                 <h2 className="text-xl font-semibold">{unidade.nome}</h2>
                 <p className="text-gray-600">{unidade.tipo}</p>
@@ -106,24 +160,38 @@ const UnidadesPage = () => {
                     {consultasPorUnidade[unidade.id] || 0} Consultas
                   </span>
                 </div>
-                <div className="mt-4 flex justify-between">
-                  <button
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-between">
+                  <Button
+                    variant="outline"
                     onClick={() => handleEdit(unidade.id)}
-                    className="rounded bg-blue-500 px-4 py-2 text-white"
                   >
                     Editar
-                  </button>
-                  <button
-                    disabled
-                    className="cursor-not-allowed rounded bg-red-500 px-4 py-2 text-white opacity-50"
-                  >
-                    Apagar
-                  </button>
+                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button onClick={() => confirmDelete(unidade.id)}>
+                        Apagar
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        Tem certeza que deseja apagar esta unidade?
+                      </DialogHeader>
+                      <DialogFooter>
+                        <Button onClick={() => setDeleteId(null)}>
+                          Cancelar
+                        </Button>
+                        <Button onClick={handleDelete} className="bg-red-500">
+                          Confirmar
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
       <Footer />
     </div>

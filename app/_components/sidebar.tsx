@@ -58,7 +58,7 @@ const Sidebarbotton = () => {
           <CalendarIcon size={18} />
           Agendamentos
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost">
+        <Button className="flex items-center gap-2" variant="ghost" >
           <Hospital size={18} />
           <Link href="/unidades" className="text-inherit no-underline">
             Unidades
