@@ -22,6 +22,7 @@ model User {
   endereco      Endereco[]
   sessions      Session[]
   tratamentos   Tratamento[]
+  exames        Exame[]
 }
 
 model Account {
@@ -89,6 +90,7 @@ model Consultas {
   profissional   Profissional  ? @relation(fields: [profissionalId], references: [id])
   unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario        User            @relation(fields: [userId], references: [id])
+  Exame          Exame[]
 }
 
 model Endereco {
@@ -118,6 +120,7 @@ model Profissional {
   consultas     Consultas[]
   tratamentos   Tratamento[]     @relation("ProfissionalTratamentos")
   unidades      UnidadeDeSaude[] @relation("ProfissionalUnidades")
+  exames        Exame[]
 }
 
 model Tratamento {
@@ -141,6 +144,7 @@ model UnidadeDeSaude {
   consultas     Consultas[]
   endereco      Endereco?      @relation(fields: [enderecoId], references: [id])
   profissionais Profissional[] @relation("ProfissionalUnidades")
+  exames        Exame[]
 }
 
 enum Consultatype {
@@ -149,4 +153,22 @@ enum Consultatype {
   Emergencia
   Retorno
   Tratamento
+}
+
+model Exame {
+  id          String    @id @default(uuid())
+  nome        String
+  valor       String
+  datacoleta  DateTime
+  tipo        String
+  userId      String
+  profissionalId String
+  consultaId  String
+  unidadesId  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  usuario     User      @relation(fields: [userId], references: [id])
+  profissional Profissional @relation(fields: [profissionalId], references: [id])
+  consulta    Consultas @relation(fields: [consultaId], references: [id])
+  unidades   UnidadeDeSaude? @relation(fields: [unidadesId], references: [id])
 }

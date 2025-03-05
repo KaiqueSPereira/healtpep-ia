@@ -1,6 +1,6 @@
 "use client";
 import { Button } from "./ui/button";
-import { CalendarIcon, HomeIcon, Hospital, LogInIcon, LogOutIcon } from "lucide-react";
+import { CalendarIcon, HomeIcon, Hospital, LogInIcon, LogOutIcon, User } from "lucide-react";
 import { SheetClose, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
@@ -62,6 +62,12 @@ const Sidebarbotton = () => {
           <Hospital size={18} />
           <Link href="/unidades" className="text-inherit no-underline">
             Unidades
+          </Link>
+        </Button>
+        <Button className="flex items-center gap-2" variant="ghost">
+          <User size={18} />
+          <Link href="/profissionais" className="text-inherit no-underline">
+            Profissionais
           </Link>
         </Button>
       </div>

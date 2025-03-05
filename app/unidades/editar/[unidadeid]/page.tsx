@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/app/_components/ui/button";
-import { ChevronLeftIcon} from "lucide-react";
+import { ChevronLeftIcon, Loader2} from "lucide-react";
 import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
 import {
@@ -107,7 +107,7 @@ const UnidadeDetalhesPage = () => {
   const salvarAlteracoes = async () => {
     try {
       const res = await fetch(`/api/unidadesaude/${unidadeId}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(unidade),
       });
@@ -120,30 +120,42 @@ const UnidadeDetalhesPage = () => {
     }
   };
 
-  if (loading) return <p>Carregando...</p>;
+  if (loading) return (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        );
   if (error) return <p className="text-red-500">{error}</p>;
   if (!unidade) return <p>Unidade não encontrada.</p>;
 
-  const salvarUnidade = async (profId: string) => {
-    try {
-      const res = await fetch(`/api/profissional/${profId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unidadeId: unidadesSelecionadas[profId]?.id }),
-      });
+ const salvarUnidade = async (profId: string) => {
+   try {
+     const res = await fetch(`/api/profissional/${profId}`, {
+       method: "PATCH",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ unidadeId: unidadesSelecionadas[profId]?.id }),
+     });
 
-      if (!res.ok) throw new Error("Erro ao salvar unidade");
+     if (!res.ok) throw new Error("Erro ao salvar unidade");
 
-      alert("Unidade do profissional atualizada com sucesso!");
-    } catch (error) {
-      console.error("❌ Erro ao salvar unidade:", error);
-    }
-  };
+     alert("Unidade do profissional atualizada com sucesso!");
+   } catch (error) {
+     console.error("❌ Erro ao salvar unidade:", error);
+   }
+ };
+
 
   return (
+
+    
+
     <div>
       <Header />
-      <div className="container mx-auto p-4">
+      {loading ? (
+          <div className="flex items-center justify-center py-10">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+        ) : (<div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold">Editar Unidade</h1>
         <div className="mt-4 space-y-2">
           <label className="text-white">Nome:</label>
@@ -291,7 +303,7 @@ const UnidadeDetalhesPage = () => {
             ))}
           </tbody>
         </table>
-      </div>
+      </div>)}
       <Footer />
     </div>
   );

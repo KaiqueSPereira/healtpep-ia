@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, CalendarCheck, Loader2 } from "lucide-react";
+import { User, CalendarCheck, Loader2, AlertCircle } from "lucide-react";
 import Header from "../_components/header";
 import Footer from "../_components/footer";
 import Link from "next/link";
@@ -15,6 +15,7 @@ import {
   DialogFooter,
 } from "../_components/ui/dialog";
 import { useToast } from "../_hooks/use-toast";
+
 
 const UnidadesPage = () => {
   interface Unidade {
@@ -31,6 +32,7 @@ const UnidadesPage = () => {
     Record<string | number, number>
   >({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | number | null>(null);
   const router = useRouter();
   const { toast } = useToast();
@@ -60,14 +62,9 @@ const UnidadesPage = () => {
 
         const contagemProfissionais = profissionaisArray.reduce(
           (acc, profissional) => {
-            if (Array.isArray(profissional.unidades)) {
-              profissional.unidades.forEach(
-                (unidade: { id: string | number }) => {
-                  if (unidade.id) {
-                    acc[unidade.id] = (acc[unidade.id] || 0) + 1;
-                  }
-                },
-              );
+            if (profissional.unidadeId) {
+              acc[profissional.unidadeId] =
+                (acc[profissional.unidadeId] || 0) + 1;
             }
             return acc;
           },
@@ -75,21 +72,18 @@ const UnidadesPage = () => {
         );
         setProfissionaisPorUnidade(contagemProfissionais);
 
-        const contagemConsultas = consultasArray.reduce(
-          (
-            acc: Record<string | number, number>,
-            consulta: { unidadeId: string | number },
-          ) => {
-            if (consulta.unidadeId) {
-              acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
-            }
-            return acc;
-          },
-          {},
-        );
+        const contagemConsultas = consultasArray.reduce((acc: Record<string | number, number>, consulta: { unidadeId: string | number; }) => {
+          if (consulta.unidadeId) {
+            acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
+          }
+          return acc;
+        }, {});
         setConsultasPorUnidade(contagemConsultas);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
+        setError(
+          "Falha ao carregar os dados. Por favor, tente novamente mais tarde.",
+        );
       } finally {
         setLoading(false);
       }
@@ -120,7 +114,7 @@ const UnidadesPage = () => {
         setUnidades((unidades) =>
           unidades.filter((unidade) => unidade.id !== deleteId),
         );
-        toast("Unidade apagada com sucesso!", "success", { duration: 5000 });
+        toast("Unidade apagada com sucesso!", "foreground", { duration: 5000 });
       })
       .catch((error) => {
         console.error("Erro ao apagar unidade:", error);
@@ -143,6 +137,11 @@ const UnidadesPage = () => {
         {loading ? (
           <div className="flex h-40 items-center justify-center">
             <Loader2 className="h-10 w-10 animate-spin text-gray-600" />
+          </div>
+        ) : error ? (
+          <div className="flex h-40 flex-col items-center justify-center text-red-500">
+            <AlertCircle className="h-10 w-10" />
+            <p className="mt-2">{error}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -169,7 +168,10 @@ const UnidadesPage = () => {
                   </Button>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button onClick={() => confirmDelete(unidade.id)}>
+                      <Button
+                        onClick={() => confirmDelete(unidade.id)}
+                        className="bg-red-500"
+                      >
                         Apagar
                       </Button>
                     </DialogTrigger>

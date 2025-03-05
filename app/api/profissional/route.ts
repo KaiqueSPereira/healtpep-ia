@@ -118,40 +118,27 @@ export async function PATCH(req: Request) {
   }
 }
 
-// Método DELETE (Deletar um profissional)
-export async function DELETE(req: Request) {
-  const url = new URL(req.url);
-  const profissionalId = url.searchParams.get("id");
-
-  if (!profissionalId) {
-    return NextResponse.json(
-      { error: "ID do profissional é necessário" },
-      { status: 400 },
-    );
+export async function DELETE(
+  request: Request,
+  { params }: { params: { profissionalId: string } },
+) {
+  if (!params || !params.profissionalId) {
+    return new Response("ID do profissional não fornecido", { status: 400 });
   }
 
+  const { profissionalId } = params;
+
   try {
-    const profissional = await db.profissional.findUnique({
-      where: { id: profissionalId },
-    });
-
-    if (!profissional) {
-      return NextResponse.json(
-        { error: "Profissional não encontrado" },
-        { status: 404 },
-      );
-    }
-
     await db.profissional.delete({
       where: { id: profissionalId },
     });
 
-    return NextResponse.json({ message: "Cadastro deletado com sucesso!" });
+    return new Response("Profissional deletado com sucesso", { status: 200 });
   } catch (error) {
-    console.error("Erro ao deletar o cadastro:", error);
-    return NextResponse.json(
-      { error: "Falha ao deletar o Cadastro" },
-      { status: 500 },
-    );
+    console.error("Erro ao deletar profissional:", error);
+    return new Response("Erro interno ao deletar profissional", {
+      status: 500,
+    });
   }
 }
+
