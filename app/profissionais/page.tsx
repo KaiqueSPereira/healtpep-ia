@@ -28,7 +28,8 @@ interface Profissional {
 }
 const ProfissionaisPage = () => {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-  const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
+  const [selectedProfissional, setSelectedProfissional] =
+    useState<Profissional | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,7 +87,7 @@ const ProfissionaisPage = () => {
                     <strong>Especialidade:</strong> {profissional.especialidade}
                   </p>
                   <p>
-                    <strong>Número de Classe:</strong> {profissional.NumClasse}
+                    <strong>NĂşmero de Classe:</strong> {profissional.NumClasse}
                   </p>
                   <p>
                     <strong>Unidade:</strong>{" "}

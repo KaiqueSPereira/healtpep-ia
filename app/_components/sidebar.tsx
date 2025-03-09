@@ -1,15 +1,20 @@
 "use client";
 import { Button } from "./ui/button";
-import { CalendarIcon, HomeIcon, Hospital, LogInIcon, LogOutIcon, User } from "lucide-react";
+import {
+  CalendarIcon,
+  HomeIcon,
+  Hospital,
+  LogInIcon,
+  LogOutIcon,
+} from "lucide-react";
 import { SheetClose, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
-import {
-  Dialog,
-  DialogTrigger,
-} from "./ui/dialog";
+import { Dialog, DialogTrigger } from "./ui/dialog";
 import { signOut, useSession } from "next-auth/react";
 import SingInDialog from "./sing-in-dialog";
+import { User } from "lucide-react";
+
 const Sidebarbotton = () => {
   const { data } = useSession();
   const handlelogoutclick = () => signOut();
@@ -33,7 +38,7 @@ const Sidebarbotton = () => {
           </div>
         ) : (
           <>
-            <h2 className="font-bold">Ola, faça o seu login</h2>
+            <h2 className="font-bold">Olá, faça o seu login</h2>
             <Dialog>
               <DialogTrigger asChild>
                 <Button size="icon">
@@ -54,11 +59,10 @@ const Sidebarbotton = () => {
           </Button>
         </SheetClose>
         <Button className="justify-startgap-2" variant="ghost">
-          {" "}
           <CalendarIcon size={18} />
           Agendamentos
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost" >
+        <Button className="flex items-center gap-2" variant="ghost">
           <Hospital size={18} />
           <Link href="/unidades" className="text-inherit no-underline">
             Unidades
@@ -77,7 +81,6 @@ const Sidebarbotton = () => {
           variant="ghost"
           onClick={handlelogoutclick}
         >
-          {" "}
           <LogOutIcon size={18} /> Sair da Conta
         </Button>
       </div>

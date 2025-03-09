@@ -34,46 +34,70 @@ export async function PATCH(
   req: Request,
   { params }: { params: { profissionalId: string } },
 ) {
-  const { profissionalId } = params;
-
   try {
+    const profissionalId = params.profissionalId;
     const body = await req.json();
-    console.log(
-      "📦 Dados recebidos no PATCH:",
-      body,
-      "Profissional ID:",
-      profissionalId,
-    );
-
     const { unidadeId } = body;
 
     if (!unidadeId) {
-      console.error("⚠️ unidadeId está ausente");
-      return NextResponse.json(
-        { error: "O campo unidadeId é obrigatório" },
-        { status: 400 },
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "ID da unidade é obrigatório",
+        }),
+        {
+          status: 400,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
     }
 
     const profissionalAtualizado = await db.profissional.update({
-      where: { id: profissionalId },
+      where: {
+        id: profissionalId,
+      },
       data: {
         unidades: {
+          set: [],
           connect: [{ id: unidadeId }],
         },
       },
+      include: {
+        unidades: true,
+      },
     });
 
-    return NextResponse.json(profissionalAtualizado);
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Unidade atualizada com sucesso",
+        data: profissionalAtualizado,
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
   } catch (error) {
     console.error("❌ Erro ao atualizar profissional:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 },
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: "Erro ao atualizar unidade do profissional",
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
     );
   }
 }
-
 
 export async function DELETE(
   request: Request,
