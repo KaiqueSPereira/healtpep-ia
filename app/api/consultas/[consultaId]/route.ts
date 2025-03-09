@@ -1,18 +1,16 @@
 import { db } from "@/app/_lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // 📌 GET - Buscar uma consulta específica
 export async function GET(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { consultaId: string } },
 ) {
   try {
     const consultaId = params.consultaId;
 
     const consulta = await db.consultas.findUnique({
-      where: {
-        id: consultaId,
-      },
+      where: { id: consultaId },
       include: {
         profissional: true,
         unidade: true,
@@ -39,17 +37,15 @@ export async function GET(
 
 // 📌 PATCH - Atualizar uma consulta existente
 export async function PATCH(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { consultaId: string } },
 ) {
   try {
     const consultaId = params.consultaId;
-    const body = await request.json();
+    const body = await req.json();
 
     const consultaAtualizada = await db.consultas.update({
-      where: {
-        id: consultaId,
-      },
+      where: { id: consultaId },
       data: body,
       include: {
         profissional: true,
@@ -70,16 +66,14 @@ export async function PATCH(
 
 // 📌 DELETE - Deletar uma consulta
 export async function DELETE(
-  request: Request,
+  req: NextRequest,
   { params }: { params: { consultaId: string } },
 ) {
   try {
     const consultaId = params.consultaId;
 
     await db.consultas.delete({
-      where: {
-        id: consultaId,
-      },
+      where: { id: consultaId },
     });
 
     return NextResponse.json(
