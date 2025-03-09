@@ -1,17 +1,12 @@
 import { db } from "@/app/_lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-
-interface RouteParams {
-  params: {
-    consultaId: string;
-  };
-}
+import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
 
 // 📌 GET - Buscar uma consulta específica
-export async function GET(_request: NextRequest, { params }: RouteParams) {
+export async function GET(_request: NextRequest, context: { params: Params }) {
   try {
     const consulta = await db.consultas.findUnique({
-      where: { id: params.consultaId },
+      where: { id: context.params.consultaId as string },
       include: {
         profissional: true,
         unidade: true,
@@ -37,12 +32,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 }
 
 // 📌 PATCH - Atualizar uma consulta existente
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, context: { params: Params }) {
   try {
     const body = await request.json();
 
     const consultaAtualizada = await db.consultas.update({
-      where: { id: params.consultaId },
+      where: { id: context.params.consultaId as string },
       data: body,
       include: {
         profissional: true,
@@ -62,10 +57,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 }
 
 // 📌 DELETE - Deletar uma consulta
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Params },
+) {
   try {
     await db.consultas.delete({
-      where: { id: params.consultaId },
+      where: { id: context.params.consultaId as string },
     });
 
     return NextResponse.json(
