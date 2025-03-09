@@ -16,12 +16,16 @@ import {
 } from "../_components/ui/dialog";
 import { useToast } from "../_hooks/use-toast";
 
-
 const UnidadesPage = () => {
   interface Unidade {
     id: string | number;
     nome: string;
     tipo: string;
+  }
+
+  interface Profissional {
+    id: string;
+    unidades: Array<{ id: string | number }>;
   }
 
   const [unidades, setUnidades] = useState<Unidade[]>([]);
@@ -55,29 +59,50 @@ const UnidadesPage = () => {
         setUnidades(unidadesData);
         const profissionaisArray = Array.isArray(profissionaisData)
           ? profissionaisData
-          : [];
+          : profissionaisData.profissionais || [];
         const consultasArray = Array.isArray(consultasData)
           ? consultasData
           : consultasData.consultas || [];
 
+        console.log("Dados brutos dos profissionais:", profissionaisData);
+        console.log("Array de profissionais:", profissionaisArray);
+
         const contagemProfissionais = profissionaisArray.reduce(
-          (acc, profissional) => {
-            if (profissional.unidadeId) {
-              acc[profissional.unidadeId] =
-                (acc[profissional.unidadeId] || 0) + 1;
+          (
+            acc: Record<string | number, number>,
+            profissional: Profissional,
+          ) => {
+            if (
+              profissional &&
+              profissional.unidades &&
+              profissional.unidades.length > 0
+            ) {
+              profissional.unidades.forEach(
+                (unidade: { id: string | number }) => {
+                  acc[unidade.id] = (acc[unidade.id] || 0) + 1;
+                },
+              );
             }
             return acc;
           },
           {} as Record<string | number, number>,
         );
+
+        console.log("Contagem de Profissionais:", contagemProfissionais);
         setProfissionaisPorUnidade(contagemProfissionais);
 
-        const contagemConsultas = consultasArray.reduce((acc: Record<string | number, number>, consulta: { unidadeId: string | number; }) => {
-          if (consulta.unidadeId) {
-            acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
-          }
-          return acc;
-        }, {});
+        const contagemConsultas = consultasArray.reduce(
+          (
+            acc: Record<string | number, number>,
+            consulta: { unidadeId: string | number },
+          ) => {
+            if (consulta.unidadeId) {
+              acc[consulta.unidadeId] = (acc[consulta.unidadeId] || 0) + 1;
+            }
+            return acc;
+          },
+          {},
+        );
         setConsultasPorUnidade(contagemConsultas);
       } catch (error) {
         console.error("Erro ao carregar dados:", error);

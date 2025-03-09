@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation"; // Importa redirecionamento
+﻿import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import Header from "./_components/header";
 import Searchbar from "./_components/searchbar";
@@ -6,7 +6,6 @@ import NovaConsulta from "./consulta/components/novaconsulta";
 import Footer from "./_components/footer";
 import AgendamentosList from "./consulta/components/agendamentolist";
 import { authOptions } from "./_lib/auth";
-
 
 const Home = async () => {
   // Obtém a sessão do usuário autenticado
@@ -35,9 +34,9 @@ const Home = async () => {
         <div className="mt-5 flex flex-col gap-5">
           <NovaConsulta />
           <div>
-        <AgendamentosList userId={session.user.id} /></div>
+            <AgendamentosList userId={session.user.id} />
+          </div>
         </div>
-        
       </div>
       <Footer />
     </div>
