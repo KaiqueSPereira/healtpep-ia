@@ -1,16 +1,12 @@
 import { db } from "@/app/_lib/prisma";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
 
-export async function GET(
-  request: Request,
-  context: { params: { profissionalId: string } },
-) {
-  const profissionalId = context.params.profissionalId;
-
+export async function GET(_request: NextRequest, context: { params: Params }) {
   try {
     const profissional = await db.profissional.findUnique({
       where: {
-        id: profissionalId,
+        id: context.params.profissionalId as string,
       },
       include: {
         unidades: true,
@@ -41,18 +37,13 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: Request,
-  context: { params: { profissionalId: string } },
-) {
-  const profissionalId = context.params.profissionalId;
-
+export async function PATCH(request: NextRequest, context: { params: Params }) {
   try {
     const body = await request.json();
 
     const profissionalAtualizado = await db.profissional.update({
       where: {
-        id: profissionalId,
+        id: context.params.profissionalId as string,
       },
       data: {
         nome: body.nome,
@@ -84,25 +75,25 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  request: Request,
-  { params }: { params: { profissionalId: string } },
+  _request: NextRequest,
+  context: { params: Params },
 ) {
-  if (!params || !params.profissionalId) {
-    return new Response("ID do profissional não fornecido", { status: 400 });
-  }
-
-  const { profissionalId } = params;
-
   try {
     await db.profissional.delete({
-      where: { id: profissionalId },
+      where: {
+        id: context.params.profissionalId as string,
+      },
     });
 
-    return new Response("Profissional deletado com sucesso", { status: 200 });
+    return NextResponse.json(
+      { message: "Profissional deletado com sucesso" },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Erro ao deletar profissional:", error);
-    return new Response("Erro interno ao deletar profissional", {
-      status: 500,
-    });
+    return NextResponse.json(
+      { error: "Erro ao deletar profissional" },
+      { status: 500 },
+    );
   }
 }
