@@ -1,9 +1,6 @@
-
 import { Consultatype } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
-
-
 
 // Função para validar e transformar a string de data para um objeto Date
 const parseDate = (dateString: string) => {
@@ -82,20 +79,18 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
     consultas = await db.consultas.findMany({
       where: {
         OR: [
-          { queixas: { startsWith: search, mode: "insensitive" } }, // Alternativa: startsWith
-          { tratamento: { endsWith: search, mode: "insensitive" } }, // Alternativa: endsWith
-          { tipodeexame: { equals: search, mode: "insensitive" } }, // Alternativa: equals
-          { tipo: { equals: search as Consultatype } }, // Voltar ao equals se necessário
+          { queixas: { startsWith: search, mode: "insensitive" } },
+          { tratamento: { endsWith: search, mode: "insensitive" } },
+          { tipodeexame: { equals: search, mode: "insensitive" } },
+          { tipo: { equals: search as Consultatype } },
           {
             profissional: { nome: { startsWith: search, mode: "insensitive" } },
-          }, // Alternativa: startsWith
-          { unidade: { nome: { contains: search, mode: "insensitive" } } }, // Alternativa: contains
+          },
+          { unidade: { nome: { contains: search, mode: "insensitive" } } },
         ],
       },
     });
   }
-  
-  
 
   return (
     <div>
@@ -105,7 +100,10 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
       <div className="grid grid-cols-3 gap-4">
         {consultas.length > 0 ? (
           consultas.map((consulta) => (
-            <AgendamentoItem key={consulta.id} consultas={{ ...consulta, data: consulta.data.toISOString() }} />
+            <AgendamentoItem
+              key={consulta.id}
+              consultas={{ ...consulta, data: consulta.data.toISOString() }}
+            />
           ))
         ) : (
           <p>Nenhum resultado encontrado.</p>

@@ -22,9 +22,10 @@ import {
 import Link from "next/link";
 import { Endereco, Profissional, Unidade } from "@/app/_components/types";
 
-interface ConsultaCount {
+interface Consulta {
+  id: string;
   profissionalId: string;
-  _count: number;
+  unidadeId: string;
 }
 
 const UnidadeDetalhesPage = () => {
@@ -41,9 +42,6 @@ const UnidadeDetalhesPage = () => {
   const [enderecos, setEnderecos] = useState<Endereco[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [unidadesSelecionadas, setUnidadesSelecionadas] = useState<{
-    [key: string]: Unidade | null;
-  }>({});
   const [consultasPorProfissional, setConsultasPorProfissional] = useState<{
     [key: string]: number;
   }>({});
@@ -121,23 +119,6 @@ const UnidadeDetalhesPage = () => {
     fetchData();
   }, [unidadeId]);
 
-  useEffect(() => {
-    if (profissionais.length > 0) {
-      const unidadesIniciais = profissionais.reduce(
-        (acc: { [key: string]: Unidade | null }, prof: Profissional) => {
-          // Pegamos a primeira unidade associada ao profissional (ou deixamos null se ele não tiver)
-          const unidadeAtual =
-            prof.unidade?.id === unidadeId ? (prof.unidade as Unidade) : null;
-          acc[prof.id] = unidadeAtual;
-          return acc;
-        },
-        {},
-      );
-
-      setUnidadesSelecionadas(unidadesIniciais);
-    }
-  }, [profissionais, unidadeId]);
-
   const salvarAlteracoes = async () => {
     try {
       const res = await fetch(`/api/unidadesaude/${unidadeId}`, {
@@ -162,22 +143,6 @@ const UnidadeDetalhesPage = () => {
     );
   if (error) return <p className="text-red-500">{error}</p>;
   if (!unidade) return <p>Unidade não encontrada.</p>;
-
-  const salvarUnidade = async (profId: string) => {
-    try {
-      const res = await fetch(`/api/profissional/${profId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unidadeId: unidadesSelecionadas[profId]?.id }),
-      });
-
-      if (!res.ok) throw new Error("Erro ao salvar unidade");
-
-      alert("Unidade do profissional atualizada com sucesso!");
-    } catch (error) {
-      console.error("❌ Erro ao salvar unidade:", error);
-    }
-  };
 
   return (
     <div>

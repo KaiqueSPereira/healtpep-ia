@@ -2,15 +2,26 @@ import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { profissionalId: string } },
+  request: Request,
+  context: { params: { profissionalId: string } },
 ) {
-  const { profissionalId } = params;
+  const profissionalId = context.params.profissionalId;
 
   try {
     const profissional = await db.profissional.findUnique({
-      where: { id: profissionalId },
-      include: { unidades: true, tratamentos: true, consultas: true },
+      where: {
+        id: profissionalId,
+      },
+      include: {
+        unidades: true,
+        tratamentos: true,
+        consultas: {
+          include: {
+            usuario: true,
+            unidade: true,
+          },
+        },
+      },
     });
 
     if (!profissional) {
@@ -31,70 +42,43 @@ export async function GET(
 }
 
 export async function PATCH(
-  req: Request,
-  { params }: { params: { profissionalId: string } },
+  request: Request,
+  context: { params: { profissionalId: string } },
 ) {
-  try {
-    const profissionalId = params.profissionalId;
-    const body = await req.json();
-    const { unidadeId } = body;
+  const profissionalId = context.params.profissionalId;
 
-    if (!unidadeId) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          message: "ID da unidade é obrigatório",
-        }),
-        {
-          status: 400,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-    }
+  try {
+    const body = await request.json();
 
     const profissionalAtualizado = await db.profissional.update({
       where: {
         id: profissionalId,
       },
       data: {
-        unidades: {
-          set: [],
-          connect: [{ id: unidadeId }],
-        },
+        nome: body.nome,
+        especialidade: body.especialidade,
+        NumClasse: body.NumClasse,
       },
       include: {
         unidades: true,
+        consultas: {
+          include: {
+            usuario: true,
+            unidade: true,
+          },
+        },
       },
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Unidade atualizada com sucesso",
-        data: profissionalAtualizado,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    return NextResponse.json({
+      success: true,
+      data: profissionalAtualizado,
+    });
   } catch (error) {
-    console.error("❌ Erro ao atualizar profissional:", error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        message: "Erro ao atualizar unidade do profissional",
-      }),
-      {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      },
+    console.error("Erro ao atualizar profissional:", error);
+    return NextResponse.json(
+      { error: "Erro ao atualizar profissional" },
+      { status: 500 },
     );
   }
 }

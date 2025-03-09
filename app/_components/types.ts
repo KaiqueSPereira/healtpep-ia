@@ -55,9 +55,8 @@ export interface Profissional {
   id: string;
   nome: string;
   especialidade: string;
-  unidade?: {
-    endereco: Endereco; id: string; nome: string 
-};
+  NumClasse: string;
+  unidades: Unidade[];
 }
 
 export interface Endereco {

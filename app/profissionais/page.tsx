@@ -18,6 +18,7 @@ import { Loader2 } from "lucide-react";
 import Header from "../_components/header";
 import Footer from "../_components/footer";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface Profissional {
   id: string;
@@ -31,6 +32,7 @@ const ProfissionaisPage = () => {
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchProfissionais = async () => {
@@ -58,6 +60,10 @@ const ProfissionaisPage = () => {
     }
   };
 
+  const handleCardClick = (profissionalId: string) => {
+    router.push(`/profissionais/${profissionalId}/editar`);
+  };
+
   return (
     <div>
       <Header />
@@ -76,7 +82,11 @@ const ProfissionaisPage = () => {
         ) : (
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {profissionais.map((profissional) => (
-              <Card key={profissional.id}>
+              <Card
+                key={profissional.id}
+                className="cursor-pointer transition-all hover:scale-105 hover:shadow-lg"
+                onClick={() => handleCardClick(profissional.id)}
+              >
                 <CardHeader>
                   <CardTitle className="text-red-600">
                     {profissional.nome}
@@ -87,13 +97,13 @@ const ProfissionaisPage = () => {
                     <strong>Especialidade:</strong> {profissional.especialidade}
                   </p>
                   <p>
-                    <strong>NĂşmero de Classe:</strong> {profissional.NumClasse}
+                    <strong>Número de Classe:</strong> {profissional.NumClasse}
                   </p>
                   <p>
                     <strong>Unidade:</strong>{" "}
                     {profissional.unidades?.[0]?.nome || "Desconhecida"}
                   </p>
-                  <div className="mt-4">
+                  <div className="mt-4" onClick={(e) => e.stopPropagation()}>
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button
