@@ -3,18 +3,20 @@ import { NextResponse } from "next/server";
 
 // 📌 GET - Buscar uma consulta específica
 export async function GET(
-  req: Request,
-  { params }: { params: { consultaId: string } },
+  request: Request,
+  context: { params: { consultaId: string } },
 ) {
   try {
-    const { consultaId } = params;
+    const consultaId = context.params.consultaId;
 
     const consulta = await db.consultas.findUnique({
-      where: { id: consultaId },
+      where: {
+        id: consultaId,
+      },
       include: {
-        usuario: true,
         profissional: true,
         unidade: true,
+        usuario: true,
       },
     });
 
@@ -26,9 +28,10 @@ export async function GET(
     }
 
     return NextResponse.json(consulta);
-  } catch {
+  } catch (error) {
+    console.error("Erro ao buscar consulta:", error);
     return NextResponse.json(
-      { error: "Erro ao buscar a consulta" },
+      { error: "Erro interno do servidor" },
       { status: 500 },
     );
   }
@@ -36,42 +39,30 @@ export async function GET(
 
 // 📌 PATCH - Atualizar uma consulta existente
 export async function PATCH(
-  req: Request,
-  { params }: { params: { consultaId: string } },
+  request: Request,
+  context: { params: { consultaId: string } },
 ) {
   try {
-    const body = await req.json();
-    const { consultaId } = params;
-
-    const consulta = await db.consultas.findUnique({
-      where: { id: consultaId },
-    });
-
-    if (!consulta) {
-      return NextResponse.json(
-        { error: "Consulta não encontrada" },
-        { status: 404 },
-      );
-    }
+    const consultaId = context.params.consultaId;
+    const body = await request.json();
 
     const consultaAtualizada = await db.consultas.update({
-      where: { id: consultaId },
-      data: {
-        data: body.data ? new Date(body.data) : consulta.data,
-        queixas: body.queixas,
-        tratamento: body.tratamento,
-        tipodeexame: body.tipodeexame,
-        tipo: body.tipo,
-        profissionalId: body.profissionalId,
-        unidadeId: body.unidadeId ?? undefined,
+      where: {
+        id: consultaId,
+      },
+      data: body,
+      include: {
+        profissional: true,
+        unidade: true,
+        usuario: true,
       },
     });
 
     return NextResponse.json(consultaAtualizada);
   } catch (error) {
-    console.error("Erro ao atualizar a consulta:", error);
+    console.error("Erro ao atualizar consulta:", error);
     return NextResponse.json(
-      { error: "Falha ao atualizar a consulta" },
+      { error: "Erro ao atualizar consulta" },
       { status: 500 },
     );
   }
@@ -79,32 +70,26 @@ export async function PATCH(
 
 // 📌 DELETE - Deletar uma consulta
 export async function DELETE(
-  req: Request,
-  { params }: { params: { consultaId: string } },
+  request: Request,
+  context: { params: { consultaId: string } },
 ) {
   try {
-    const { consultaId } = params;
-
-    const consulta = await db.consultas.findUnique({
-      where: { id: consultaId },
-    });
-
-    if (!consulta) {
-      return NextResponse.json(
-        { error: "Consulta não encontrada" },
-        { status: 404 },
-      );
-    }
+    const consultaId = context.params.consultaId;
 
     await db.consultas.delete({
-      where: { id: consultaId },
+      where: {
+        id: consultaId,
+      },
     });
 
-    return NextResponse.json({ message: "Consulta deletada com sucesso!" });
-  } catch (error) {
-    console.error("Erro ao deletar a consulta:", error);
     return NextResponse.json(
-      { error: "Falha ao deletar a consulta" },
+      { message: "Consulta deletada com sucesso" },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Erro ao deletar consulta:", error);
+    return NextResponse.json(
+      { error: "Erro ao deletar consulta" },
       { status: 500 },
     );
   }

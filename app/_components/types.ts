@@ -1,16 +1,37 @@
-export interface Unidade {
+export interface BaseEntity {
   id: string;
-  nome: string;
-  tipo: string;
-  endereco: { id: string; nome: string; bairro: string } | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-export interface Profissional {
-  id: string;
+export interface Unidade extends BaseEntity {
+  nome: string;
+  tipo: string;
+  endereco: Endereco | null;
+}
+
+export interface Profissional extends BaseEntity {
   nome: string;
   especialidade: string;
   NumClasse: string;
   unidades: Unidade[];
+  consultas?: Consulta[];
+}
+
+export enum ConsultaType {
+  Rotina = "Rotina",
+  Exame = "Exame",
+  Emergencia = "Emergencia",
+  Retorno = "Retorno",
+  Tratamento = "Tratamento",
+}
+
+export interface Consulta extends BaseEntity {
+  tipo: ConsultaType;
+  data: Date | string;
+  profissional?: { nome: string };
+  unidade?: { nome: string };
+  usuario: { nome: string };
 }
 
 export interface Endereco {
@@ -38,29 +59,4 @@ export interface AgendamentoItemProps {
   consultas: Agendamento;
   profissional: string;
   unidade: string;
-}
-
-export interface Unidade {
-  id: string;
-  nome: string;
-  tipo: string;
-  endereco: {
-    id: string;
-    nome: string;
-    bairro: string;
-  } | null;
-}
-
-export interface Profissional {
-  id: string;
-  nome: string;
-  especialidade: string;
-  NumClasse: string;
-  unidades: Unidade[];
-}
-
-export interface Endereco {
-  id: string;
-  nome: string;
-  bairro: string;
 }
