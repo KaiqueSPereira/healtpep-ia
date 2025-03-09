@@ -4,10 +4,10 @@ import { NextResponse } from "next/server";
 // 📌 GET - Buscar uma consulta específica
 export async function GET(
   request: Request,
-  context: { params: { consultaId: string } },
+  { params }: { params: { consultaId: string } },
 ) {
   try {
-    const consultaId = context.params.consultaId;
+    const consultaId = params.consultaId;
 
     const consulta = await db.consultas.findUnique({
       where: {
@@ -40,10 +40,10 @@ export async function GET(
 // 📌 PATCH - Atualizar uma consulta existente
 export async function PATCH(
   request: Request,
-  context: { params: { consultaId: string } },
+  { params }: { params: { consultaId: string } },
 ) {
   try {
-    const consultaId = context.params.consultaId;
+    const consultaId = params.consultaId;
     const body = await request.json();
 
     const consultaAtualizada = await db.consultas.update({
@@ -71,10 +71,10 @@ export async function PATCH(
 // 📌 DELETE - Deletar uma consulta
 export async function DELETE(
   request: Request,
-  context: { params: { consultaId: string } },
+  { params }: { params: { consultaId: string } },
 ) {
   try {
-    const consultaId = context.params.consultaId;
+    const consultaId = params.consultaId;
 
     await db.consultas.delete({
       where: {
