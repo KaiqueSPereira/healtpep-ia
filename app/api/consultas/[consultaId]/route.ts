@@ -1,12 +1,19 @@
 import { db } from "@/app/_lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
-import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
+import { NextResponse } from "next/server";
+import { ApiRouteHandler } from "../../types";
+
+type ConsultaParams = {
+  consultaId: string;
+};
 
 // 📌 GET - Buscar uma consulta específica
-export async function GET(_request: NextRequest, context: { params: Params }) {
+export const GET: ApiRouteHandler<ConsultaParams> = async (
+  _request,
+  { params },
+) => {
   try {
     const consulta = await db.consultas.findUnique({
-      where: { id: context.params.consultaId as string },
+      where: { id: params.consultaId },
       include: {
         profissional: true,
         unidade: true,
@@ -29,15 +36,18 @@ export async function GET(_request: NextRequest, context: { params: Params }) {
       { status: 500 },
     );
   }
-}
+};
 
 // 📌 PATCH - Atualizar uma consulta existente
-export async function PATCH(request: NextRequest, context: { params: Params }) {
+export const PATCH: ApiRouteHandler<ConsultaParams> = async (
+  request,
+  { params },
+) => {
   try {
     const body = await request.json();
 
     const consultaAtualizada = await db.consultas.update({
-      where: { id: context.params.consultaId as string },
+      where: { id: params.consultaId },
       data: body,
       include: {
         profissional: true,
@@ -54,16 +64,16 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
       { status: 500 },
     );
   }
-}
+};
 
 // 📌 DELETE - Deletar uma consulta
-export async function DELETE(
-  _request: NextRequest,
-  context: { params: Params },
-) {
+export const DELETE: ApiRouteHandler<ConsultaParams> = async (
+  _request,
+  { params },
+) => {
   try {
     await db.consultas.delete({
-      where: { id: context.params.consultaId as string },
+      where: { id: params.consultaId },
     });
 
     return NextResponse.json(
@@ -77,4 +87,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+};

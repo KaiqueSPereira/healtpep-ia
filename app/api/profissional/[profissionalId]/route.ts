@@ -1,13 +1,18 @@
 import { db } from "@/app/_lib/prisma";
-import { NextRequest, NextResponse } from "next/server";
-import type { Params } from "next/dist/shared/lib/router/utils/route-matcher";
+import { NextResponse } from "next/server";
+import { ApiRouteHandler } from "../../types";
 
-export async function GET(_request: NextRequest, context: { params: Params }) {
+type ProfissionalParams = {
+  profissionalId: string;
+};
+
+export const GET: ApiRouteHandler<ProfissionalParams> = async (
+  _request,
+  { params },
+) => {
   try {
     const profissional = await db.profissional.findUnique({
-      where: {
-        id: context.params.profissionalId as string,
-      },
+      where: { id: params.profissionalId },
       include: {
         unidades: true,
         tratamentos: true,
@@ -35,16 +40,17 @@ export async function GET(_request: NextRequest, context: { params: Params }) {
       { status: 500 },
     );
   }
-}
+};
 
-export async function PATCH(request: NextRequest, context: { params: Params }) {
+export const PATCH: ApiRouteHandler<ProfissionalParams> = async (
+  request,
+  { params },
+) => {
   try {
     const body = await request.json();
 
     const profissionalAtualizado = await db.profissional.update({
-      where: {
-        id: context.params.profissionalId as string,
-      },
+      where: { id: params.profissionalId },
       data: {
         nome: body.nome,
         especialidade: body.especialidade,
@@ -72,17 +78,15 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
       { status: 500 },
     );
   }
-}
+};
 
-export async function DELETE(
-  _request: NextRequest,
-  context: { params: Params },
-) {
+export const DELETE: ApiRouteHandler<ProfissionalParams> = async (
+  _request,
+  { params },
+) => {
   try {
     await db.profissional.delete({
-      where: {
-        id: context.params.profissionalId as string,
-      },
+      where: { id: params.profissionalId },
     });
 
     return NextResponse.json(
@@ -96,4 +100,4 @@ export async function DELETE(
       { status: 500 },
     );
   }
-}
+};
