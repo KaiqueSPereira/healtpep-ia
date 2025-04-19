@@ -156,19 +156,19 @@ enum Consultatype {
 }
 
 model Exame {
-  id          String    @id @default(uuid())
-  nome        String
-  valor       String
-  datacoleta  DateTime
-  tipo        String
-  userId      String
+  id             String         @id @default(uuid())
+  nome           String        // Mantém o significado atual (tipo de exame)
+  nomeArquivo    String?       // Nome do arquivo
+  dataExame      DateTime      // Data de realização do exame
+  arquivoExame   Bytes?        // Armazena os bytes do arquivo
+  userId         String
   profissionalId String
-  consultaId  String
-  unidadesId  String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  usuario     User      @relation(fields: [userId], references: [id])
-  profissional Profissional @relation(fields: [profissionalId], references: [id])
-  consulta    Consultas @relation(fields: [consultaId], references: [id])
-  unidades   UnidadeDeSaude? @relation(fields: [unidadesId], references: [id])
+  consultaId     String
+  unidadesId     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  usuario        User           @relation(fields: [userId], references: [id])
+  profissional   Profissional   @relation(fields: [profissionalId], references: [id])
+  consulta       Consultas      @relation(fields: [consultaId], references: [id])
+  unidades       UnidadeDeSaude? @relation(fields: [unidadesId], references: [id])
 }

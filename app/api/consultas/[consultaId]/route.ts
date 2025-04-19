@@ -1,24 +1,16 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { ApiRouteHandler } from "../../types";
 
-type ConsultaParams = {
-  consultaId: string;
-};
+interface ConsultaParams {
+  params: { consultaId: string };
+}
 
 // 📌 GET - Buscar uma consulta específica
-export const GET: ApiRouteHandler<ConsultaParams> = async (
-  _request,
-  { params },
-) => {
+export async function GET(_request: Request, { params }: ConsultaParams) {
   try {
     const consulta = await db.consultas.findUnique({
       where: { id: params.consultaId },
-      include: {
-        profissional: true,
-        unidade: true,
-        usuario: true,
-      },
+      include: { profissional: true, unidade: true, usuario: true },
     });
 
     if (!consulta) {
@@ -36,24 +28,17 @@ export const GET: ApiRouteHandler<ConsultaParams> = async (
       { status: 500 },
     );
   }
-};
+}
 
 // 📌 PATCH - Atualizar uma consulta existente
-export const PATCH: ApiRouteHandler<ConsultaParams> = async (
-  request,
-  { params },
-) => {
+export async function PATCH(request: Request, { params }: ConsultaParams) {
   try {
     const body = await request.json();
 
     const consultaAtualizada = await db.consultas.update({
       where: { id: params.consultaId },
       data: body,
-      include: {
-        profissional: true,
-        unidade: true,
-        usuario: true,
-      },
+      include: { profissional: true, unidade: true, usuario: true },
     });
 
     return NextResponse.json(consultaAtualizada);
@@ -64,17 +49,12 @@ export const PATCH: ApiRouteHandler<ConsultaParams> = async (
       { status: 500 },
     );
   }
-};
+}
 
 // 📌 DELETE - Deletar uma consulta
-export const DELETE: ApiRouteHandler<ConsultaParams> = async (
-  _request,
-  { params },
-) => {
+export async function DELETE(_request: Request, { params }: ConsultaParams) {
   try {
-    await db.consultas.delete({
-      where: { id: params.consultaId },
-    });
+    await db.consultas.delete({ where: { id: params.consultaId } });
 
     return NextResponse.json(
       { message: "Consulta deletada com sucesso" },
@@ -87,4 +67,4 @@ export const DELETE: ApiRouteHandler<ConsultaParams> = async (
       { status: 500 },
     );
   }
-};
+}

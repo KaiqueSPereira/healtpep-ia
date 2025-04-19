@@ -6,6 +6,8 @@ import NovaConsulta from "./consulta/components/novaconsulta";
 import Footer from "./_components/footer";
 import AgendamentosList from "./consulta/components/agendamentolist";
 import { authOptions } from "./_lib/auth";
+import { Button } from "./_components/ui/button";
+import Link from "next/link";
 
 const Home = async () => {
   // Obtém a sessão do usuário autenticado
@@ -31,8 +33,12 @@ const Home = async () => {
         <div className="mt-6">
           <Searchbar />
         </div>
-        <div className="mt-5 flex flex-col gap-5">
-          <NovaConsulta />
+        <div className="mt-5 flex flex-col justify-between gap-5">
+          <div className="mt-5 flex flex-row items-center gap-5">
+            <NovaConsulta />
+            <Link href="/exames/novo"><Button className="w-auto">Novo Exame</Button></Link>
+          </div>
+
           <div>
             <AgendamentosList userId={session.user.id} />
           </div>

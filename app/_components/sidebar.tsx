@@ -2,6 +2,7 @@
 import { Button } from "./ui/button";
 import {
   CalendarIcon,
+  ClipboardPlus,
   HomeIcon,
   Hospital,
   LogInIcon,
@@ -72,6 +73,12 @@ const Sidebarbotton = () => {
           <User size={18} />
           <Link href="/profissionais" className="text-inherit no-underline">
             Profissionais
+          </Link>
+        </Button>
+        <Button className="flex items-center gap-2" variant="ghost">
+          <ClipboardPlus size={18} />
+          <Link href="/exames" className="text-inherit no-underline">
+            Exames
           </Link>
         </Button>
       </div>
