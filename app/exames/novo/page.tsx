@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Header from "@/app/_components/header";
@@ -9,22 +9,48 @@ import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
 import { Button } from "@/app/_components/ui/button";
 import { Textarea } from "@/app/_components/ui/textarea";
-import { toast } from "@/app/_hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/_components/ui/select";
 import MenuUnidades from "@/app/unidades/_components/menuunidades";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { Profissional, Unidade, Consulta } from "@/app/_components/types";
-import Tesseract from "tesseract.js";
-import * as pdfjsLib from "pdfjs-dist";
+import { toast } from "@/app/_hooks/use-toast";
+import { Plus, Trash2 } from "lucide-react";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+const unidadesMedida = [
+  "g/dL",
+  "mg/dL",
+  "milhões/mm³",
+  "mil/mm³",
+  "mm³",
+  "mm/h",
+  "mg/L",
+  "ng/mL",
+  "pg",
+  "fL",
+  "U/L",
+  "mEq/L",
+  "%",
+  "uUI/mL",
+  "mL/min",
+  "mg",
+  "μg/dL",
+  "μIU/mL",
+  "μmol/L",
+  "mcmol/L",
+  "mcmol/mol",
+  "mg/g",
+  "IU/L",
+  "μg/mL",
+  "Outro",
+];
 
-const UploadExame = () => {
-  const [tipoExame, setTipoExame] = useState("");
-  const [dataExame, setDataExame] = useState("");
-  const [resultados, setResultados] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [conteudoExtraido, setConteudoExtraido] = useState(""); // <-- AQUI dentro do componente
-
+const CadastroExame = () => {
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(
     null,
@@ -33,299 +59,343 @@ const UploadExame = () => {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [exames, setExames] = useState([
+    { nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: "" },
+  ]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [anotacao, setAnotacao] = useState<string>("");
+  const [dataExame, setDataExame] = useState<string>("");
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    setSelectedFile(file || null);
-    setError(null);
-
-    if (file) {
-      const tipo = file.type;
-
-      if (tipo === "application/pdf") {
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const typedArray = new Uint8Array(reader.result as ArrayBuffer);
-          const pdf = await pdfjsLib.getDocument(typedArray).promise;
-          let textoExtraido = "";
-
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            const strings = content.items
-              .map((item: any) => item.str)
-              .join(" ");
-            textoExtraido += strings + "\n";
-          }
-
-          setConteudoExtraido(textoExtraido);
-        };
-        reader.readAsArrayBuffer(file);
-      }
-
-      if (tipo.startsWith("image/")) {
-        const result = await Tesseract.recognize(file, "por", {
-          logger: (m) => console.log(m),
-        });
-        setConteudoExtraido(result.data.text);
-      }
-    }
-  };
-
-  const discardFile = () => {
-    setSelectedFile(null);
-    setConteudoExtraido("");
-  };
-
   useEffect(() => {
-    const fetchConsultas = async () => {
-      if (!userId) return;
-      try {
-        const response = await fetch(`/api/consultas?userId=${userId}`);
-        if (!response.ok) throw new Error("Erro ao buscar consultas");
-        const data = await response.json();
-        setConsultas(data.consultas || []);
-      } catch (err) {
-        toast("Erro ao buscar consultas", "error");
-      }
-    };
-    fetchConsultas();
+    if (!userId) return;
+    fetch(`/api/consultas?userId=${userId}`)
+      .then((r) => r.json())
+      .then((d) => setConsultas(d.consultas || []))
+      .catch(() =>
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar consultas",
+          variant: "destructive",
+        }),
+      );
   }, [userId]);
 
   useEffect(() => {
-    const fetchProfissionais = async () => {
-      if (!selectedUnidade?.id) {
-        setProfissionais([]);
-        return;
-      }
-      try {
-        const response = await fetch(
-          `/api/unidadesaude?id=${selectedUnidade.id}`,
-        );
-        if (!response.ok) throw new Error("Erro ao buscar profissionais");
-        const data = await response.json();
-        setProfissionais(data.profissionais || []);
-      } catch (err) {
-        toast("Erro ao buscar profissionais", "error");
-      }
-    };
-    if (!selectedConsulta) {
-      fetchProfissionais();
-    }
-  }, [selectedUnidade, selectedConsulta]);
+    if (!selectedUnidade?.id) return setProfissionais([]);
+    fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
+      .then((r) => r.json())
+      .then((d) => setProfissionais(d.profissionais || []))
+      .catch(() =>
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar profissionais",
+          variant: "destructive",
+        }),
+      );
+  }, [selectedUnidade]);
 
-  useEffect(() => {
-    if (selectedConsulta) {
-      setSelectedProfissional(selectedConsulta.profissional);
-      setSelectedUnidade(selectedConsulta.unidade);
-    } else {
-      setSelectedProfissional(null);
-      setSelectedUnidade(null);
-    }
-  }, [selectedConsulta]);
+  const handleAddExame = () => {
+    setExames([
+      ...exames,
+      {
+        nome: "",
+        valor: "",
+        unidade: "",
+        ValorReferencia: "",
+        outraUnidade: "",
+      },
+    ]);
+  };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleRemoveExame = (index: number) => {
+    const newExames = exames.filter((_, i) => i !== index);
+    setExames(newExames);
+  };
+
+  const handleExameChange = (
+    index: number,
+    field: keyof (typeof exames)[0],
+    value: string,
+  ) => {
+    const newExames = [...exames];
+    newExames[index][field] = value;
+    setExames(newExames);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
     if (
-      !selectedFile ||
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      !tipoExame
+      exames.length === 0 ||
+      !selectedFile
     ) {
-      setError("Preencha todos os campos obrigatórios.");
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos obrigatórios.",
+        variant: "destructive",
+      });
       return;
     }
 
-    setLoading(true);
-    setError(null);
-
     try {
+      setLoadingSubmit(true);
       const formData = new FormData();
-      formData.append("tipo", tipoExame);
-      formData.append("dataExame", new Date(dataExame).toISOString());
-      formData.append("resultados", resultados);
       formData.append("arquivoExame", selectedFile);
+      formData.append(
+        "exames",
+        JSON.stringify(
+          exames.map((exame) => ({
+            ...exame,
+            unidade:
+              exame.unidade === "Outro" ? exame.outraUnidade : exame.unidade,
+          })),
+        ),
+      );
       formData.append("userId", userId);
       formData.append("profissionalId", selectedProfissional.id);
-      formData.append("unidadesId", selectedUnidade.id);
+      formData.append("unidadeId", selectedUnidade.id);
+      formData.append("consultaId", selectedConsulta?.id || "");
+      formData.append("anotacao", anotacao || "");
+      formData.append("dataExame", dataExame || "");
 
-      const response = await fetch("/api/exames", {
+      const res = await fetch("/api/exames", {
         method: "POST",
         body: formData,
       });
 
-      if (response.ok) {
-        toast("Exame enviado com sucesso!", "success");
+      if (res.ok) {
+        toast({
+          title: "Sucesso",
+          description: "Exame cadastrado com sucesso!",
+          variant: "default",
+        });
         router.push("/exames");
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || "Erro ao enviar exame.");
+        toast({
+          title: "Erro",
+          description: "Erro ao enviar.",
+          variant: "destructive",
+        });
       }
-    } catch (err) {
-      setError("Erro no envio.");
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Erro",
+        description: "Erro no envio.",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setLoadingSubmit(false);
     }
   };
 
   return (
-    <div>
+    <div className="relative min-h-screen pb-32 pt-24">
       <Header />
-      <main className="container mx-auto grid grid-cols-1 gap-8 py-8 md:grid-cols-2">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <h1 className="mb-4 text-3xl font-bold">Adicionar Exame</h1>
+      <main className="container mx-auto space-y-8">
+        <h1 className="text-3xl font-bold">Cadastrar Exame</h1>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <Label>Consulta</Label>
+              <Select
+                value={selectedConsulta?.id || "none"}
+                onValueChange={(value) => {
+                  const consulta = consultas.find((c) => c.id === value);
+                  setSelectedConsulta(consulta || null);
+                  setSelectedProfissional(consulta?.profissional || null);
+                  setSelectedUnidade(consulta?.unidade || null);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione uma consulta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
+                  {consultas.map((consulta) => (
+                    <SelectItem key={consulta.id} value={consulta.id}>
+                      {new Date(consulta.data).toLocaleDateString()} -{" "}
+                      {consulta.profissional?.nome || "Sem Profissional"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div>
-            <Label htmlFor="dataExame">Data do Exame</Label>
-            <Input
-              id="dataExame"
-              type="date"
-              value={dataExame}
-              onChange={(e) => setDataExame(e.target.value)}
-            />
+            {!selectedConsulta && (
+              <>
+                <div>
+                  <Label>Profissional</Label>
+                  <MenuProfissionais
+                    profissionais={profissionais}
+                    selected={selectedProfissional}
+                    onSelect={setSelectedProfissional}
+                  />
+                </div>
+                <div>
+                  <Label>Unidade</Label>
+                  <MenuUnidades
+                    selected={selectedUnidade}
+                    onSelect={setSelectedUnidade}
+                  />
+                </div>
+              </>
+            )}
+
+            <div>
+              <Label>Data do Exame</Label>
+              <Input
+                type="date"
+                value={dataExame}
+                onChange={(e) => setDataExame(e.target.value)}
+              />
+            </div>
           </div>
 
           <div>
-            <Label htmlFor="tipoExame">Tipo de Exame</Label>
-            <Input
-              id="tipoExame"
-              type="text"
-              value={tipoExame}
-              onChange={(e) => setTipoExame(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="resultados">Resultados</Label>
+            <Label>Anotação</Label>
             <Textarea
-              id="resultados"
-              value={resultados}
-              onChange={(e) => setResultados(e.target.value)}
+              value={anotacao}
+              onChange={(e) => setAnotacao(e.target.value)}
             />
           </div>
 
           <div>
-            <Label htmlFor="file-upload">Arquivo</Label>
+            <h2 className="mb-2 text-xl font-bold">Exames</h2>
+            <div className="overflow-x-auto rounded-lg border shadow-sm">
+              <table className="w-full table-auto text-sm text-gray-700">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="border p-2 text-left">Nome</th>
+                    <th className="border p-2 text-left">Valor</th>
+                    <th className="border p-2 text-left">Unidade</th>
+                    <th className="border p-2 text-left">
+                      Valor de Referência
+                    </th>
+                    <th className="border p-2 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {exames.map((exame, index) => (
+                    <tr key={index} className="hover:bg-muted/50">
+                      <td className="border p-2">
+                        <Input
+                          value={exame.nome}
+                          onChange={(e) =>
+                            handleExameChange(index, "nome", e.target.value)
+                          }
+                          placeholder="Ex: Hemácias"
+                        />
+                      </td>
+                      <td className="border p-2">
+                        <Input
+                          value={exame.valor}
+                          onChange={(e) =>
+                            handleExameChange(index, "valor", e.target.value)
+                          }
+                          placeholder="Ex: 5.2"
+                        />
+                      </td>
+                      <td className="border p-2">
+                        <Select
+                          value={exame.unidade}
+                          onValueChange={(value) =>
+                            handleExameChange(index, "unidade", value)
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {unidadesMedida.map((u) => (
+                              <SelectItem key={u} value={u}>
+                                {u}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {exame.unidade === "Outro" && (
+                          <Input
+                            placeholder="Digite a unidade"
+                            value={exame.outraUnidade}
+                            onChange={(e) =>
+                              handleExameChange(
+                                index,
+                                "outraUnidade",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        )}
+                      </td>
+                      <td className="border p-2">
+                        <Input
+                          value={exame.ValorReferencia}
+                          onChange={(e) =>
+                            handleExameChange(
+                              index,
+                              "ValorReferencia",
+                              e.target.value,
+                            )
+                          }
+                          placeholder="Ex: 5.2"
+                        />
+                      </td>
+                      <td className="border p-2 text-center">
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          type="button"
+                          onClick={() => handleRemoveExame(index)}
+                        >
+                          <Trash2 size={16} />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Button
+              type="button"
+              onClick={handleAddExame}
+              variant="secondary"
+              className="mt-4 flex items-center gap-2"
+            >
+              <Plus size={18} /> Adicionar exame
+            </Button>
+          </div>
+
+          <div>
+            <Label>Anexar Arquivo (PDF ou imagem)</Label>
             <Input
-              id="file-upload"
               type="file"
               accept="image/*,.pdf"
               onChange={handleFileChange}
             />
           </div>
 
-          <div>
-            <Label htmlFor="consulta">Consulta</Label>
-            <select
-              id="consulta"
-              className="w-full rounded border bg-black px-3 py-2 text-white"
-              value={selectedConsulta?.id || ""}
-              onChange={(e) => {
-                const consultaSelecionada = consultas.find(
-                  (c) => c.id === e.target.value,
-                );
-                setSelectedConsulta(consultaSelecionada || null);
-              }}
-            >
-              <option value="">Selecione uma consulta (opcional)</option>
-              {consultas.map((consulta) => (
-                <option key={consulta.id} value={consulta.id}>
-                  {`${new Date(consulta.data).toLocaleDateString()} - ${consulta.profissional.nome} (${consulta.unidade.nome})`}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {!selectedConsulta && (
-            <>
-              <div>
-                <Label>Unidade de Saúde</Label>
-                <MenuUnidades
-                  selected={selectedUnidade}
-                  onSelect={setSelectedUnidade}
-                />
-              </div>
-
-              <div>
-                <Label>Profissional</Label>
-                <MenuProfissionais
-                  profissionais={profissionais}
-                  selected={selectedProfissional}
-                  onSelect={setSelectedProfissional}
-                />
-              </div>
-            </>
-          )}
-
-          {selectedConsulta && (
-            <div className="text-sm text-gray-500">
-              <p>Profissional: {selectedProfissional?.nome}</p>
-              <p>Unidade: {selectedUnidade?.nome}</p>
-            </div>
-          )}
-
-          <Button type="submit" disabled={loading}>
-            {loading ? "Enviando..." : "Adicionar Exame"}
+          <Button type="submit" disabled={loadingSubmit} className="w-full">
+            {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
           </Button>
-
-          {error && <p className="text-red-500">{error}</p>}
         </form>
-
-        {/* Preview lateral */}
-        <div className="space-y-4">
-          {selectedFile && (
-            <>
-              <h2 className="text-xl font-bold">Preview do Arquivo</h2>
-              {selectedFile.type.startsWith("image/") ? (
-                <img
-                  src={URL.createObjectURL(selectedFile)}
-                  alt="Preview"
-                  className="max-h-64 w-full rounded border object-contain"
-                />
-              ) : selectedFile.type === "application/pdf" ? (
-                <iframe
-                  src={URL.createObjectURL(selectedFile)}
-                  className="h-64 w-full rounded border"
-                  title="PDF Preview"
-                />
-              ) : (
-                <p>Arquivo selecionado: {selectedFile.name}</p>
-              )}
-              <Button variant="destructive" onClick={discardFile}>
-                Remover Arquivo
-              </Button>
-            </>
-          )}
-
-          <div className="pt-4">
-            <h2 className="text-xl font-bold">Resumo</h2>
-            <table className="w-full border text-sm">
-              <tbody>
-                <tr className="border">
-                  <td className="p-2 font-semibold">Conteúdo Extraído</td>
-                  <td className="max-h-48 overflow-auto whitespace-pre-wrap p-2">
-                    {conteudoExtraido || "Nenhum conteúdo extraído"}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
       </main>
       <Footer />
     </div>
   );
 };
 
-export default UploadExame;
+export default CadastroExame;

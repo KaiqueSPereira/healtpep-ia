@@ -15,7 +15,7 @@ import {
   SheetClose,
 } from "@/app/_components/ui/sheet";
 import { ptBR } from "date-fns/locale";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { useForm } from "react-hook-form";
 import {
@@ -30,7 +30,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
 import { set } from "date-fns";
-import { Consultatype } from "@prisma/client";
+type Consultatype = "Emergencia" | "Rotina" | "Tratamento" | "Retorno" | "Exame";
 import { Input } from "@/app/_components/ui/input";
 
 const NovaConsulta = () => {
@@ -179,7 +179,7 @@ const NovaConsulta = () => {
             locale={ptBR}
             selected={selectedDay}
             onSelect={setSelectedDay}
-            className="w-full"
+            className="w-full mt-2 md:mt-5"
           />
 
           <div className="flex flex-col gap-3 p-3 md:p-5">

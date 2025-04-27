@@ -97,7 +97,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
                   key="add-new-unit"
                   value="add-new-unit"
                   onSelect={() => {
-                    window.location.href = "/unidades/[unidadeId]"; // Redireciona para a pÄ‚Ë‡gina de adicionar unidade
+                    window.location.href = "/unidades/novo"; // Redireciona para a pÄ‚Ë‡gina de adicionar unidade
                   }}
                 >
                   <Check className="mr-2 h-4 w-4 opacity-0" />
