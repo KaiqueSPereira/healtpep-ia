@@ -4,34 +4,12 @@ export interface BaseEntity {
   updatedAt?: Date;
 }
 
-export interface Unidade extends BaseEntity {
-  nome: string;
-  tipo: string;
-  endereco: Endereco | null;
-}
-
-export interface Profissional extends BaseEntity {
-  nome: string;
-  especialidade: string;
-  NumClasse: string;
-  unidades: Unidade[];
-  consultas?: Consulta[];
-}
-
 export enum ConsultaType {
   Rotina = "Rotina",
   Exame = "Exame",
   Emergencia = "Emergencia",
   Retorno = "Retorno",
   Tratamento = "Tratamento",
-}
-
-export interface Consulta extends BaseEntity {
-  tipo: ConsultaType;
-  data: Date | string;
-  profissional?: { nome: string };
-  unidade?: { nome: string };
-  usuario: { nome: string };
 }
 
 export interface Endereco {
@@ -60,3 +38,80 @@ export interface AgendamentoItemProps {
   profissional: string;
   unidade: string;
 }
+
+export interface MenuUnidadesProps {
+  selected: Unidade | null;
+  onSelect: (unidade: Unidade | null) => void;
+}
+
+export type Unidade = {
+  id: string;
+  nome: string;
+  tipo: string;
+  endereco: string;
+};
+
+export type Profissional = {
+  id: string;
+  nome: string;
+  especialidade: string;
+  NumClasse: string;
+  unidades: Unidade[];
+};
+
+export type Consulta = {
+  id: string;
+  data: string;
+  profissional?: Profissional | null;
+  unidade?: Unidade | null;
+};
+export interface TabelaExamesProps {
+  exames: {
+    nome: string;
+    valor: string;
+    unidade: string;
+    ValorReferencia: string;
+    outraUnidade: string;
+  }[];
+  onChange: React.Dispatch<
+    React.SetStateAction<
+      {
+        nome: string;
+        valor: string;
+        unidade: string;
+        ValorReferencia: string;
+        outraUnidade: string;
+      }[]
+    >
+  >;
+}
+
+// Atualize o tipo Exame para incluir esses relacionamentos:
+export type Exame = {
+  id: string;
+  nome: string;
+  dataExame: string;
+  anotacao?: string;
+  nomeArquivo?: string;
+  resultados?: any[]; // ou defina tipo específico se souber a estrutura
+  profissional?: {
+    id: string;
+    nome: string;
+  };
+  unidades?: {
+    id: string;
+    nome: string;
+  };
+  consulta?: {
+    id: string;
+    data: string;
+    tipo: string;
+    queixas?: string;
+    profissional?: {
+      nome: string;
+    };
+    unidade?: {
+      nome: string;
+    };
+  };
+};

@@ -17,16 +17,16 @@ import {
   CommandItem,
   CommandList,
 } from "../../_components/ui/command";
-import { Tratamento } from "@/app/_components/types"; // Ajuste o caminho do tipo se necessário
+import { Tratamento } from "@/app/_components/types";
 
 interface MenuTratamentoProps {
-  tratamentos: Tratamento[];
+  tratamentos: Tratamento[]; // ← mesmo se isso vier como undefined, agora tratamos
   onTratamentoSelect: (tratamento: Tratamento) => void;
   selectedTratamento: Tratamento | null;
 }
 
 const MenuTratamentos: React.FC<MenuTratamentoProps> = ({
-  tratamentos,
+  tratamentos = [], // ← fallback para []
   onTratamentoSelect,
   selectedTratamento,
 }) => {
@@ -70,7 +70,7 @@ const MenuTratamentos: React.FC<MenuTratamentoProps> = ({
                       value={tratamento.id.toString()}
                       onSelect={() => {
                         onTratamentoSelect(tratamento);
-                        setOpen(false); // Fecha o popover ao selecionar
+                        setOpen(false);
                       }}
                     >
                       <Check
@@ -90,7 +90,7 @@ const MenuTratamentos: React.FC<MenuTratamentoProps> = ({
                 value="add-new-tratamento"
                 onSelect={() => {
                   router.push("/tratamentos/[tratamentoId]");
-                  setOpen(false); // Fecha o popover ao redirecionar
+                  setOpen(false);
                 }}
               >
                 <Check className="mr-2 h-4 w-4 opacity-0" />

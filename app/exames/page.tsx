@@ -1,94 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
- // Assuming you have this component
-import ExamChart from "../_components/ExamChart"; // Import the ExamChart component
-import Header from "../_components/header";
-import ExameItem from "../_components/ExameItem";
-import Footer from "../_components/footer";
+import { useEffect, useState } from "react";
+import Header from "@/app/_components/header";
+import Footer from "@/app/_components/footer";
+import { toast } from "@/app/_hooks/use-toast";
+import { Loader2 } from "lucide-react";
+import { ExameGrid } from "./components/ExamesGrid";
 
-interface Exame {
+
+type Resultado = {
+  nome: string;
+  valor: string;
+  unidade?: string;
+  referencia?: string;
+};
+
+type Exame = {
   id: string;
   nome: string;
-  dataExame: Date;
-  resultados: Record<string, number | string>; // Adjust the type according to your data structure
-  tipo: string;
-  data: Date;
-  profissional: string;
-}
+  dataExame: string;
+  anotacao?: string;
+  nomeArquivo?: string;
+  profissional?: { nome: string };
+  unidades?: { nome: string };
+  resultados?: Resultado[];
+};
 
-const ListaExames = () => {
+export default function ExamesPage() {
   const [exames, setExames] = useState<Exame[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { data: session, status } = useSession();
-  const router = useRouter();
 
   useEffect(() => {
-    if (status === "loading") return;
-    if (!session) {
-      router.push("/login");
-      return;
-    }
-
-    const fetchExames = async () => {
-      try {
-        const response = await fetch(`/api/exames/user/${session.user.id}`); // Replace with your actual endpoint
-        if (!response.ok) {
-          throw new Error(`Failed to fetch exames: ${response.status}`);
+    fetch("/api/exames")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!Array.isArray(data)) {
+          toast("Erro ao carregar exames", "erro", { duration: 5000 });
+          return;
         }
-        const data = await response.json();
         setExames(data);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          console.error("Error fetching exames:", err);
-          setError(err.message || "Ocorreu um erro ao carregar os exames.");
-        } else {
-          console.error("Unexpected error:", err);
-          setError("Ocorreu um erro desconhecido ao carregar os exames.");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchExames();
-  }, [session, status, router]);
+      })
+      .catch(() => toast("Erro ao carregar exames", "erro", { duration: 5000 }))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
-    <div>
+    <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="container mx-auto py-8">
-        <h1 className="mb-6 text-3xl font-bold">Meus Exames</h1>
+      <main className="flex-1 space-y-6 p-4 md:p-6">
+        <h1 className="text-2xl font-bold">Meus Exames</h1>
 
-        {loading && <p>Loading...</p>}
-        {error && <p>Error: {error}</p>}
-        {!loading && !error && (
-          <div>
-            {/* Display the chart above the list */}
-            {exames.length > 0 ? (
-              <ExamChart examData={exames} />
-            ) : (
-              <p>No exams found.</p>
-            )}
-
-            {exames.length > 0 && (
-              <ul className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {exames.map((exame, index) => (
-                  <li key={index}>
-                    <ExameItem exame={exame} />
-                  </li>
-                ))}
-              </ul>
-            )}
+        {loading ? (
+          <div className="flex h-48 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : (
+          <ExameGrid exames={exames} />
         )}
       </main>
       <Footer />
     </div>
   );
-};
-
-export default ListaExames;
+}

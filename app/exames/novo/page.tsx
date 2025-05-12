@@ -1,54 +1,42 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+
 import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
-import { Input } from "@/app/_components/ui/input";
-import { Label } from "@/app/_components/ui/label";
-import { Button } from "@/app/_components/ui/button";
-import { Textarea } from "@/app/_components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/app/_components/ui/select";
 import MenuUnidades from "@/app/unidades/_components/menuunidades";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
-import { Profissional, Unidade, Consulta } from "@/app/_components/types";
+import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
+import TabelaExames from "@/app/exames/components/TabelaExames";
+import { Button } from "@/app/_components/ui/button";
+import { Input } from "@/app/_components/ui/input";
+import { Label } from "@/app/_components/ui/label";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/app/_components/ui/select";
+import { Textarea } from "@/app/_components/ui/textarea";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/app/_components/ui/dialog";
 import { toast } from "@/app/_hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
 
-const unidadesMedida = [
-  "g/dL",
-  "mg/dL",
-  "milhões/mm³",
-  "mil/mm³",
-  "mm³",
-  "mm/h",
-  "mg/L",
-  "ng/mL",
-  "pg",
-  "fL",
-  "U/L",
-  "mEq/L",
-  "%",
-  "uUI/mL",
-  "mL/min",
-  "mg",
-  "μg/dL",
-  "μIU/mL",
-  "μmol/L",
-  "mcmol/L",
-  "mcmol/mol",
-  "mg/g",
-  "IU/L",
-  "μg/mL",
-  "Outro",
-];
+import {
+  Consulta,
+  Profissional,
+  Unidade,
+  Tratamento,
+} from "@/app/_components/types";
 
 const CadastroExame = () => {
   const [consultas, setConsultas] = useState<Consulta[]>([]);
@@ -59,13 +47,19 @@ const CadastroExame = () => {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
+  const [selectedTratamento, setSelectedTratamento] =
+    useState<Tratamento | null>(null);
+  const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
+
+  const [tipoExame, setTipoExame] = useState<string>("");
+  const [dataExame, setDataExame] = useState<string>("");
+  const [anotacao, setAnotacao] = useState<string>("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
+
   const [exames, setExames] = useState([
     { nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: "" },
   ]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [anotacao, setAnotacao] = useState<string>("");
-  const [dataExame, setDataExame] = useState<string>("");
-  const [loadingSubmit, setLoadingSubmit] = useState(false);
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -73,29 +67,46 @@ const CadastroExame = () => {
 
   useEffect(() => {
     if (!userId) return;
+
     fetch(`/api/consultas?userId=${userId}`)
       .then((r) => r.json())
       .then((d) => setConsultas(d.consultas || []))
       .catch(() =>
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar consultas",
-          variant: "destructive",
-        }),
+        toast("Erro ao buscar consultas", "erro", { duration: 5000 }),
       );
   }, [userId]);
 
+   useEffect(() => {
+      const fetchTratamentos = async () => {
+        if (!session?.user?.id) return;
+  
+        try {
+          const response = await fetch(
+            `/api/tratamento?userId=${session.user.id}`,
+          );
+          if (!response.ok) throw new Error("Erro ao buscar tratamentos");
+  
+          const data = await response.json();
+          setTratamentos(data || []);
+        } catch (error) {
+          console.error("Erro ao buscar tratamentos:", error);
+          toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
+        }
+      };
+  
+      fetchTratamentos();
+    }, [session?.user?.id]);
+
   useEffect(() => {
-    if (!selectedUnidade?.id) return setProfissionais([]);
+    if (!selectedUnidade?.id) {
+      setProfissionais([]);
+      return;
+    }
     fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
       .then((r) => r.json())
       .then((d) => setProfissionais(d.profissionais || []))
       .catch(() =>
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar profissionais",
-          variant: "destructive",
-        }),
+        toast("Erro ao buscar profissionais", "erro", { duration: 5000 }),
       );
   }, [selectedUnidade]);
 
@@ -113,8 +124,7 @@ const CadastroExame = () => {
   };
 
   const handleRemoveExame = (index: number) => {
-    const newExames = exames.filter((_, i) => i !== index);
-    setExames(newExames);
+    setExames(exames.filter((_, i) => i !== index));
   };
 
   const handleExameChange = (
@@ -128,48 +138,48 @@ const CadastroExame = () => {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setSelectedFile(file);
+    setSelectedFile(e.target.files?.[0] || null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    setLoadingSubmit(true);
 
     if (
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      exames.length === 0 ||
       !selectedFile
     ) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios.",
-        variant: "destructive",
+      toast("Preencha todos os campos obrigatórios.", "erro", {
+        duration: 5000,
       });
+      setLoadingSubmit(false);
       return;
     }
 
     try {
-      setLoadingSubmit(true);
       const formData = new FormData();
-      formData.append("arquivoExame", selectedFile);
-      formData.append(
-        "exames",
-        JSON.stringify(
-          exames.map((exame) => ({
-            ...exame,
-            unidade:
-              exame.unidade === "Outro" ? exame.outraUnidade : exame.unidade,
-          })),
-        ),
-      );
+      if (["urina", "sangue"].includes(tipoExame)) {
+        formData.append(
+          "exames",
+          JSON.stringify(
+            exames.map((exame) => ({
+              ...exame,
+              unidade:
+                exame.unidade === "Outro" ? exame.outraUnidade : exame.unidade,
+            })),
+          ),
+        );
+      }
+
       formData.append("userId", userId);
       formData.append("profissionalId", selectedProfissional.id);
       formData.append("unidadeId", selectedUnidade.id);
       formData.append("consultaId", selectedConsulta?.id || "");
-      formData.append("anotacao", anotacao || "");
-      formData.append("dataExame", dataExame || "");
+      formData.append("tratamentoId", selectedTratamento?.id || "");
+      formData.append("anotacao", anotacao);
+      formData.append("dataExame", dataExame);
+      formData.append("file", selectedFile);
 
       const res = await fetch("/api/exames", {
         method: "POST",
@@ -177,58 +187,54 @@ const CadastroExame = () => {
       });
 
       if (res.ok) {
-        toast({
-          title: "Sucesso",
-          description: "Exame cadastrado com sucesso!",
-          variant: "default",
-        });
+        toast("Exame cadastrado com sucesso!", "success", { duration: 5000 });
         router.push("/exames");
       } else {
-        toast({
-          title: "Erro",
-          description: "Erro ao enviar.",
-          variant: "destructive",
-        });
+        const error = await res.json();
+        toast("Erro ao enviar o exame", "erro", { duration: 5000 });
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Erro",
-        description: "Erro no envio.",
-        variant: "destructive",
-      });
+    } catch (err) {
+      toast("Erro inesperado", "erro", { duration: 5000 });
+      console.error(err);
     } finally {
       setLoadingSubmit(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen pb-32 pt-24">
+    <>
       <Header />
-      <main className="container mx-auto space-y-8">
+      <main className="container mx-auto space-y-8 py-8">
         <h1 className="text-3xl font-bold">Cadastrar Exame</h1>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form className="space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Label>Consulta</Label>
               <Select
                 value={selectedConsulta?.id || "none"}
-                onValueChange={(value) => {
-                  const consulta = consultas.find((c) => c.id === value);
-                  setSelectedConsulta(consulta || null);
-                  setSelectedProfissional(consulta?.profissional || null);
-                  setSelectedUnidade(consulta?.unidade || null);
+                onValueChange={(id) => {
+                  if (id === "none") {
+                    setSelectedConsulta(null);
+                    setSelectedProfissional(null);
+                    setSelectedUnidade(null);
+                  } else {
+                    const consulta = consultas.find((c) => c.id === id);
+                    setSelectedConsulta(consulta || null);
+                    setSelectedProfissional(consulta?.profissional || null);
+                    setSelectedUnidade(consulta?.unidade || null);
+                  }
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger>
                   <SelectValue placeholder="Selecione uma consulta" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Nenhuma</SelectItem>
-                  {consultas.map((consulta) => (
-                    <SelectItem key={consulta.id} value={consulta.id}>
-                      {new Date(consulta.data).toLocaleDateString()} -{" "}
-                      {consulta.profissional?.nome || "Sem Profissional"}
+                  {consultas.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {new Date(c.data).toLocaleDateString()} -{" "}
+                      {c.profissional?.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -238,22 +244,31 @@ const CadastroExame = () => {
             {!selectedConsulta && (
               <>
                 <div>
-                  <Label>Profissional</Label>
-                  <MenuProfissionais
-                    profissionais={profissionais}
-                    selected={selectedProfissional}
-                    onSelect={setSelectedProfissional}
+                  <Label>Unidade</Label>
+                  <MenuUnidades
+                    selectedUnidade={selectedUnidade}
+                    onUnidadeSelect={setSelectedUnidade}
                   />
                 </div>
                 <div>
-                  <Label>Unidade</Label>
-                  <MenuUnidades
-                    selected={selectedUnidade}
-                    onSelect={setSelectedUnidade}
+                  <Label>Profissional</Label>
+                  <MenuProfissionais
+                    profissionais={profissionais}
+                    selectedProfissional={selectedProfissional}
+                    onProfissionalSelect={setSelectedProfissional}
                   />
                 </div>
               </>
             )}
+
+            <div>
+              <Label>Tratamento</Label>
+              <MenuTratamentos
+                tratamentos={tratamentos}
+                selectedTratamento={selectedTratamento}
+                onTratamentoSelect={setSelectedTratamento}
+              />
+            </div>
 
             <div>
               <Label>Data do Exame</Label>
@@ -262,6 +277,22 @@ const CadastroExame = () => {
                 value={dataExame}
                 onChange={(e) => setDataExame(e.target.value)}
               />
+            </div>
+
+            <div>
+              <Label>Tipo de Exame</Label>
+              <Select value={tipoExame} onValueChange={setTipoExame}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo de exame" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sangue">Sangue</SelectItem>
+                  <SelectItem value="urina">Urina</SelectItem>
+                  <SelectItem value="usg">USG</SelectItem>
+                  <SelectItem value="raiox">Raio-X</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -273,111 +304,17 @@ const CadastroExame = () => {
             />
           </div>
 
-          <div>
-            <h2 className="mb-2 text-xl font-bold">Exames</h2>
-            <div className="overflow-x-auto rounded-lg border shadow-sm">
-              <table className="w-full table-auto text-sm text-gray-700">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="border p-2 text-left">Nome</th>
-                    <th className="border p-2 text-left">Valor</th>
-                    <th className="border p-2 text-left">Unidade</th>
-                    <th className="border p-2 text-left">
-                      Valor de Referência
-                    </th>
-                    <th className="border p-2 text-center">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {exames.map((exame, index) => (
-                    <tr key={index} className="hover:bg-muted/50">
-                      <td className="border p-2">
-                        <Input
-                          value={exame.nome}
-                          onChange={(e) =>
-                            handleExameChange(index, "nome", e.target.value)
-                          }
-                          placeholder="Ex: Hemácias"
-                        />
-                      </td>
-                      <td className="border p-2">
-                        <Input
-                          value={exame.valor}
-                          onChange={(e) =>
-                            handleExameChange(index, "valor", e.target.value)
-                          }
-                          placeholder="Ex: 5.2"
-                        />
-                      </td>
-                      <td className="border p-2">
-                        <Select
-                          value={exame.unidade}
-                          onValueChange={(value) =>
-                            handleExameChange(index, "unidade", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {unidadesMedida.map((u) => (
-                              <SelectItem key={u} value={u}>
-                                {u}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {exame.unidade === "Outro" && (
-                          <Input
-                            placeholder="Digite a unidade"
-                            value={exame.outraUnidade}
-                            onChange={(e) =>
-                              handleExameChange(
-                                index,
-                                "outraUnidade",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        )}
-                      </td>
-                      <td className="border p-2">
-                        <Input
-                          value={exame.ValorReferencia}
-                          onChange={(e) =>
-                            handleExameChange(
-                              index,
-                              "ValorReferencia",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Ex: 5.2"
-                        />
-                      </td>
-                      <td className="border p-2 text-center">
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          type="button"
-                          onClick={() => handleRemoveExame(index)}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <Button
-              type="button"
-              onClick={handleAddExame}
-              variant="secondary"
-              className="mt-4 flex items-center gap-2"
-            >
-              <Plus size={18} /> Adicionar exame
-            </Button>
-          </div>
+          {["sangue", "urina"].includes(tipoExame) && (
+            <>
+              <TabelaExames
+                exames={exames}
+                onAddExame={handleAddExame}
+                onRemoveExame={handleRemoveExame}
+                onExameChange={handleExameChange}
+              />
+             
+            </>
+          )}
 
           <div>
             <Label>Anexar Arquivo (PDF ou imagem)</Label>
@@ -388,13 +325,62 @@ const CadastroExame = () => {
             />
           </div>
 
-          <Button type="submit" disabled={loadingSubmit} className="w-full">
-            {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
-          </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button disabled={loadingSubmit} className="w-full">
+                {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirmar Cadastro do Exame</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>
+                  <strong>Tipo:</strong> {tipoExame || "Não selecionado"}
+                </p>
+                <p>
+                  <strong>Data:</strong> {dataExame || "Não definida"}
+                </p>
+                <p>
+                  <strong>Profissional:</strong>{" "}
+                  {selectedProfissional?.nome || "Não selecionado"}
+                </p>
+                <p>
+                  <strong>Unidade:</strong>{" "}
+                  {selectedUnidade?.nome || "Não selecionada"}
+                </p>
+                <p>
+                  <strong>Anotação:</strong> {anotacao || "Nenhuma"}
+                </p>
+                {["sangue", "urina"].includes(tipoExame) && (
+                  <>
+                    <p className="pt-2 font-semibold">Exames:</p>
+                    <ul className="list-disc pl-4">
+                      {exames.map((exame, idx) => (
+                        <li key={idx}>
+                          {exame.nome || "(sem nome)"} — {exame.valor || "-"}{" "}
+                          {exame.unidade === "Outro"
+                            ? exame.outraUnidade
+                            : exame.unidade || ""}{" "}
+                          — Ref: {exame.ValorReferencia || "-"}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+              <DialogFooter>
+                <Button onClick={handleSubmit} disabled={loadingSubmit}>
+                  Confirmar e Enviar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </form>
       </main>
       <Footer />
-    </div>
+    </>
   );
 };
 
