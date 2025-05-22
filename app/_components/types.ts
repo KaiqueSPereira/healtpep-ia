@@ -89,19 +89,22 @@ export interface TabelaExamesProps {
 }
 
 // Atualize o tipo Exame para incluir esses relacionamentos:
+export type ResultadoExame = {
+  nome: string;
+  valor: string;
+  unidade: string;
+  valorReferencia?: string;
+  outraUnidade?: string;
+};
+
 export type Exame = {
   id: string;
   nome: string;
   dataExame: string;
   anotacao?: string;
   nomeArquivo?: string;
-  resultados?: {
-    nome: string;
-    valor: string;
-    unidade: string;
-    valorReferencia?: string;
-    outraUnidade?: string;
-  }[]; // Defina a estrutura conforme necessário
+  resultados?: ResultadoExame[];
+ // Defina a estrutura conforme necessário
   profissional?: {
     id: string;
     nome: string;

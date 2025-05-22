@@ -8,3 +8,4 @@ export type ApiRouteHandler<T> = (
   request: NextRequest,
   context: ApiRouteParams<T>,
 ) => Promise<Response>;
+

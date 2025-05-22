@@ -11,20 +11,15 @@ import {
 } from "@/app/_components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Exame, ResultadoExame } from "@/app/_components/types";
 
-interface Exame {
-  nome: string;
-  valor: string;
-  unidade: string;
-  ValorReferencia: string;
-  outraUnidade: string;
-}
 
+// app/exames/components/TabelaExames.tsx
 interface TabelaExamesProps {
-  exames: Exame[];
+  exames: ResultadoExame[]; // Use o mesmo tipo
   onAddExame: () => void;
   onRemoveExame: (index: number) => void;
-  onExameChange: (index: number, field: keyof Exame, value: string) => void;
+  onExameChange: (index: number, field: keyof ResultadoExame, value: string) => void;
 }
 
 const unidadesMedida = [
@@ -103,7 +98,7 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Input
-                  value={exame.valor}
+                  value={exame.resultados?.[0]?.valor || ""}
                   onChange={(e) =>
                     onExameChange(index, "valor", e.target.value)
                   }
@@ -111,10 +106,10 @@ export default function TabelaExames({
                 />
               </td>
               <td className="border p-2">
-                <Input value={exame.unidade} readOnly />
+                <Input value={exame.unidades?.nome} readOnly />
               </td>
               <td className="border p-2">
-                <Input value={exame.ValorReferencia} readOnly />
+                <Input value={exame.resultados?.[0]?.valorReferencia} readOnly />
               </td>
               <td className="border p-2 text-center">
                 <span className="text-muted">Sugestão</span>
@@ -170,9 +165,9 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Input
-                  value={exame.ValorReferencia}
+                  value={exame.valorReferencia}
                   onChange={(e) =>
-                    onExameChange(index, "ValorReferencia", e.target.value)
+                    onExameChange(index, "valorReferencia", e.target.value)
                   }
                   placeholder="Ex: 4.5 - 6.0"
                 />

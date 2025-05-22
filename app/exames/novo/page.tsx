@@ -22,14 +22,6 @@ import {
   SelectItem,
 } from "@/app/_components/ui/select";
 import { Textarea } from "@/app/_components/ui/textarea";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/app/_components/ui/dialog";
 import { toast } from "@/app/_hooks/use-toast";
 
 import {
@@ -37,15 +29,9 @@ import {
   Profissional,
   Unidade,
   Tratamento,
+  ResultadoExame,
 } from "@/app/_components/types";
-
-// Definindo o tipo para os dados de exames retornados pela API de análise
-interface ExtractedExame {
-  nome: string;
-  valor: string;
-  unidade: string;
-  ValorReferencia: string;
-}
+import { ConfirmarExameDialog } from "../components/ConfirmarExameDialog";
 
 const CadastroExame = () => {
   const [consultas, setConsultas] = useState<Consulta[]>([]);
@@ -65,11 +51,26 @@ const CadastroExame = () => {
   const [anotacao, setAnotacao] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
-  const [loadingAnalyze, setLoadingAnalyze] = useState(false); 
 
-  const [exames, setExames] = useState([
-    { nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: "" },
-  ]);
+  const [exame, setExame] = useState<{
+    nome: string;
+    dataExame: string;
+    anotacao: string;
+    resultados: ResultadoExame[];
+  }>({
+    nome: "",
+    dataExame: "",
+    anotacao: "",
+    resultados: [
+      {
+        nome: "",
+        valor: "",
+        unidade: "",
+        valorReferencia: "", 
+        outraUnidade: "",
+      },
+    ],
+  });
 
   const router = useRouter();
   const { data: session } = useSession();
@@ -121,83 +122,43 @@ const CadastroExame = () => {
   }, [selectedUnidade]);
 
   const handleAddExame = () => {
-    setExames([
-      ...exames,
-      {
-        nome: "",
-        valor: "",
-        unidade: "",
-        ValorReferencia: "",
-        outraUnidade: "",
-      },
-    ]);
+    setExame((prev) => ({
+      ...prev,
+      resultados: [
+        ...(prev.resultados || []),
+        {
+          nome: "",
+          valor: "",
+          unidade: "",
+          valorReferencia: "",
+          outraUnidade: "",
+        },
+      ],
+    }));
   };
 
   const handleRemoveExame = (index: number) => {
-    setExames(exames.filter((_, i) => i !== index));
+    setExame((prev) => ({
+      ...prev,
+      resultados: (prev.resultados || []).filter((_, i) => i !== index),
+    }));
   };
 
   const handleExameChange = (
     index: number,
-    field: keyof (typeof exames)[0],
+    field: keyof ResultadoExame,
     value: string,
   ) => {
-    const newExames = [...exames];
-    newExames[index][field] = value;
-    setExames(newExames);
+    setExame((prev) => {
+      const novosResultados = [...(prev.resultados || [])];
+      novosResultados[index] = { ...novosResultados[index], [field]: value };
+      return { ...prev, resultados: novosResultados };
+    });
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFile(e.target.files?.[0] || null);
   };
-
-  // --- Novo: Função para analisar o arquivo com a API do Gemini ---
-  // Função corrigida para analisar o arquivo
-const analyzeFile = async (file: File) => {
-  setLoadingAnalyze(true);
-
-  try {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch("/api/exames/verificar", {
-      method: "POST",
-      body: formData,
-      // Não inclua headers Content-Type para FormData!
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(errorText || `Erro HTTP: ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    if (data.exames && Array.isArray(data.exames)) {
-      const formattedExames = data.exames.map((ex: ExtractedExame) => ({
-        nome: ex.nome || "",
-        valor: ex.valor || "",
-        unidade: ex.unidade || "",
-        ValorReferencia: ex.ValorReferencia || "",
-        outraUnidade: "",
-      }));
-      
-      setExames(formattedExames);
-      toast("Dados extraídos com sucesso!", "success", { duration: 5000 });
-    } else {
-      setExames([{
-        nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: ""
-      }]);
-      toast("Nenhum dado relevante encontrado no arquivo.", "aviso", { duration: 5000 });
-    }
-  } catch (err) {
-    console.error("Erro detalhado:", err);
-    toast(err instanceof Error ? err.message : "Erro ao processar arquivo", "erro", { duration: 5000 });
-  } finally {
-    setLoadingAnalyze(false);
-  }
-};
-  // --- Fim da nova função ---
 
   const handleSubmit = async () => {
     setLoadingSubmit(true);
@@ -206,7 +167,7 @@ const analyzeFile = async (file: File) => {
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      !selectedFile // Ainda precisamos do arquivo para enviar no formulário principal
+      !selectedFile
     ) {
       toast("Preencha todos os campos obrigatórios.", "erro", {
         duration: 5000,
@@ -214,33 +175,33 @@ const analyzeFile = async (file: File) => {
       setLoadingSubmit(false);
       return;
     }
-    // --- Fim da modificação ---
 
     try {
       const formData = new FormData();
-
-      // Adiciona os dados dos exames (preenchidos manualmente ou pela IA)
-      if (["urina", "sangue"].includes(tipoExame)) {
-        formData.append(
-          "exames",
-          JSON.stringify(
-            exames.map((exame) => ({
-              ...exame,
-              unidade:
-                exame.unidade === "Outro" ? exame.outraUnidade : exame.unidade,
-            })),
-          ),
-        );
-      }
 
       formData.append("userId", userId);
       formData.append("profissionalId", selectedProfissional.id);
       formData.append("unidadeId", selectedUnidade.id);
       formData.append("consultaId", selectedConsulta?.id || "");
       formData.append("tratamentoId", selectedTratamento?.id || "");
-      formData.append("anotacao", anotacao);
-      formData.append("dataExame", dataExame);
-      formData.append("file", selectedFile); // Envia o arquivo também no formulário principal
+      formData.append("anotacao", exame.anotacao || "");
+      formData.append("dataExame", exame.dataExame);
+      formData.append("file", selectedFile);
+
+      if (["urina", "sangue"].includes(tipoExame) && exame.resultados) {
+        formData.append(
+          "exames",
+          JSON.stringify(
+            exame.resultados.map((resultado) => ({
+              ...resultado,
+              unidade:
+                resultado.unidade === "Outro"
+                  ? resultado.outraUnidade
+                  : resultado.unidade,
+            })),
+          ),
+        );
+      }
 
       const res = await fetch("/api/exames", {
         method: "POST",
@@ -356,7 +317,6 @@ const analyzeFile = async (file: File) => {
               </Select>
             </div>
           </div>
-
           <div>
             <Label>Anotação</Label>
             <Textarea
@@ -374,11 +334,9 @@ const analyzeFile = async (file: File) => {
               />
               <Button
                 type="button"
-                onClick={() => selectedFile && analyzeFile(selectedFile)}
-                disabled={!selectedFile || loadingAnalyze}
-              >
-                {loadingAnalyze ? "Analisando..." : "Analisar"}
-              </Button>
+                onClick={() => selectedFile}
+                disabled={!selectedFile}
+              ></Button>
             </div>
             {selectedFile && (
               <p className="mt-1 text-sm text-muted-foreground">
@@ -389,7 +347,7 @@ const analyzeFile = async (file: File) => {
           {["sangue", "urina"].includes(tipoExame) && (
             <>
               <TabelaExames
-                exames={exames}
+                exames={exame.resultados || []}
                 onAddExame={handleAddExame}
                 onRemoveExame={handleRemoveExame}
                 onExameChange={handleExameChange}
@@ -397,63 +355,23 @@ const analyzeFile = async (file: File) => {
             </>
           )}
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                disabled={loadingSubmit || loadingAnalyze || !selectedFile}
-                className="w-full"
-              >
-                {" "}
-                {/* Desabilita o botão de submit enquanto analisa ou se não há arquivo */}
-                {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Confirmar Cadastro do Exame</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  <strong>Tipo:</strong> {tipoExame || "Não selecionado"}
-                </p>
-                <p>
-                  <strong>Data:</strong> {dataExame || "Não definida"}
-                </p>
-                <p>
-                  <strong>Profissional:</strong>{" "}
-                  {selectedProfissional?.nome || "Não selecionado"}
-                </p>
-                <p>
-                  <strong>Unidade:</strong>{" "}
-                  {selectedUnidade?.nome || "Não selecionada"}
-                </p>
-                <p>
-                  <strong>Anotação:</strong> {anotacao || "Nenhuma"}
-                </p>
-                {["sangue", "urina"].includes(tipoExame) && (
-                  <>
-                    <p className="pt-2 font-semibold">Exames:</p>
-                    <ul className="list-disc pl-4">
-                      {exames.map((exame, idx) => (
-                        <li key={idx}>
-                          {exame.nome || "(sem nome)"} — {exame.valor || "-"}{" "}
-                          {exame.unidade === "Outro"
-                            ? exame.outraUnidade
-                            : exame.unidade || ""}{" "}
-                          — Ref: {exame.ValorReferencia || "-"}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-              <DialogFooter>
-                <Button onClick={handleSubmit} disabled={loadingSubmit}>
-                  Confirmar e Enviar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ConfirmarExameDialog
+            loadingSubmit={loadingSubmit}
+            tipoExame={tipoExame}
+            dataExame={exame.dataExame}
+            selectedProfissional={selectedProfissional}
+            selectedUnidade={selectedUnidade}
+            anotacao={exame.anotacao || ""}
+            exames={exame.resultados || []}
+            onSubmit={handleSubmit}
+          >
+            <Button
+              disabled={loadingSubmit || !selectedFile}
+              className="w-full"
+            >
+              {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
+            </Button>
+          </ConfirmarExameDialog>
         </form>
       </main>
       <Footer />
