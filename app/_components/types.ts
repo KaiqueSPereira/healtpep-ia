@@ -48,7 +48,9 @@ export type Unidade = {
   id: string;
   nome: string;
   tipo: string;
-  endereco: string;
+  endereco: {
+    nome: string;
+  };
 };
 
 export type Profissional = {
@@ -93,7 +95,13 @@ export type Exame = {
   dataExame: string;
   anotacao?: string;
   nomeArquivo?: string;
-  resultados?: any[]; // ou defina tipo específico se souber a estrutura
+  resultados?: {
+    nome: string;
+    valor: string;
+    unidade: string;
+    valorReferencia?: string;
+    outraUnidade?: string;
+  }[]; // Defina a estrutura conforme necessário
   profissional?: {
     id: string;
     nome: string;
@@ -115,3 +123,4 @@ export type Exame = {
     };
   };
 };
+

@@ -1,3 +1,4 @@
+// app/exames/novo/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -38,6 +39,14 @@ import {
   Tratamento,
 } from "@/app/_components/types";
 
+// Definindo o tipo para os dados de exames retornados pela API de análise
+interface ExtractedExame {
+  nome: string;
+  valor: string;
+  unidade: string;
+  ValorReferencia: string;
+}
+
 const CadastroExame = () => {
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(
@@ -56,6 +65,7 @@ const CadastroExame = () => {
   const [anotacao, setAnotacao] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [loadingAnalyze, setLoadingAnalyze] = useState(false); 
 
   const [exames, setExames] = useState([
     { nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: "" },
@@ -76,26 +86,26 @@ const CadastroExame = () => {
       );
   }, [userId]);
 
-   useEffect(() => {
-      const fetchTratamentos = async () => {
-        if (!session?.user?.id) return;
-  
-        try {
-          const response = await fetch(
-            `/api/tratamento?userId=${session.user.id}`,
-          );
-          if (!response.ok) throw new Error("Erro ao buscar tratamentos");
-  
-          const data = await response.json();
-          setTratamentos(data || []);
-        } catch (error) {
-          console.error("Erro ao buscar tratamentos:", error);
-          toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
-        }
-      };
-  
-      fetchTratamentos();
-    }, [session?.user?.id]);
+  useEffect(() => {
+    const fetchTratamentos = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        const response = await fetch(
+          `/api/tratamento?userId=${session.user.id}`,
+        );
+        if (!response.ok) throw new Error("Erro ao buscar tratamentos");
+
+        const data = await response.json();
+        setTratamentos(data || []);
+      } catch (error) {
+        console.error("Erro ao buscar tratamentos:", error);
+        toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
+      }
+    };
+
+    fetchTratamentos();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!selectedUnidade?.id) {
@@ -141,6 +151,54 @@ const CadastroExame = () => {
     setSelectedFile(e.target.files?.[0] || null);
   };
 
+  // --- Novo: Função para analisar o arquivo com a API do Gemini ---
+  // Função corrigida para analisar o arquivo
+const analyzeFile = async (file: File) => {
+  setLoadingAnalyze(true);
+
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/exames/verificar", {
+      method: "POST",
+      body: formData,
+      // Não inclua headers Content-Type para FormData!
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText || `Erro HTTP: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (data.exames && Array.isArray(data.exames)) {
+      const formattedExames = data.exames.map((ex: ExtractedExame) => ({
+        nome: ex.nome || "",
+        valor: ex.valor || "",
+        unidade: ex.unidade || "",
+        ValorReferencia: ex.ValorReferencia || "",
+        outraUnidade: "",
+      }));
+      
+      setExames(formattedExames);
+      toast("Dados extraídos com sucesso!", "success", { duration: 5000 });
+    } else {
+      setExames([{
+        nome: "", valor: "", unidade: "", ValorReferencia: "", outraUnidade: ""
+      }]);
+      toast("Nenhum dado relevante encontrado no arquivo.", "aviso", { duration: 5000 });
+    }
+  } catch (err) {
+    console.error("Erro detalhado:", err);
+    toast(err instanceof Error ? err.message : "Erro ao processar arquivo", "erro", { duration: 5000 });
+  } finally {
+    setLoadingAnalyze(false);
+  }
+};
+  // --- Fim da nova função ---
+
   const handleSubmit = async () => {
     setLoadingSubmit(true);
 
@@ -148,7 +206,7 @@ const CadastroExame = () => {
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      !selectedFile
+      !selectedFile // Ainda precisamos do arquivo para enviar no formulário principal
     ) {
       toast("Preencha todos os campos obrigatórios.", "erro", {
         duration: 5000,
@@ -156,9 +214,12 @@ const CadastroExame = () => {
       setLoadingSubmit(false);
       return;
     }
+    // --- Fim da modificação ---
 
     try {
       const formData = new FormData();
+
+      // Adiciona os dados dos exames (preenchidos manualmente ou pela IA)
       if (["urina", "sangue"].includes(tipoExame)) {
         formData.append(
           "exames",
@@ -179,7 +240,7 @@ const CadastroExame = () => {
       formData.append("tratamentoId", selectedTratamento?.id || "");
       formData.append("anotacao", anotacao);
       formData.append("dataExame", dataExame);
-      formData.append("file", selectedFile);
+      formData.append("file", selectedFile); // Envia o arquivo também no formulário principal
 
       const res = await fetch("/api/exames", {
         method: "POST",
@@ -303,7 +364,28 @@ const CadastroExame = () => {
               onChange={(e) => setAnotacao(e.target.value)}
             />
           </div>
-
+          <div>
+            <Label>Anexar Arquivo (PDF ou imagem)</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="file"
+                accept="image/*,.pdf"
+                onChange={handleFileChange}
+              />
+              <Button
+                type="button"
+                onClick={() => selectedFile && analyzeFile(selectedFile)}
+                disabled={!selectedFile || loadingAnalyze}
+              >
+                {loadingAnalyze ? "Analisando..." : "Analisar"}
+              </Button>
+            </div>
+            {selectedFile && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Arquivo selecionado: {selectedFile.name}
+              </p>
+            )}
+          </div>
           {["sangue", "urina"].includes(tipoExame) && (
             <>
               <TabelaExames
@@ -312,22 +394,17 @@ const CadastroExame = () => {
                 onRemoveExame={handleRemoveExame}
                 onExameChange={handleExameChange}
               />
-             
             </>
           )}
 
-          <div>
-            <Label>Anexar Arquivo (PDF ou imagem)</Label>
-            <Input
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileChange}
-            />
-          </div>
-
           <Dialog>
             <DialogTrigger asChild>
-              <Button disabled={loadingSubmit} className="w-full">
+              <Button
+                disabled={loadingSubmit || loadingAnalyze || !selectedFile}
+                className="w-full"
+              >
+                {" "}
+                {/* Desabilita o botão de submit enquanto analisa ou se não há arquivo */}
                 {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
               </Button>
             </DialogTrigger>

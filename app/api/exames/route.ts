@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
         consultaId,
         tratamentoId,
         arquivoExame: encryptedFileBuffer,
+        tipo: "default", // Substitua "default" pelo valor adequado para o campo tipo
       },
     });
 

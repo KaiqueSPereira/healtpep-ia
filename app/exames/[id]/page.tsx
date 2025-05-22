@@ -67,7 +67,18 @@ export default function ExameDetalhePage() {
                 </thead>
                 <tbody>
                   {Object.entries(exame.resultados).map(
-                    ([_, item]: { [key: string]: any }, idx: number) => {
+                    (
+                      [key, item]: [
+                        string,
+                        {
+                          nome: string;
+                          valor: string;
+                          unidade: string;
+                          outraUnidade?: string;
+                          ValorReferencia?: string;
+                        }
+                      ]
+                    ) => {
                       const valor = parseFloat(item.valor);
                       const referencia = item.ValorReferencia || "";
                       const [minRef, maxRef] = referencia
@@ -79,7 +90,7 @@ export default function ExameDetalhePage() {
                         (valor < minRef || valor > maxRef);
 
                       return (
-                        <tr key={idx}>
+                        <tr key={key}>
                           <td className="border p-2">{item.nome}</td>
                           <td
                             className={`border p-2 font-medium ${

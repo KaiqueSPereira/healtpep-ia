@@ -173,7 +173,7 @@ const UnidadeDetalhesPage = () => {
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-between">
-                  {unidade.endereco
+                  {unidade.endereco && typeof unidade.endereco === "object" && "nome" in unidade.endereco
                     ? unidade.endereco.nome
                     : "Selecione um Endereço..."}
                   <ChevronLeftIcon className="ml-2 h-4 w-4" />
@@ -188,7 +188,7 @@ const UnidadeDetalhesPage = () => {
                       {enderecos.map((endereco) => (
                         <CommandItem
                           key={endereco.id}
-                          onSelect={() => setUnidade({ ...unidade, endereco })}
+                          onSelect={() => setUnidade({ ...unidade, endereco: endereco })}
                         >
                           {endereco.nome} - {endereco.bairro}
                         </CommandItem>
