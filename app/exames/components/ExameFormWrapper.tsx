@@ -120,6 +120,7 @@ export function  ExameFormWrapper() {
       );
   }, [selectedUnidade]);
 
+
   const handleAddExame = () => {
     setExame((prev) => ({
       ...prev,
@@ -155,9 +156,49 @@ export function  ExameFormWrapper() {
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSelectedFile(e.target.files?.[0] || null);
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+
+    if (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/analise", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Erro ao analisar exame:", errorText);
+        toast("Erro ao analisar exame", "erro", { duration: 5000 });
+        setExame((prev) => ({
+          ...prev,
+          resultados: [],
+          anotacao: "",
+        }));
+        return;
+      } 
+
+      const data = await res.json();
+
+      if (data.resultados?.length) {
+        setExame((prev) => ({
+          ...prev,
+          resultados: data.resultados,
+        }));
+      }
+
+      if (data.anotacao) {
+        setExame((prev) => ({
+          ...prev,
+          anotacao: data.anotacao,
+        }));
+      }
+    }
   };
+
 
   const handleSubmit = async () => {
     setLoadingSubmit(true);
@@ -202,7 +243,7 @@ export function  ExameFormWrapper() {
         );
       }
 
-      const res = await fetch("/api/exames", {
+      const res = await fetch("/api/exames/exame", {
         method: "POST",
         body: formData,
       });
@@ -331,12 +372,6 @@ export function  ExameFormWrapper() {
                 accept="image/*,.pdf"
                 onChange={handleFileChange}
               />
-              <Button
-                type="button"
-                onClick={() => selectedFile}
-                disabled={!selectedFile}
-                placeholder="Selecionar arquivo"
-              ></Button>
             </div>
             {selectedFile && (
               <p className="mt-1 text-sm text-muted-foreground">

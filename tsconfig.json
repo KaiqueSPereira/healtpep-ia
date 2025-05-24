@@ -1,5 +1,11 @@
 {
   "compilerOptions": {
+
+    //Adicionadas depois 
+    "allowSyntheticDefaultImports": true,
+    "typeRoots": ["./types", "./node_modules/@types"],
+
+    //Adicionadas pelo Next.js
     "lib": [
       "dom",
       "dom.iterable",
