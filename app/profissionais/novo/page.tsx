@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { Suspense } from "react";
-import { ProfissionalFormWrapper } from "../_components/ProfissionalFormWhapper";
+import { ProfissionalFormWrapper } from "../_components/ProfissionalFormWrapper";
 
 export default function ProfissionalPage(){
    return (
