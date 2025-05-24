@@ -67,7 +67,7 @@ export default function TabelaExames({
   useEffect(() => {
     async function fetchExamesSalvos() {
       try {
-        const res = await fetch("/api/exames");
+        const res = await fetch("/api/exames/sugestoes");
         const dados = await res.json();
         setExamesSugeridos(dados);
       } catch (error) {

@@ -335,6 +335,7 @@ export function  ExameFormWrapper() {
                 type="button"
                 onClick={() => selectedFile}
                 disabled={!selectedFile}
+                placeholder="Selecionar arquivo"
               ></Button>
             </div>
             {selectedFile && (
