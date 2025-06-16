@@ -50,6 +50,8 @@ export function  ExameFormWrapper() {
   const [anotacao, setAnotacao] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false); // Novo estado para o loading da análise
+
 
   const [exame, setExame] = useState<{
     nome: string;
@@ -65,7 +67,7 @@ export function  ExameFormWrapper() {
         nome: "",
         valor: "",
         unidade: "",
-        valorReferencia: "", 
+        valorReferencia: "",
         outraUnidade: "",
       },
     ],
@@ -159,12 +161,27 @@ export function  ExameFormWrapper() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setSelectedFile(file);
+    // Limpa os resultados e anotação ao selecionar um novo arquivo
+    setExame((prev) => ({
+      ...prev,
+      resultados: [],
+      anotacao: "",
+    }));
+  };
 
-    if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
+  const handleAnalyzeFile = async () => {
+    if (!selectedFile) {
+      toast("Por favor, selecione um arquivo primeiro.", "aviso", { duration: 5000 });
+      return;
+    }
 
-      const res = await fetch("/api/analise", {
+    setLoadingAnalysis(true); // Inicia o loading da análise
+
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const res = await fetch("/api/exames/analise", {
         method: "POST",
         body: formData,
       });
@@ -173,29 +190,56 @@ export function  ExameFormWrapper() {
         const errorText = await res.text();
         console.error("Erro ao analisar exame:", errorText);
         toast("Erro ao analisar exame", "erro", { duration: 5000 });
+        // Limpa os resultados e anotação em caso de erro na análise
         setExame((prev) => ({
           ...prev,
           resultados: [],
           anotacao: "",
         }));
         return;
-      } 
+      }
 
       const data = await res.json();
+
+      console.log("Resposta da API /api/exames/analise:", data);
 
       if (data.resultados?.length) {
         setExame((prev) => ({
           ...prev,
           resultados: data.resultados,
         }));
+         toast("Análise concluída com sucesso!", "success", { duration: 5000 });
+      } else {
+         toast("Análise concluída, mas nenhum resultado encontrado.", "aviso", { duration: 5000 });
+         setExame((prev) => ({ // Garante que os resultados sejam limpos se nada for encontrado
+            ...prev,
+            resultados: [],
+         }));
       }
+
 
       if (data.anotacao) {
         setExame((prev) => ({
           ...prev,
           anotacao: data.anotacao,
         }));
+      } else {
+         setExame((prev) => ({ // Garante que a anotação seja limpa se nada for retornado
+            ...prev,
+            anotacao: "",
+         }));
       }
+
+    } catch (error) {
+      console.error("Erro na chamada da API de análise:", error);
+      toast("Erro ao analisar arquivo", "erro", { duration: 5000 });
+       setExame((prev) => ({ // Limpa os resultados e anotação em caso de erro na chamada
+          ...prev,
+          resultados: [],
+          anotacao: "",
+       }));
+    } finally {
+      setLoadingAnalysis(false); // Finaliza o loading da análise
     }
   };
 
@@ -203,14 +247,24 @@ export function  ExameFormWrapper() {
   const handleSubmit = async () => {
     setLoadingSubmit(true);
 
+    // Adicionado verificação se a análise foi realizada e retornou resultados (ou se não é tipo sangue/urina)
+    const needsAnalysis = ["urina", "sangue"].includes(tipoExame);
+    const analysisDone = needsAnalysis ? exame.resultados?.length > 0 : true;
+
+
     if (
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      !selectedFile
+      !selectedFile ||
+      (needsAnalysis && !analysisDone) // Verifica se a análise foi feita e retornou resultados para tipos que precisam
     ) {
-      toast("Preencha todos os campos obrigatórios.", "erro", {
-        duration: 5000,
+      let errorMessage = "Preencha todos os campos obrigatórios.";
+      if (needsAnalysis && !analysisDone) {
+          errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos.";
+      }
+      toast(errorMessage, "erro", {
+        duration: 5000, // Corrigido duração
       });
       setLoadingSubmit(false);
       return;
@@ -228,7 +282,7 @@ export function  ExameFormWrapper() {
       formData.append("dataExame", exame.dataExame);
       formData.append("file", selectedFile);
 
-      if (["urina", "sangue"].includes(tipoExame) && exame.resultados) {
+      if (needsAnalysis && exame.resultados) { // Usa needsAnalysis aqui
         formData.append(
           "exames",
           JSON.stringify(
@@ -372,6 +426,13 @@ export function  ExameFormWrapper() {
                 accept="image/*,.pdf"
                 onChange={handleFileChange}
               />
+               <Button
+                onClick={handleAnalyzeFile}
+                disabled={!selectedFile || loadingAnalysis}
+                type="button" // Importante para não submeter o formulário
+              >
+                {loadingAnalysis ? "Analisando..." : "Analisar Arquivo"}
+              </Button>
             </div>
             {selectedFile && (
               <p className="mt-1 text-sm text-muted-foreground">
@@ -401,7 +462,7 @@ export function  ExameFormWrapper() {
             onSubmit={handleSubmit}
           >
             <Button
-              disabled={loadingSubmit || !selectedFile}
+              disabled={loadingSubmit || !selectedFile} // Pode adicionar || loadingAnalysis aqui se quiser impedir o cadastro enquanto analisa
               className="w-full"
             >
               {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
@@ -413,4 +474,3 @@ export function  ExameFormWrapper() {
     </>
   );
 };
-

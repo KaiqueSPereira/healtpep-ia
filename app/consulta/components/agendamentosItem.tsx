@@ -51,12 +51,12 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px] text-gray-300">
+      <Card className="min-w-[280px] max-w-[320px] text-gray-300 h-44">
         <CardContent className="flex justify-between p-0">
           {/* Informações do agendamento */}
-          <div className="flex flex-col gap-2 py-5 pl-5">
+          <div className="flex flex-col gap-2 py-5 pl-5 pr-8">
             <h3 className="text-lg font-bold text-red-500">{tipo}</h3>
-            <p className="truncate text-sm font-semibold text-gray-300">
+            <p className="text-sm font-semibold text-gray-300">
               {profissionalNome}
             </p>
             <p className="truncate text-sm text-gray-400">{unidadeNome}</p>

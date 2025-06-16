@@ -31,7 +31,7 @@ export default function ExamesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/exames")
+    fetch("/api/exames/exame")
       .then((res) => res.json())
       .then((data) => {
         if (!Array.isArray(data)) {

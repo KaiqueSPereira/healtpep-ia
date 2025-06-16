@@ -21,7 +21,7 @@ const Sidebarbotton = () => {
   const handlelogoutclick = () => signOut();
 
   return (
-    <SheetContent className="overflow-y-auto">
+    <SheetContent className="overflow-y-auto flex flex-col h-full">
       <SheetHeader>
         <SheetTitle>Menu</SheetTitle>
       </SheetHeader>
@@ -51,7 +51,7 @@ const Sidebarbotton = () => {
           </>
         )}
       </div>
-      <div className="boder-b flex flex-col gap-2 border-solid py-5">
+      <div className="boder-b flex flex-col gap-2 border-solid py-5 flex-grow">
         <SheetClose asChild>
           <Button className="justify-startgap-2" variant="ghost" asChild>
             <Link href="/">
