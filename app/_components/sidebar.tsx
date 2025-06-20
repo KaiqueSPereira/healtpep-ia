@@ -13,7 +13,7 @@ import { Avatar, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
 import { Dialog, DialogTrigger } from "./ui/dialog";
 import { signOut, useSession } from "next-auth/react";
-import SingInDialog from "./sing-in-dialog";
+import SingInDialog from "@/app/login/_components/sing-in-dialog";
 import { User } from "lucide-react";
 
 const Sidebarbotton = () => {
