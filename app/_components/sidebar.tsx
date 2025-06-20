@@ -22,7 +22,7 @@ const Sidebarbotton = () => {
 
   return (
     <SheetContent className="overflow-y-auto flex flex-col h-full">
-      <SheetHeader>
+      <SheetHeader className="flex items-center justify-between flex-row">
         <SheetTitle>Menu</SheetTitle>
       </SheetHeader>
 

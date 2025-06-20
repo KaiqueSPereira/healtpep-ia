@@ -1,8 +1,8 @@
-import { Toaster } from "./_components/ui/toaster";
-import AuthProvider from "./_providers/auth";
+import Providers from "/home/user/healtpep-ia/app/_components/providers";
 import "./globals.css";
 
 export const metadata = {
+
   title: "Health Pep",
   description: "Seu prontuario medico pessoal",
 };
@@ -13,11 +13,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br" className="dark">
+    <html lang="pt-br">
       <body className="font-sans">
         <link rel="icon" href="/iconprontuario.png" />
-        <AuthProvider>{children}</AuthProvider>
-        <Toaster />
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

@@ -3,37 +3,21 @@ import pdfParse from "pdf-parse";
 import { createWorker } from "tesseract.js";
 import OpenAI from "openai"; // Importar a biblioteca OpenAI
 
-export const dynamic = "force-dynamic"; // necessário para lidar com arquivos
-
-// Inicializar o cliente OpenAI com a API Key da variável de ambiente
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY, // Certifique-se de configurar OPENAI_API_KEY nas variáveis de ambiente do Firebase Studio
-});
-
-
-// Função original para extrair exames com regex (manteremos por enquanto como fallback ou para comparação)
-function extrairExamesDeTextoRegex(texto: string) {
-  const linhas = texto.split("\n");
-  const resultados = [];
-
-  for (const linha of linhas) {
-    const match = linha.match(/^(.*?)\s+([\d.,]+)\s+([^\s]+)\s+(.*)$/);
-    if (match) {
-      resultados.push({
-        nome: match[1].trim(),
-        valor: match[2].trim(),
-        unidade: match[3].trim(),
-        valorReferencia: match[4].trim(),
-        outraUnidade: "",
-      });
-    }
-  }
-
-  return resultados;
+interface ExameResultado {
+  nome: string;
+  valor: string;
+  unidade: string;
+  valorReferencia: string;
 }
 
+export const dynamic = "force-dynamic";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
 // Nova função para extrair exames usando IA
-async function extrairExamesDeTextoComIA(texto: string): Promise<{ nome: string; valor: string; unidade: string; valorReferencia: string }[]> {
+async function extrairExamesDeTextoComIA(texto: string): Promise<ExameResultado[]> {
   try {
     const prompt = `Analise o seguinte texto de um relatório de exame de sangue e extraia os resultados dos exames. Retorne os dados em formato JSON, onde cada objeto no array representa um resultado de exame com as chaves "nome", "valor", "unidade", e "valorReferencia". Se um campo não estiver disponível, use uma string vazia.
 
@@ -52,10 +36,10 @@ Formato JSON de saída:
 ]`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Você pode escolher um modelo diferente dependendo da sua necessidade e custo
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" }, // Solicita a resposta em formato JSON
-      temperature: 0, // Temperatura baixa para respostas mais previsíveis
+      response_format: { type: "json_object" },
+      temperature: 0,
     });
 
     const jsonResponse = response.choices[0]?.message?.content;
@@ -66,16 +50,12 @@ Formato JSON de saída:
     }
 
     try {
-        // A resposta da IA deve ser um objeto JSON com uma chave que contém o array de exames
-        // Precisamos analisar a resposta para encontrar o array correto.
-        // Por exemplo, a IA pode retornar algo como: { "exames": [...] }
         const parsedResponse = JSON.parse(jsonResponse);
 
-        // Vamos procurar por um array na resposta.
         for (const key in parsedResponse) {
             if (Array.isArray(parsedResponse[key])) {
                  // Validar se os objetos dentro do array têm a estrutura esperada
-                 const resultadosValidos = parsedResponse[key].filter((item: any) =>
+                 const resultadosValidos = parsedResponse[key].filter((item: ExameResultado) => // Usando a interface
                     typeof item.nome === 'string' &&
                     typeof item.valor === 'string' &&
                     typeof item.unidade === 'string' &&
@@ -91,12 +71,11 @@ Formato JSON de saída:
 
     } catch (jsonError) {
         console.error("Erro ao analisar JSON da IA:", jsonError, "Resposta da IA:", jsonResponse);
-        // Tentar extrair o array JSON da string, caso a IA não retorne um objeto JSON diretamente
         const jsonMatch = jsonResponse.match(/\[\s*\{.*?\}\s*\]/s);
         if (jsonMatch && jsonMatch[0]) {
              try {
                  const fallbackParsed = JSON.parse(jsonMatch[0]);
-                 const resultadosValidos = fallbackParsed.filter((item: any) =>
+                 const resultadosValidos = fallbackParsed.filter((item: ExameResultado) => // Usando a interface
                     typeof item.nome === 'string' &&
                     typeof item.valor === 'string' &&
                     typeof item.unidade === 'string' &&
@@ -109,13 +88,13 @@ Formato JSON de saída:
              }
         }
 
-        return []; // Retorna array vazio se não conseguir extrair JSON
+        return [];
     }
 
 
   } catch (error) {
     console.error("Erro ao chamar API da IA:", error);
-    return []; // Retorna array vazio em caso de erro na API
+    return [];
   }
 }
 
@@ -139,7 +118,7 @@ export async function POST(req: NextRequest) {
       const data = await pdfParse(buffer);
       textoExtraido = data.text;
     } else if (mime.startsWith("image/")) {
-      const worker = await createWorker("por"); // Use "por" para português
+      const worker = await createWorker("por");
       const {
         data: { text },
       } = await worker.recognize(buffer);
@@ -152,14 +131,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Usar a função com IA para extrair os exames
     const examesExtraidosPelaIA = await extrairExamesDeTextoComIA(textoExtraido);
 
-    // Retorna os resultados da IA. Se a IA não encontrar nada, retorna um array vazio.
-    // Você pode adicionar uma lógica aqui para tentar a extração com regex se a IA falhar, se desejar.
     return NextResponse.json({
       resultados: examesExtraidosPelaIA,
-      // Pode ajustar a anotação para incluir o texto completo ou uma parte dele
       anotacao: examesExtraidosPelaIA.length > 0 ? "" : textoExtraido.trim(),
     });
   } catch (error) {
