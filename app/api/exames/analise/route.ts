@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pdfParse from "pdf-parse";
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'; // Importar getDocument
 import { createWorker } from "tesseract.js";
 import OpenAI from "openai"; // Importar a biblioteca OpenAI
 
@@ -98,6 +98,30 @@ Formato JSON de saída:
   }
 }
 
+// Nova função para extrair texto de PDF usando pdfjs-dist
+async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
+  const typedArray = new Uint8Array(buffer);
+  const loadingTask = getDocument(typedArray);
+  const pdfDocument = await loadingTask.promise;
+  let textoCompleto = '';
+
+  for (let i = 1; i <= pdfDocument.numPages; i++) {
+    const page = await pdfDocument.getPage(i);
+    const textContent = await page.getTextContent();
+    // Usando a interface TextItem
+    const pageText = textContent.items.map((item) => {
+      if ('str' in item && typeof item.str === 'string') {
+        return item.str;
+      }
+      return '';
+    }).join(' ');
+
+    textoCompleto += pageText + '\n'; // Adiciona quebra de linha entre as páginas
+  }
+
+  return textoCompleto;
+}
+
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -115,8 +139,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (mime === "application/pdf") {
-      const data = await pdfParse(buffer);
-      textoExtraido = data.text;
+      textoExtraido = await extrairTextoDePdf(buffer); // Usar a nova função
     } else if (mime.startsWith("image/")) {
       const worker = await createWorker("por");
       const {

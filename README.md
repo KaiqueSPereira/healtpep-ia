@@ -9,10 +9,7 @@ TypeScript: Tipagem estática para maior confiabilidade no código.
 TailwindCSS: Estilização rápida e responsiva.
 Lucide Icons: Ícones modernos para UI.
 Shadcn/ui: Componentes de IU personalizáveis.
-<<<<<<< HEAD
 
-=======
->>>>>>> 957e7341d29d73f46f405ea9beb2dba3fc61e3e9
 ⚙️ Funcionalidades
 Módulo de Profissionais
 Cadastro de profissionais com:
@@ -36,7 +33,6 @@ Associação ao usuário e profissional que realizou a consulta
 Autenticação
 Cadastro de usuários via Google utilizando NextAuth.js
 Acesso restrito apenas para usuários autenticados
-<<<<<<< HEAD
 
 🛠️ Melhorias Futuras
 Adicionar o módulo de Controle de Medicamentos:
@@ -47,18 +43,7 @@ Implementar paginação na listagem de profissionais.
 Criar busca avançada por especialidades.
 Melhorar a responsividade da interface para dispositivos móveis.
 Adicionar suporte para múltiplos idiomas.
-=======
-🛠️ Melhorias Futuras
-Adicionar o módulo de Controle de Medicamentos:
-Cadastro e gerenciamento de medicamentos em uso pelos pacientes.
-Adicionar o módulo de Exames:
-Cadastro de exames realizados, com análise automatizada dos resultados via IA ChatGPT.
-Implementar paginação na listagem de profissionais.
-Criar busca avançada por especialidades.
-Melhorar a responsividade da interface para dispositivos móveis.
-Adicionar suporte para múltiplos idiomas.
 
->>>>>>> 957e7341d29d73f46f405ea9beb2dba3fc61e3e9
 
 🤝 Contribuições
 Contribuições são bem-vindas! Se você deseja contribuir:
