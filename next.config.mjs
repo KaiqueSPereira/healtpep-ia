@@ -13,6 +13,17 @@ const nextConfig = {
       )
     );
 
+    // Adiciona regra para lidar com arquivos .mjs
+    config.module.rules.push({
+      test: /\.mjs$/,
+      include: /node_modules/,
+      type: 'javascript/auto',
+    });
+
+    // Adiciona pdfjs-dist como external para evitar problemas de compilação
+    config.externals.push('pdfjs-dist');
+
+
     return config;
   },
 };

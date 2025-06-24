@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'; // Importar getDocument
+import { getPdfText } from 'pdf-to-text'; // Importar a função de extração
 import { createWorker } from "tesseract.js";
-import OpenAI from "openai"; // Importar a biblioteca OpenAI
+import OpenAI from "openai";
 
 interface ExameResultado {
   nome: string;
@@ -98,28 +98,18 @@ Formato JSON de saída:
   }
 }
 
-// Nova função para extrair texto de PDF usando pdfjs-dist
+// Nova função para extrair texto de PDF usando pdf-to-text
 async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
-  const typedArray = new Uint8Array(buffer);
-  const loadingTask = getDocument(typedArray);
-  const pdfDocument = await loadingTask.promise;
-  let textoCompleto = '';
-
-  for (let i = 1; i <= pdfDocument.numPages; i++) {
-    const page = await pdfDocument.getPage(i);
-    const textContent = await page.getTextContent();
-    // Usando a interface TextItem
-    const pageText = textContent.items.map((item) => {
-      if ('str' in item && typeof item.str === 'string') {
-        return item.str;
+  return new Promise((resolve, reject) => {
+    // getPdfText pode usar um callback, ajustamos para Promise
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-explicit-any
+ getPdfText({ data: buffer }, (err: any, text: any) => {
+      if (err) {
+        return reject(err);
       }
-      return '';
-    }).join(' ');
-
-    textoCompleto += pageText + '\n'; // Adiciona quebra de linha entre as páginas
-  }
-
-  return textoCompleto;
+      resolve(text || '');
+    });
+  });
 }
 
 
