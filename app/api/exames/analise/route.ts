@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPdfText } from 'pdf-to-text'; // Importar a função de extração
 import { createWorker } from "tesseract.js";
 import OpenAI from "openai";
 
@@ -71,7 +70,7 @@ Formato JSON de saída:
 
     } catch (jsonError) {
         console.error("Erro ao analisar JSON da IA:", jsonError, "Resposta da IA:", jsonResponse);
-        const jsonMatch = jsonResponse.match(/\[\s*\{.*?\}\s*\]/s);
+        const jsonMatch = jsonResponse.match(/[s*{.*?}s*]/s);
         if (jsonMatch && jsonMatch[0]) {
              try {
                  const fallbackParsed = JSON.parse(jsonMatch[0]);
@@ -98,21 +97,34 @@ Formato JSON de saída:
   }
 }
 
-// Nova função para extrair texto de PDF usando pdf-to-text
+import { PdfReader, DataEntry } from 'pdfreader';
+
 async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // getPdfText pode usar um callback, ajustamos para Promise
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-explicit-any
- getPdfText({ data: buffer }, (err: any, text: any) => {
+  return new Promise<string>((resolve, reject) => {
+    let fullText = '';
+   
+ new PdfReader({}).parseBuffer(buffer, (err: Error | string | null | undefined, item: DataEntry | null | undefined) => {
       if (err) {
+        console.error("Erro ao extrair texto com pdfreader:", err);
         return reject(err);
+ } else if (item === null || item === undefined) { 
+       
+        fullText += ' ';
+
+ fullText += ' ';
+        resolve(fullText);
+      } else if (item.text) {
+
+        fullText += item.text;
+
       }
-      resolve(text || '');
+
+      if (item && 'page' in item && item.page !== undefined) {
+ fullText += '\\n'; 
+      }
     });
   });
 }
-
-
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
   const file = formData.get("file") as File;

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
-    const encryptedFileBuffer = encrypt(fileBuffer); // 🔐 criptografando como buffer diretamente
+    const encryptedFileBuffer = encrypt(fileBuffer);
 
     const filename = `${randomUUID()}-${file.name}`;
 

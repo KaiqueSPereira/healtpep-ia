@@ -278,8 +278,8 @@ export function  ExameFormWrapper() {
       formData.append("unidadeId", selectedUnidade.id);
       formData.append("consultaId", selectedConsulta?.id || "");
       formData.append("tratamentoId", selectedTratamento?.id || "");
-      formData.append("anotacao", exame.anotacao || "");
-      formData.append("dataExame", exame.dataExame);
+      formData.append("anotacao", anotacao);
+      formData.append("dataExame", dataExame);
       formData.append("file", selectedFile);
 
       if (needsAnalysis && exame.resultados) { // Usa needsAnalysis aqui
