@@ -30,6 +30,7 @@ export function LoginForm({
 
       <div>
         <Button
+          type="button"
           variant="outline"
           className="w-full gap-2 font-bold"
           onClick={handleLoginGoogleClick}

@@ -1,4 +1,5 @@
-import Providers from "/home/user/healtpep-ia/app/_components/providers";
+
+import Providers from "./_components/providers";
 import "./globals.css";
 
 export const metadata = {
