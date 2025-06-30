@@ -26,18 +26,29 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         const res = await fetch(`/api/consultas?userId=${userId}`);
         if (!res.ok) throw new Error("Erro ao buscar agendamentos");
 
-        const { consultas } = await res.json(); 
+        const { consultas } = await res.json();
         const agora = new Date();
 
         const futuros = consultas.filter(
           (agendamento: Agendamento) => new Date(agendamento.data) >= agora,
         );
+
+        // Filtrar agendamentos passados
         const passados = consultas.filter(
           (agendamento: Agendamento) => new Date(agendamento.data) < agora,
         );
 
+        // Ordenar agendamentos passados por data decrescente e pegar os 5 mais recentes
+        const ultimos5Passados = passados
+          .sort(
+            (a: Agendamento, b: Agendamento) =>
+              new Date(b.data).getTime() - new Date(a.data).getTime(),
+          )
+          .slice(0, 5);
+
+
         setAgendamentosFuturos(futuros);
-        setAgendamentosPassados(passados);
+        setAgendamentosPassados(ultimos5Passados); // Usar os 5 mais recentes
       } catch (error) {
         console.error("Erro ao buscar consultas:", error);
         toast("Erro ao carregar as consultas.", "destructive", {
@@ -63,7 +74,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
           />
           <AgendamentoSection
             title="Últimas Consultas"
-            agendamentos={agendamentosPassados}
+            agendamentos={agendamentosPassados} // Agora agendamentosPassados contém apenas os 5 mais recentes ordenados
           />
         </>
       )}

@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
 import { toast } from "@/app/_hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import ExameLineChart from "./components/ExameLineChart";
+import { Input } from "@/app/_components/ui/input";
+import ExameTypeFilter from "./components/ExameTypeFilter";
 import { ExameGrid } from "./components/ExamesGrid";
 
 
@@ -15,50 +19,275 @@ type Resultado = {
   referencia?: string;
 };
 
-type Exame = {
+type Profissional = {
+  nome: string;
+};
+
+type UnidadeSaude = {
+  nome: string;
+};
+
+type Tratamento = {
+    nome: string;
+};
+
+
+type ExameGraficos = { // Type for data from graphics API
   id: string;
   nome: string;
   dataExame: string;
   anotacao?: string;
   nomeArquivo?: string;
-  profissional?: { nome: string };
-  unidades?: { nome: string };
   resultados?: Resultado[];
 };
 
-export default function ExamesPage() {
-  const [exames, setExames] = useState<Exame[]>([]);
-  const [loading, setLoading] = useState(true);
+type ExameCompleto = { // Type for data from full exams API
+    id: string;
+    nome: string;
+    dataExame: string;
+    anotacao?: string;
+    nomeArquivo?: string;
+    profissional?: Profissional;
+    unidades?: UnidadeSaude;
+    resultados?: Resultado[];
+    tratamento?: Tratamento;
+};
 
+
+export default function ExamesPage() {
+  const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]); // State for graphics API data
+  const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]); // State for full exams API data
+  const [exames, setExames] = useState<Array<ExameGraficos | ExameCompleto>>([]); // State for raw data based on currentView
+  const [filteredExames, setFilteredExames] = useState<Array<ExameGraficos | ExameCompleto>>([]); // State for filtered data
+
+  const [loading, setLoading] = useState(true);
+  const [selectedExameTypes, setSelectedExameTypes] = useState<string[]>([]);
+  const [selectedResultNames, setSelectedResultNames] = useState<string[]>([]);
+  const [currentView, setCurrentView] = useState<'list' | 'charts'>('charts');
+  const [chartData, setChartData] = useState<any>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+
+  // Fetch data based on currentView
   useEffect(() => {
-    fetch("/api/exames/exame")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!Array.isArray(data)) {
-          toast("Erro ao carregar exames", "erro", { duration: 5000 });
-          return;
+    setLoading(true);
+    if (currentView === 'charts') {
+      if (examesGraficosData.length > 0) { // Use cached data if available
+        setExames(examesGraficosData);
+        setLoading(false);
+        return;
+      }
+      fetch("/api/exames/graficos")
+        .then((res) => res.json())
+        .then((data) => {
+          if (!Array.isArray(data)) {
+             console.error("Graphics API did not return an array:", data);
+             toast("Erro ao carregar dados para gráficos", "erro", { duration: 5000 });
+             return;
+          }
+          setExamesGraficosData(data);
+          setExames(data); // Update raw data state
+        })
+        .catch((error) => {
+           console.error("Error fetching graphics exams:", error);
+           toast("Erro ao carregar dados para gráficos", "erro", { duration: 5000 });
+        })
+        .finally(() => setLoading(false));
+    } else { // currentView === 'list'
+       if (examesListaData.length > 0) { // Use cached data if available
+         setExames(examesListaData);
+         setLoading(false);
+         return;
+       }
+      fetch("/api/exames/exame") // Fetch from the full exams API
+        .then((res) => res.json())
+        .then((data) => {
+           if (!Array.isArray(data)) {
+              console.error("Full Exams API did not return an array:", data);
+              toast("Erro ao carregar lista de exames", "erro", { duration: 5000 });
+              return;
+           }
+          setExamesListaData(data);
+          setExames(data); // Update raw data state
+        })
+        .catch((error) => {
+            console.error("Error fetching full exams:", error);
+            toast("Erro ao carregar lista de exames", "erro", { duration: 5000 });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [currentView, examesGraficosData, examesListaData]); // Dependencies on currentView and cached data
+
+  // Filter exams based on selectedExameTypes and date range
+  useEffect(() => {
+    let filtered = exames; // Start with the current raw data
+
+    // Filter by exam types (only apply filter when in charts view)
+    if (currentView === 'charts' && selectedExameTypes.length > 0) {
+       // Need to assert type for exames to access resultados
+      filtered = (filtered as ExameGraficos[]).filter(exame =>
+        exame.resultados?.some(resultado =>
+          selectedExameTypes.includes(resultado.nome)
+        )
+      );
+    }
+
+    // Filter by date range (apply filter in both views)
+    if (startDate || endDate) {
+      filtered = filtered.filter(exame => {
+        const examDate = new Date(exame.dataExame).getTime();
+        const start = startDate ? new Date(startDate).getTime() : -Infinity;
+        const end = endDate ? new Date(endDate).getTime() : Infinity;
+        return examDate >= start && examDate <= end;
+      });
+    }
+
+    setFilteredExames(filtered);
+  }, [exames, selectedExameTypes, startDate, endDate, currentView]);
+
+
+  // Generate chart data based on filteredExames and selectedResultNames
+  useEffect(() => {
+    // Only generate chart data in charts view and if there's filtered data and selected results
+    if (currentView === 'list' || !filteredExames.length || selectedResultNames.length === 0) {
+      setChartData(null);
+      return;
+    }
+
+    const processedData: { [resultName: string]: { dates: string[], values: number[] } } = {};
+
+    // Ensure filteredExames has the correct type structure for charts
+    const filteredExamesForCharts = filteredExames as ExameGraficos[];
+
+    filteredExamesForCharts.forEach(exame => {
+      exame.resultados?.forEach(resultado => {
+        if (selectedResultNames.includes(resultado.nome)) {
+          const numericValue = parseFloat(resultado.valor);
+          if (!isNaN(numericValue)) {
+             if (!processedData[resultado.nome]) {
+                processedData[resultado.nome] = { dates: [], values: [] };
+              }
+            processedData[resultado.nome].dates.push(new Date(exame.dataExame).toLocaleDateString());
+            processedData[resultado.nome].values.push(numericValue);
+          }
         }
-        setExames(data);
-      })
-      .catch(() => toast("Erro ao carregar exames", "erro", { duration: 5000 }))
-      .finally(() => setLoading(false));
-  }, []);
+      });
+    });
+
+    const allDates = Object.values(processedData).flatMap(data => data.dates)
+      .filter((value, index, self) => self.indexOf(value) === index)
+      .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+
+    const chartDatasets = Object.entries(processedData).map(([resultName, data], index) => ({
+      label: resultName,
+      data: allDates.map(date => {
+        const dataIndex = data.dates.indexOf(date);
+        return dataIndex > -1 ? data.values[dataIndex] : null;
+      }),
+      borderColor: `hsl(${index * 50}, 70%, 50%)`,
+      tension: 0.1,
+      spanGaps: true,
+    }));
+
+
+    setChartData({
+      labels: allDates,
+      datasets: chartDatasets,
+    });
+
+  }, [filteredExames, selectedResultNames, currentView]); // Depend on currentView
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <main className="flex-1 space-y-6 p-4 md:p-6">
-        <h1 className="text-2xl font-bold">Meus Exames</h1>
-
-        {loading ? (
-          <div className="flex h-48 items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="flex flex-1">
+        {/* Main Content */}
+        <main className="flex-1 space-y-6 p-4 md:p-6">
+          {/* Title and ViewSwitcher */}
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+            <h1 className="text-2xl font-bold mb-2 md:mb-0">Meus Exames</h1>
+             <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
           </div>
-        ) : (
-          <ExameGrid exames={exames} />
-        )}
-      </main>
-      <Footer />
+
+
+          {/* Filters Area (only in charts view) */}
+          {currentView === 'charts' && (
+            <div className="flex flex-wrap gap-4 items-center mb-6">
+               {/* Date Filter Inputs */}
+                <div className="flex gap-4 items-center">
+                  <div>
+                    <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Data Inicial</label>
+                    <Input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 block w-full" />
+                  </div>
+                  <div>
+                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Data Final</label>
+                    <Input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 block w-full" />
+                  </div>
+                </div>
+
+                {/* Exame Type Filter and Result Selector Button */}
+                {/* Pass examesGraficosData to ExameTypeFilter as it needs results */}
+                <ExameTypeFilter
+                    exames={examesGraficosData}
+                    onSelectTypes={setSelectedExameTypes}
+                    onSelectResultsForChart={setSelectedResultNames}
+                />
+
+            </div>
+          )}
+
+          {/* Filters Area (only in list view) */}
+          {currentView === 'list' && (
+              <div className="flex flex-wrap gap-4 items-center mb-6">
+                  {/* Date Filter Inputs */}
+                  <div className="flex gap-4 items-center">
+                      <div>
+                          <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Data Inicial</label>
+                          <Input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 block w-full" />
+                      </div>
+                      <div>
+                          <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Data Final</label>
+                          <Input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 block w-full" />
+                      </div>
+                  </div>
+              </div>
+          )}
+
+
+          {loading ? (
+            <div className="flex h-48 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {currentView === 'charts' ? (
+                <>
+                  {/* Chart Area */}
+                  {chartData && chartData.datasets.length > 0 ? (
+                     <div className="w-full h-96">
+                       <ExameLineChart data={chartData} title="Evolução dos Resultados" />
+                     </div>
+                  ) : (
+                      <div className="w-full h-96 flex items-center justify-center text-gray-500">
+                           {selectedResultNames.length === 0 ? "Selecione resultados para visualizar o gráfico." : "Nenhum dado de exame encontrado para os filtros selecionados."}
+                       </div>
+                  )}
+
+                </>
+              ) : (
+                // Display the list of exams using ExameGrid
+                 <div className="w-full">
+                    {/* Ensure filteredExames has the correct type structure for the list */}
+                    <ExameGrid exames={filteredExames as ExameCompleto[]} />
+                 </div>
+              )}
+            </>
+          )}
+        </main>
+      </div>
+       <Footer />
     </div>
   );
 }

@@ -51,24 +51,24 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px] text-gray-300 h-44">
+      <Card className="min-w-[280px] max-w-[320px]  h-44">
         <CardContent className="flex justify-between p-0">
           {/* Informações do agendamento */}
           <div className="flex flex-col gap-2 py-5 pl-5 pr-8">
-            <h3 className="text-lg font-bold text-red-500">{tipo}</h3>
-            <p className="text-sm font-semibold text-gray-300">
+            <h3 className="text-lg font-bold ">{tipo}</h3>
+            <p className="text-sm font-semibold ">
               {profissionalNome}
             </p>
-            <p className="truncate text-sm text-gray-400">{unidadeNome}</p>
+            <p className="truncate text-sm ">{unidadeNome}</p>
             <Button variant="secondary" className="mt-2 w-20" asChild>
               <Link href={`/consulta/${consultas.id}`}>Detalhes</Link>
             </Button>
           </div>
           {/* Data e hora do agendamento */}
           <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5">
-            <p className="text-sm capitalize text-gray-400">{mes}</p>
-            <p className="text-2xl font-bold text-gray-300">{dia}</p>
-            <p className="text-sm text-gray-400">{horaFormatada}</p>
+            <p className="text-sm capitalize ">{mes}</p>
+            <p className="text-2xl font-bold ">{dia}</p>
+            <p className="text-sm ">{horaFormatada}</p>
           </div>
         </CardContent>
       </Card>
