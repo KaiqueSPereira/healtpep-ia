@@ -1,114 +1,163 @@
-import { Consultatype } from "@prisma/client";
+// Este arquivo é um Server Component por padrão no App Router.
+
+import { Consultatype, Consultas, Profissional } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
+import Header from "../_components/header";
+import Footer from "../_components/footer";
 
-// Função para validar e transformar a string de data para um objeto Date
+import ConsultaFilter from './components/ConsultaFilter';
+
+
 const parseDate = (dateString: string) => {
-  // Formatos possíveis: dd/mm/aaaa, dd/mm/aa, dd/mm, dd
-  const regexFullDate = /^(\d{2})\/(\d{2})\/(\d{4})$/; // dd/mm/aaaa
-  const regexYearShort = /^(\d{2})\/(\d{2})\/(\d{2})$/; // dd/mm/aa
-  const regexMonthDay = /^(\d{2})\/(\d{2})$/; // dd/mm
-  const regexDayOnly = /^(\d{2})$/; // dd
+   const regexFullDate = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+   const regexYearShort = /^(\d{2})\/(\d{2})\/(\d{2})$/;
+   const regexMonthDay = /^(\d{2})\/(\d{2})$/;
+   const regexDayOnly = /^(\d{2})$/;
 
-  let date: Date | null = null;
+   let date: Date | null = null;
 
-  // Verificar e tentar transformar a data
-  const matchFullDate = dateString.match(regexFullDate);
-  if (matchFullDate) {
-    // dd/mm/aaaa
-    const [, day, month, year] = matchFullDate;
-    date = new Date(`${year}-${month}-${day}`);
-  } else {
-    const matchShortYear = dateString.match(regexYearShort);
-    if (matchShortYear) {
-      // dd/mm/aa
-      const [, day, month, year] = matchShortYear;
-      date = new Date(`20${year}-${month}-${day}`); // Assumindo que "aa" é o século 2000
-    } else {
-      const matchMonthDay = dateString.match(regexMonthDay);
-      if (matchMonthDay) {
-        // dd/mm
-        const [, day, month] = matchMonthDay;
-        date = new Date(
-          new Date().getFullYear(),
-          parseInt(month) - 1,
-          parseInt(day),
-        ); // Usa o ano atual
-      } else {
-        const matchDayOnly = dateString.match(regexDayOnly);
-        if (matchDayOnly) {
-          // dd
-          const [, day] = matchDayOnly;
-          date = new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            parseInt(day),
-          ); // Usa o ano e mês atuais
-        }
-      }
-    }
-  }
+   const matchFullDate = dateString.match(regexFullDate);
+   if (matchFullDate) {
+     const [, day, month, year] = matchFullDate;
+     date = new Date(`${year}-${month}-${day}`);
+   } else {
+     const matchShortYear = dateString.match(regexYearShort);
+     if (matchShortYear) {
+       const [, day, month, year] = matchShortYear;
+       date = new Date(`20${year}-${month}-${day}`);
+     } else {
+       const matchMonthDay = dateString.match(regexMonthDay);
+       if (matchMonthDay) {
+         const [, day, month] = matchMonthDay;
+         date = new Date(
+           new Date().getFullYear(),
+           parseInt(month) - 1,
+           parseInt(day),
+         );
+       } else {
+         const matchDayOnly = dateString.match(regexDayOnly);
+         if (matchDayOnly) {
+           const [, day] = matchDayOnly;
+           date = new Date(
+             new Date().getFullYear(),
+             new Date().getMonth(),
+             parseInt(day),
+           );
+         }
+       }
+     }
+   }
 
-  return date;
+   if (date && isNaN(date.getTime())) {
+       return null;
+   }
+
+   return date;
 };
+
 
 interface ConsultaspageProps {
   searchParams: {
     search?: string;
+    profissionalId?: string;
+    tipo?: Consultatype;
   };
 }
 
 const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const search = searchParams.search?.trim() || "";
-  let consultas;
+  const profissionalId = searchParams.profissionalId;
+  const tipo = searchParams.tipo;
 
-  // Verifica se o valor de pesquisa é uma data
-  const parsedDate = parseDate(search);
+  const whereClause: any = {};
 
-  if (parsedDate) {
-    // Se a data for válida, busca a consulta pela data
-    consultas = await db.consultas.findMany({
-      where: {
-        data: {
-          equals: parsedDate, // Compara a data exata
-        },
-      },
-    });
-  } else {
-    // Se não for uma data, faz a pesquisa nos campos de texto
-    consultas = await db.consultas.findMany({
-      where: {
-        OR: [
-          { queixas: { startsWith: search, mode: "insensitive" } },
-          { tratamento: { endsWith: search, mode: "insensitive" } },
-          { tipodeexame: { equals: search, mode: "insensitive" } },
-          { tipo: { equals: search as Consultatype } },
+  if (profissionalId) {
+    whereClause.profissionalId = profissionalId;
+  }
+
+   if (tipo && Object.values(Consultatype).includes(tipo)) {
+     whereClause.tipo = tipo;
+   }
+
+  if (search) {
+      const searchConditions = [
+          { motivo: { contains: search, mode: "insensitive" } },
+          { tipodeexame: { contains: search, mode: "insensitive" } },
           {
-            profissional: { nome: { startsWith: search, mode: "insensitive" } },
+            profissional: { nome: { contains: search, mode: "insensitive" } },
           },
           { unidade: { nome: { contains: search, mode: "insensitive" } } },
-        ],
-      },
-    });
+          { queixas: { contains: search, mode: "insensitive" } },
+      ].filter(Boolean);
+
+      if (Object.keys(whereClause).length > 0) {
+          whereClause.AND = searchConditions;
+      } else {
+          whereClause.OR = searchConditions;
+      }
   }
+
+   const parsedDate = parseDate(search);
+   if (parsedDate && Object.keys(whereClause).length === 0) {
+        whereClause.data = { equals: parsedDate };
+   }
+
+
+  const consultas: Consultas[] = await db.consultas.findMany({
+    where: whereClause,
+    include: {
+      profissional: true,
+      unidade: true,
+      },
+    orderBy: {
+        data: 'desc',
+    }
+    });
+
+    const profissionaisList: Profissional[] = await db.profissional.findMany({
+        orderBy: { nome: 'asc' },
+    });
+     const tiposConsultaList: Consultatype[] = Object.values(Consultatype);
+
 
   return (
     <div>
-      <h2 className="text-xs font-bold uppercase text-gray-400">
-        Resultados para &quot;{search}&quot;
+      <Header />
+
+      <ConsultaFilter
+         professionals={profissionaisList}
+         consultationTypes={tiposConsultaList}
+      />
+
+      <h2 className="text-xs font-bold uppercase text-gray-400 mt-4">
+        {search || profissionalId || tipo ?
+         `Resultados da Busca:`
+         : "Todas as Consultas"}
       </h2>
-      <div className="grid grid-cols-3 gap-4">
-        {consultas.length > 0 ? (
+
+       {(search || profissionalId || tipo) && (
+           <p className="text-sm text-gray-500 mb-4">
+               {search && `Busca por texto: "${search}"`}
+               {profissionalId && ` | Profissional ID: ${profissionalId}`}
+               {tipo && ` | Tipo: ${tipo}`}
+           </p>
+       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {consultas && consultas.length > 0 ? (
           consultas.map((consulta) => (
             <AgendamentoItem
               key={consulta.id}
-              consultas={{ ...consulta, data: consulta.data.toISOString() }}
+              consultas={consulta}
             />
           ))
         ) : (
-          <p>Nenhum resultado encontrado.</p>
+          <p>Nenhum resultado encontrado com os critérios especificados.</p>
         )}
       </div>
+
+      <Footer />
     </div>
   );
 };

@@ -77,9 +77,8 @@ model Authenticator {
 
 model Consultas {
   id             String          @id @default(uuid())
-  data           DateTime
-  queixas        String?
-  tratamento     String?
+  data           DateTime 
+  motivo         String 
   tipodeexame    String?
   tipo           Consultatype
   createdAt      DateTime        @default(now())
@@ -91,7 +90,18 @@ model Consultas {
   unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario        User            @relation(fields: [userId], references: [id])
   Exame          Exame[]
+  Anotacoes      Anotacoes[]
+  Tratamento     Tratamento[]
 }
+model Anotacoes {
+  id           String          @id @default(uuid())
+  consultaId   String
+  anotacao     String
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  consulta     Consultas      @relation(fields: [consultaId], references: [id])
+}
+
 
 model Endereco {
   id           String          @id @default(uuid())
@@ -131,6 +141,7 @@ model Tratamento {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   exames         Exame[]
+  consultas      Consultas[]
   profissional   Profissional @relation("ProfissionalTratamentos", fields: [profissionalId], references: [id])
   usuario        User         @relation(fields: [userId], references: [id])
 }
@@ -164,17 +175,18 @@ model Exame {
   arquivoExame   Bytes?
   anotacao       String?
   userId         String
-  profissionalId String
+  profissionalId String?
   consultaId     String?
   unidadesId     String?
   tratamentoId   String?
+  tipo           String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
 
   tratamento    Tratamento?      @relation(fields: [tratamentoId], references: [id])
   usuario        User             @relation(fields: [userId], references: [id])
-  profissional   Profissional     @relation(fields: [profissionalId], references: [id])
+  profissional   Profissional?     @relation(fields: [profissionalId], references: [id])
   consulta       Consultas?       @relation(fields: [consultaId], references: [id])
   unidades       UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
   resultados     ResultadoExame[] // nova relação
@@ -187,6 +199,7 @@ model ResultadoExame {
   valor        String
   unidade      String?
   referencia   String?
+  createdAt    DateTime         @default(now())
 
   exame        Exame   @relation(fields: [exameId], references: [id])
 }

@@ -65,7 +65,11 @@ const NovaConsulta = () => {
         setProfissionais(unidade.profissionais || []);
       } catch (error) {
         console.error("Erro ao buscar os profissionais:", error);
-        toast("Erro ao carregar profissionais.", "error", { duration: 5000 });
+        toast({
+          title: "Erro ao carregar profissionais.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     };
 
@@ -87,7 +91,11 @@ const NovaConsulta = () => {
         setTratamentos(data || []);
       } catch (error) {
         console.error("Erro ao buscar tratamentos:", error);
-        toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
+        toast({
+          title: "Erro ao carregar tratamentos.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     };
 
@@ -98,7 +106,11 @@ const NovaConsulta = () => {
   const handleSaveConsulta = async () => {
     if (!selectedDay || !manualTime || !selectedTipo) {
       console.error("Preencha a data, horário e tipo da consulta.");
-      toast("Preencha a data, horário e tipo da consulta.", "error", { duration: 5000 });
+      toast({
+        title: "Preencha a data, horário e tipo da consulta.",
+        variant: "destructive",
+        duration: 5000,
+      });
       return;
     }
     const [hour, minute] = manualTime.split(":").map(Number);
@@ -121,17 +133,27 @@ const NovaConsulta = () => {
       (!consultaData.queixas || !consultaData.unidadeId)
     ) {
       console.error("Emergência requer queixas e unidade.");
-        toast("Emergência requer queixas e unidade.", "error", { duration: 5000 });
+      toast({
+        title: "Emergência requer queixas e unidade.",
+        variant: "destructive",
+        duration: 5000,
+      });
       return;
     }
     if (
-      ["Rotina", "Tratamento", "Retorno"].includes(selectedTipo) &&
-      (!consultaData.tratamentoId ||
-        !consultaData.profissionalId ||
-        !consultaData.unidadeId)
+ ["Tratamento", "Retorno"].includes(selectedTipo) &&
+      (
+ !consultaData.tratamentoId ||
+ !consultaData.profissionalId ||
+ !consultaData.unidadeId
+      )
     ) {
-      console.error("Consultas requerem tratamento, profissional e unidade.");
-      toast("Consultas requerem tratamento, profissional e unidade.", "error", { duration: 5000 });
+ console.error("Tratamento e Retorno requerem tratamento, profissional e unidade.");
+      toast({
+        title: "Consultas requerem tratamento, profissional e unidade.",
+        variant: "destructive",
+        duration: 5000,
+      });
       return;
     }
     if (
@@ -142,7 +164,11 @@ const NovaConsulta = () => {
         !consultaData.tipoexame)
     ) {
       console.error("Exames requerem tipo de exame, profissional e unidade.");
-      toast("Exames requerem tipo de exame, profissional e unidade.", "error", { duration: 5000 });
+      toast({
+        title: "Exames requerem tipo de exame, profissional e unidade.",
+        variant: "destructive",
+        duration: 5000,
+      });
       return;
     }
     console.log("Dados enviados:", JSON.stringify(consultaData, null, 2));
@@ -156,10 +182,18 @@ const NovaConsulta = () => {
       if (!response.ok) throw new Error("Erro ao salvar a consulta");
 
       console.log("Consulta salva com sucesso!");
-      toast("Consulta salva com sucesso!", "success", { duration: 5000 });
+      toast({
+        title: "Consulta salva com sucesso!",
+        variant: "default",
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Erro ao salvar a consulta:", error);
-      toast("Erro ao salvar a consulta.", "error", { duration: 5000 });
+      toast({
+        title: "Erro ao salvar a consulta.",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 

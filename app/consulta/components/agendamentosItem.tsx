@@ -5,7 +5,7 @@ import Link from "next/link";
 interface Agendamento {
   id: string;
   tipo: string;
-  data: string;
+  data: Date;
   profissional?: { nome: string };
   unidade?: { nome: string };
 }

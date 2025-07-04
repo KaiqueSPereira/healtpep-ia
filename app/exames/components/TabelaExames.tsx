@@ -53,7 +53,13 @@ const unidadesMedida = [
   "Cópias/ML",
   "log",
   "células/μL",
-  "x10^6/uL",
+  "x106/uL",
+  "pg/mL",
+  "µg/dL",
+  "uL",
+  "µUI/mL",
+  "mL",
+  "--",
   "Outro",
 ];
 

@@ -29,7 +29,7 @@ interface DescriptionEditorProps {
 }
 
 const formSchema = z.object({
-  queixas: z
+  motivo: z
     .string()
     .min(1, { message: "A descricão da consulta não pode estar vazia" }),
 });
@@ -42,7 +42,7 @@ const DescriptionEditor = ({
   const router = useRouter();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { queixas: descricao },
+    defaultValues: { motivo: descricao },
   });
 
   const handleSaveDescricao = async (data: z.infer<typeof formSchema>) => {
@@ -55,19 +55,35 @@ const DescriptionEditor = ({
 
       if (response.ok) {
         console.log("Registro salvo com sucesso!");
-        toast("Registro salvo com sucesso!", "success", { duration: 5000 });
+        toast({ 
+ title: "Registro salvo com sucesso!",
+ variant: "default", 
+ duration: 5000,
+        });
         setIsDialogOpen(false);
         router.refresh();
       } else {
         console.error("Erro ao salvar o registro. Tente novamente.");
-        toast("Erro ao salvar o registro. Tente novamente.", "error", { duration: 5000 });
+        
+        toast({ 
+ title: "Erro ao salvar o registro. Tente novamente.",
+ variant: "destructive", // Alterado de "error" para "destructive"
+        });
       }
     } catch {
       console.error("Erro ao salvar o registro. Tente novamente.");
-      toast("Erro ao salvar o registro. Tente novamente.", "error", { duration: 5000 });
+      toast({
+        title: "Erro ao salvar o registro.",
+        variant: "destructive", // Alterado de "error" para "destructive"
+        duration: 5000,
+      });
     }
   };
 
+  const handleCancel = () => {
+    form.reset({ motivo: descricao });
+    setIsDialogOpen(false);
+  };
   return (
     <div>
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -86,7 +102,7 @@ const DescriptionEditor = ({
             <form onSubmit={form.handleSubmit(handleSaveDescricao)}>
               <FormField
                 control={form.control}
-                name="queixas"
+                name="motivo"
                 render={({ field }) => (
                   <FormItem className="w-full">
                     <FormControl>
@@ -104,7 +120,8 @@ const DescriptionEditor = ({
                 <Button
                   variant="secondary"
                   type="button"
-                  onClick={() => form.reset({ queixas: descricao })}
+                  onClick={handleCancel}
+                  disabled={form.formState.isSubmitting} // Desabilitar durante o envio
                 >
                   Cancelar
                 </Button>

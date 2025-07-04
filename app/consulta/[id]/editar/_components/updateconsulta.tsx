@@ -43,7 +43,7 @@ interface Consulta {
     especialidade: string;
     NumClasse: string;
   };
-  queixas: string;
+  motivo: string;
 }
 
 interface ConsultaPageProps {
@@ -301,17 +301,28 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
       });
 
       if (response.ok) {
-        toast("Consulta atualizada com sucesso!", "success", {
+        toast({
+          title: "Consulta atualizada com sucesso!",
+          variant: "default", // Use "default" ou outro permitido, pois "success" não é um variant padrão
           duration: 5000,
         });
 
         // ✅ Redirecionando para a página da consulta
         router.push(`/consulta/${params.id}`);
       } else {
-        toast("Erro ao atualizar consulta.", "error", { duration: 5000 });
+        toast({
+          title: "Erro ao atualizar consulta.",
+          variant: "destructive", // Use "destructive" para erros
+          duration: 5000
+       });
       }
     } catch (error) {
-      console.error("Erro ao atualizar:", error);
+      toast({
+        title: "Erro ao atualizar consulta.",
+        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.", // Opcional: adicionar descrição do erro
+        variant: "destructive",
+        duration: 5000
+    });
     }
   };
 
@@ -346,7 +357,7 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
                         data: prev.data,
                         unidade: prev.unidade,
                         profissional: prev.profissional,
-                        queixas: prev.queixas,
+                        queixas: prev.motivo,
                       }
                     : prev,
                 );
@@ -440,10 +451,10 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
           </CardHeader>
           <CardContent>
             <CardContent>
-              <p>{consulta.queixas || "Nenhuma queixa registrada"}</p>
+              <p>{consulta.motivo || "Nenhuma queixa registrada"}</p>
             </CardContent>
             <DescriptionEditor
-              descricao={consulta.queixas}
+              descricao={consulta.motivo}
               consultaId={consulta.id}
             />
           </CardContent>

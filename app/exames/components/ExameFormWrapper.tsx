@@ -161,7 +161,6 @@ export function  ExameFormWrapper() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setSelectedFile(file);
-    // Limpa os resultados e anotação ao selecionar um novo arquivo
     setExame((prev) => ({
       ...prev,
       resultados: [],
@@ -247,25 +246,34 @@ export function  ExameFormWrapper() {
   const handleSubmit = async () => {
     setLoadingSubmit(true);
 
-    // Adicionado verificação se a análise foi realizada e retornou resultados (ou se não é tipo sangue/urina)
+    console.log("Início do handleSubmit:");
+    console.log("selectedProfissional?.id:", selectedProfissional?.id);
+    console.log("selectedUnidade?.id:", selectedUnidade?.id);
+    console.log("selectedConsulta?.id:", selectedConsulta?.id);
+    console.log("tipoExame:", tipoExame);
+
+
     const needsAnalysis = ["urina", "sangue"].includes(tipoExame);
     const analysisDone = needsAnalysis ? exame.resultados?.length > 0 : true;
-
 
     if (
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
       !selectedFile ||
-      (needsAnalysis && !analysisDone) // Verifica se a análise foi feita e retornou resultados para tipos que precisam
-    ) {
+      !exame.dataExame ||
+      !exame.anotacao ||
+      !tipoExame ||
+      (needsAnalysis && !analysisDone)
+    ){
+      console.log("Validação no handleSubmit falhou!");
       let errorMessage = "Preencha todos os campos obrigatórios.";
       if (needsAnalysis && !analysisDone) {
           errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos.";
+      } else if (!exame.dataExame || !exame.anotacao || !tipoExame) {
+          errorMessage = "Por favor, preencha a data do exame, a anotação e selecione o tipo de exame.";
       }
-      toast(errorMessage, "erro", {
-        duration: 5000, // Corrigido duração
-      });
+      toast({ title: errorMessage, variant: "destructive", duration: 5000 });
       setLoadingSubmit(false);
       return;
     }
@@ -278,11 +286,14 @@ export function  ExameFormWrapper() {
       formData.append("unidadeId", selectedUnidade.id);
       formData.append("consultaId", selectedConsulta?.id || "");
       formData.append("tratamentoId", selectedTratamento?.id || "");
-      formData.append("anotacao", anotacao);
-      formData.append("dataExame", dataExame);
+      formData.append("anotacao", exame.anotacao);
+      formData.append("dataExame", exame.dataExame);
       formData.append("file", selectedFile);
+      formData.append("tipoExame", tipoExame);
+      formData.append("nome", tipoExame); // ✅ Adicionado o campo 'nome' usando o valor de tipoExame
 
-      if (needsAnalysis && exame.resultados) { // Usa needsAnalysis aqui
+
+      if (needsAnalysis && exame.resultados) {
         formData.append(
           "exames",
           JSON.stringify(
@@ -297,26 +308,30 @@ export function  ExameFormWrapper() {
         );
       }
 
+      console.log("Conteúdo do formData antes de enviar:", Object.fromEntries(formData.entries()));
+
       const res = await fetch("/api/exames/exame", {
         method: "POST",
         body: formData,
       });
 
       if (res.ok) {
-        toast("Exame cadastrado com sucesso!", "success", { duration: 5000 });
+        toast({ title: "Exame cadastrado com sucesso!", variant: "default", duration: 5000 });
         router.push("/exames");
       } else {
         const error = await res.json();
-        toast("Erro ao enviar o exame", "erro", { duration: 5000 });
+         toast({ title: "Erro ao enviar o exame", variant: "destructive", duration: 5000 });
         console.error(error);
       }
-    } catch (err) {
-      toast("Erro inesperado", "erro", { duration: 5000 });
+    } catch (err: any) {
+      toast({ title: "Erro inesperado", description: err.message || "Ocorreu um erro inesperado.", variant: "destructive", duration: 5000 });
       console.error(err);
     } finally {
       setLoadingSubmit(false);
     }
   };
+
+
 
   return (
     <>
@@ -334,11 +349,21 @@ export function  ExameFormWrapper() {
                     setSelectedConsulta(null);
                     setSelectedProfissional(null);
                     setSelectedUnidade(null);
+                    console.log("Início do handleSubmit:");
+                    console.log("selectedProfissional?.id:", selectedProfissional?.id);
+                    console.log("selectedUnidade?.id:", selectedUnidade?.id);
+                    console.log("selectedConsulta?.id:", selectedConsulta?.id);
                   } else {
                     const consulta = consultas.find((c) => c.id === id);
+                    console.log("Objeto consulta encontrado ao selecionar:", consulta); // <-- Adicionar este log aqui
                     setSelectedConsulta(consulta || null);
                     setSelectedProfissional(consulta?.profissional || null);
                     setSelectedUnidade(consulta?.unidade || null);
+                    console.log("Estados após selecionar consulta:", {
+                      selectedConsulta: consulta,
+                      selectedProfissional: consulta?.profissional,
+                      selectedUnidade: consulta?.unidade,
+                    });
                   }
                 }}
               >
@@ -390,8 +415,8 @@ export function  ExameFormWrapper() {
               <Label>Data do Exame</Label>
               <Input
                 type="date"
-                value={dataExame}
-                onChange={(e) => setDataExame(e.target.value)}
+                value={exame.dataExame}
+                onChange={(e) => setExame(prev => ({ ...prev, dataExame: e.target.value }))}
               />
             </div>
 
@@ -414,8 +439,8 @@ export function  ExameFormWrapper() {
           <div>
             <Label>Anotação</Label>
             <Textarea
-              value={anotacao}
-              onChange={(e) => setAnotacao(e.target.value)}
+              value={exame.anotacao}
+              onChange={(e) => setExame(prev => ({ ...prev, anotacao: e.target.value }))}
             />
           </div>
           <div>
@@ -462,7 +487,7 @@ export function  ExameFormWrapper() {
             onSubmit={handleSubmit}
           >
             <Button
-              disabled={loadingSubmit || !selectedFile} // Pode adicionar || loadingAnalysis aqui se quiser impedir o cadastro enquanto analisa
+              disabled={loadingSubmit || !selectedFile}
               className="w-full"
             >
               {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}

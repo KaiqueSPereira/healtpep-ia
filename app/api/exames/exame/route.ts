@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
     const examesRaw = formData.get("exames")?.toString();
     const file = formData.get("file") as File | null;
 
-    if (!profissionalId || !unidadesId || !dataExame || !file) {
+    if (!dataExame || !file) {
       return NextResponse.json(
-        { error: "Campos obrigatórios ausentes" },
+        { error: "Data do exame e arquivo são obrigatórios" },
         { status: 400 },
       );
     }
@@ -37,6 +37,16 @@ export async function POST(req: NextRequest) {
     const encryptedFileBuffer = encrypt(fileBuffer);
 
     const filename = `${randomUUID()}-${file.name}`;
+
+    // Se não houver consulta selecionada, profissional e unidade são obrigatórios
+    // Esta validação foi movida para DEPOIS da validação de data e arquivo,
+    // e para antes da criação do exame.
+    if (!consultaId && (!profissionalId || !unidadesId)) {
+        return NextResponse.json(
+          { error: "Profissional e Unidade são obrigatórios se nenhuma consulta for selecionada" },
+          { status: 400 },
+        );
+    }
 
     const exame = await prisma.exame.create({
       data: {
