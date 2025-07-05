@@ -26,9 +26,10 @@ type Exame = {
 
 type Props = {
   exames: Exame[];
+  onDeleteClick: (examId: string) => void;
 };
 
-export function ExameGrid({ exames }: Props) {
+export function ExameGrid({ exames , onDeleteClick }: Props) {
   const router = useRouter();
 
   if (exames.length === 0) {
@@ -37,17 +38,6 @@ export function ExameGrid({ exames }: Props) {
 
   const handleEdit = (id: string) => {
     router.push(`/exames/editar/${id}`);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("Deseja realmente apagar este exame?")) {
-      const res = await fetch(`/api/exames?id=${id}`, { method: "DELETE" });
-      if (res.ok) {
-        router.refresh();
-      } else {
-        alert("Erro ao apagar exame.");
-      }
-    }
   };
 
   return (
@@ -95,7 +85,7 @@ export function ExameGrid({ exames }: Props) {
             <Button
               variant="destructive"
               size="sm"
-              onClick={() => handleDelete(exame.id)}
+              onClick={() => onDeleteClick(exame.id)}
             >
               <Trash2 className="mr-1 h-4 w-4" />
               Apagar

@@ -11,6 +11,7 @@ import { Input } from "@/app/_components/ui/input";
 import ExameTypeFilter from "./components/ExameTypeFilter";
 import { ExameGrid } from "./components/ExamesGrid";
 
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 
 type Resultado = {
   nome: string;
@@ -67,6 +68,8 @@ export default function ExamesPage() {
   const [chartData, setChartData] = useState<any>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [examToDelete, setExamToDelete] = useState<string | null>(null);
 
 
   // Fetch data based on currentView
@@ -83,7 +86,7 @@ export default function ExamesPage() {
         .then((data) => {
           if (!Array.isArray(data)) {
              console.error("Graphics API did not return an array:", data);
-             toast("Erro ao carregar dados para gráficos", "erro", { duration: 5000 });
+             toast({ title: "Erro ao carregar dados para gráficos", variant: "destructive", duration: 5000 });
              return;
           }
           setExamesGraficosData(data);
@@ -91,7 +94,7 @@ export default function ExamesPage() {
         })
         .catch((error) => {
            console.error("Error fetching graphics exams:", error);
-           toast("Erro ao carregar dados para gráficos", "erro", { duration: 5000 });
+           toast({ title: "Erro ao carregar dados para gráficos", variant: "destructive", duration: 5000 });
         })
         .finally(() => setLoading(false));
     } else { // currentView === 'list'
@@ -105,15 +108,15 @@ export default function ExamesPage() {
         .then((data) => {
            if (!Array.isArray(data)) {
               console.error("Full Exams API did not return an array:", data);
-              toast("Erro ao carregar lista de exames", "erro", { duration: 5000 });
+              toast({ title: "Erro ao carregar lista de exames", variant: "destructive", duration: 5000 });
               return;
            }
           setExamesListaData(data);
           setExames(data); // Update raw data state
-        })
+         })
         .catch((error) => {
             console.error("Error fetching full exams:", error);
-            toast("Erro ao carregar lista de exames", "erro", { duration: 5000 });
+            toast({title: "Erro ao carregar lista de exames",variant: "destructive", duration: 5000 });
         })
         .finally(() => setLoading(false));
     }
@@ -199,6 +202,35 @@ export default function ExamesPage() {
 
   }, [filteredExames, selectedResultNames, currentView]); // Depend on currentView
 
+  const handleDeleteClick = (examId: string) => {
+    setExamToDelete(examId);
+    setIsConfirmDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!examToDelete) return;
+
+    try {
+      const res = await fetch(`/api/exames/exame?id=${examToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        toast({ title: "Exame excluído com sucesso!", variant: "default", duration: 5000 });
+        // Remove the deleted exam from both cached states
+        setExamesGraficosData(prev => prev.filter(exame => exame.id !== examToDelete));
+        setExamesListaData(prev => prev.filter(exame => exame.id !== examToDelete));
+      } else {
+        toast({ title: "Erro ao excluir exame", variant: "destructive", duration: 5000 });
+      }
+    } catch (error) {
+      console.error("Error deleting exam:", error);
+      toast({ title: "Erro inesperado ao excluir exame", variant: "destructive", duration: 5000 });
+    } finally {
+      setIsConfirmDeleteDialogOpen(false);
+      setExamToDelete(null);
+    }
+  };
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -280,13 +312,28 @@ export default function ExamesPage() {
                 // Display the list of exams using ExameGrid
                  <div className="w-full">
                     {/* Ensure filteredExames has the correct type structure for the list */}
-                    <ExameGrid exames={filteredExames as ExameCompleto[]} />
+                    <ExameGrid exames={filteredExames as ExameCompleto[]} onDeleteClick={handleDeleteClick} />
                  </div>
               )}
             </>
           )}
         </main>
       </div>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Isso excluirá permanentemente este exame.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
        <Footer />
     </div>
   );

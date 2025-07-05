@@ -42,7 +42,7 @@ export const ConfirmarExameDialog = ({
         <DialogHeader>
           <DialogTitle>Confirmar Cadastro do Exame</DialogTitle>
         </DialogHeader>
-        <div className="space-y-2 text-sm text-muted-foreground">
+        <div className="space-y-2 text-sm text-muted-foreground max-h-[400px] overflow-y-auto">
           <p>
             <strong>Tipo:</strong> {tipoExame || "Não selecionado"}
           </p>

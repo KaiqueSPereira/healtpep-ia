@@ -84,7 +84,7 @@ export function  ExameFormWrapper() {
       .then((r) => r.json())
       .then((d) => setConsultas(d.consultas || []))
       .catch(() =>
-        toast("Erro ao buscar consultas", "erro", { duration: 5000 }),
+        toast({ title: "Erro ao buscar consultas", variant: "destructive", duration: 5000 }),
       );
   }, [userId]);
 
@@ -102,7 +102,7 @@ export function  ExameFormWrapper() {
         setTratamentos(data || []);
       } catch (error) {
         console.error("Erro ao buscar tratamentos:", error);
-        toast("Erro ao carregar tratamentos.", "error", { duration: 5000 });
+        toast({ title: "Erro ao carregar tratamentos.", variant: "destructive", duration: 5000 });
       }
     };
 
@@ -118,7 +118,7 @@ export function  ExameFormWrapper() {
       .then((r) => r.json())
       .then((d) => setProfissionais(d.profissionais || []))
       .catch(() =>
-        toast("Erro ao buscar profissionais", "erro", { duration: 5000 }),
+        toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
       );
   }, [selectedUnidade]);
 
@@ -170,7 +170,7 @@ export function  ExameFormWrapper() {
 
   const handleAnalyzeFile = async () => {
     if (!selectedFile) {
-      toast("Por favor, selecione um arquivo primeiro.", "aviso", { duration: 5000 });
+      toast({ title: "Por favor, selecione um arquivo primeiro.", variant: "destructive", duration: 5000 });
       return;
     }
 
@@ -188,7 +188,7 @@ export function  ExameFormWrapper() {
       if (!res.ok) {
         const errorText = await res.text();
         console.error("Erro ao analisar exame:", errorText);
-        toast("Erro ao analisar exame", "erro", { duration: 5000 });
+ toast({ title: "Erro ao analisar exame", variant: "destructive", duration: 5000 });
         // Limpa os resultados e anotação em caso de erro na análise
         setExame((prev) => ({
           ...prev,
@@ -205,11 +205,11 @@ export function  ExameFormWrapper() {
       if (data.resultados?.length) {
         setExame((prev) => ({
           ...prev,
-          resultados: data.resultados,
+          resultados: data.resultados.map((res: any) => ({...res, outraUnidade: ''})), // Initialize outraUnidade
         }));
-         toast("Análise concluída com sucesso!", "success", { duration: 5000 });
+ toast({ title: "Análise concluída com sucesso!", variant: "default", duration: 5000 });
       } else {
-         toast("Análise concluída, mas nenhum resultado encontrado.", "aviso", { duration: 5000 });
+ toast({ title: "Análise concluída, mas nenhum resultado encontrado.", variant: "default", duration: 5000 });
          setExame((prev) => ({ // Garante que os resultados sejam limpos se nada for encontrado
             ...prev,
             resultados: [],
@@ -220,7 +220,7 @@ export function  ExameFormWrapper() {
       if (data.anotacao) {
         setExame((prev) => ({
           ...prev,
-          anotacao: data.anotacao,
+ anotacao: data.anotacao, // Assuming data.anotacao is already a string
         }));
       } else {
          setExame((prev) => ({ // Garante que a anotação seja limpa se nada for retornado
@@ -231,7 +231,7 @@ export function  ExameFormWrapper() {
 
     } catch (error) {
       console.error("Erro na chamada da API de análise:", error);
-      toast("Erro ao analisar arquivo", "erro", { duration: 5000 });
+      toast({ title: "Erro ao analisar arquivo", variant: "destructive", duration: 5000 });
        setExame((prev) => ({ // Limpa os resultados e anotação em caso de erro na chamada
           ...prev,
           resultados: [],
@@ -247,15 +247,20 @@ export function  ExameFormWrapper() {
     setLoadingSubmit(true);
 
     console.log("Início do handleSubmit:");
-    console.log("selectedProfissional?.id:", selectedProfissional?.id);
-    console.log("selectedUnidade?.id:", selectedUnidade?.id);
-    console.log("selectedConsulta?.id:", selectedConsulta?.id);
+    console.log("selectedProfissional:", selectedProfissional); // Log do objeto completo
+    console.log("selectedUnidade:", selectedUnidade); // Log do objeto completo
+    console.log("selectedConsulta:", selectedConsulta); // Log do objeto completo
+    console.log("selectedTratamento:", selectedTratamento); // Log do objeto completo
     console.log("tipoExame:", tipoExame);
+    console.log("exame.dataExame:", exame.dataExame); // Log do estado da data
+    console.log("exame.anotacao:", exame.anotacao); // Log do estado da anotação
+    console.log("selectedFile:", selectedFile); // Log do arquivo selecionado
 
 
     const needsAnalysis = ["urina", "sangue"].includes(tipoExame);
     const analysisDone = needsAnalysis ? exame.resultados?.length > 0 : true;
 
+    // ✅ Validação revisada com mensagem mais clara
     if (
       !userId ||
       !selectedProfissional?.id ||
@@ -264,15 +269,22 @@ export function  ExameFormWrapper() {
       !exame.dataExame ||
       !exame.anotacao ||
       !tipoExame ||
+      (!selectedConsulta?.id && !selectedTratamento?.id) || // Validar consultaId OU tratamentoId
       (needsAnalysis && !analysisDone)
     ){
       console.log("Validação no handleSubmit falhou!");
       let errorMessage = "Preencha todos os campos obrigatórios.";
-      if (needsAnalysis && !analysisDone) {
-          errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos.";
-      } else if (!exame.dataExame || !exame.anotacao || !tipoExame) {
-          errorMessage = "Por favor, preencha a data do exame, a anotação e selecione o tipo de exame.";
-      }
+
+      if (!selectedProfissional?.id) errorMessage = "Por favor, selecione um profissional.";
+      else if (!selectedUnidade?.id) errorMessage = "Por favor, selecione uma unidade.";
+      else if (!selectedFile) errorMessage = "Por favor, selecione um arquivo.";
+      else if (!exame.dataExame) errorMessage = "Por favor, preencha a data do exame.";
+      else if (!exame.anotacao) errorMessage = "Por favor, preencha a anotação.";
+      else if (!tipoExame) errorMessage = "Por favor, selecione o tipo de exame.";
+      else if (!selectedConsulta?.id && !selectedTratamento?.id) errorMessage = "Por favor, selecione uma consulta ou um tratamento."; // Mensagem específica
+      else if (needsAnalysis && !analysisDone) errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos.";
+
+
       toast({ title: errorMessage, variant: "destructive", duration: 5000 });
       setLoadingSubmit(false);
       return;
@@ -290,8 +302,8 @@ export function  ExameFormWrapper() {
       formData.append("dataExame", exame.dataExame);
       formData.append("file", selectedFile);
       formData.append("tipoExame", tipoExame);
-      formData.append("nome", tipoExame); // ✅ Adicionado o campo 'nome' usando o valor de tipoExame
-
+      // Removendo a adição do campo 'nome' já que você não quer um campo separado
+      // formData.append("nome", tipoExame); // Removido
 
       if (needsAnalysis && exame.resultados) {
         formData.append(
@@ -319,18 +331,18 @@ export function  ExameFormWrapper() {
         toast({ title: "Exame cadastrado com sucesso!", variant: "default", duration: 5000 });
         router.push("/exames");
       } else {
+        // Se o backend retornar mais detalhes no erro, tentar exibir aqui
         const error = await res.json();
-         toast({ title: "Erro ao enviar o exame", variant: "destructive", duration: 5000 });
-        console.error(error);
+         toast({ title: "Erro ao enviar o exame", description: error.error || "Ocorreu um erro.", variant: "destructive", duration: 5000 }); // Tentar pegar mensagem de erro do backend
+        console.error("Erro do backend:", error);
       }
     } catch (err: any) {
       toast({ title: "Erro inesperado", description: err.message || "Ocorreu um erro inesperado.", variant: "destructive", duration: 5000 });
-      console.error(err);
+      console.error("Erro no frontend:", err);
     } finally {
       setLoadingSubmit(false);
     }
   };
-
 
 
   return (

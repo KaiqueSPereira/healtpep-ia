@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
 
     const exame = await prisma.exame.create({
       data: {
-        nome: encrypt(Buffer.from(file.name)).toString("hex"),
-        nomeArquivo: encrypt(Buffer.from(filename)).toString("hex"),
+        nome: encrypt(Buffer.from(file.name)).toString("base64"),
+        nomeArquivo: encrypt(Buffer.from(filename)).toString("base64"),
         dataExame: new Date(dataExame),
-        anotacao: encrypt(Buffer.from(anotacao)).toString("hex"),
+        anotacao: encrypt(Buffer.from(anotacao)).toString("base64"),
         userId,
         profissionalId,
         unidadesId,
@@ -70,11 +70,11 @@ export async function POST(req: NextRequest) {
        await prisma.resultadoExame.create({
          data: {
            exameId: exame.id,
-           nome: encrypt(Buffer.from(e.nome)).toString("hex"),
-           valor: encrypt(Buffer.from(e.valor)).toString("hex"),
-           unidade: encrypt(Buffer.from(e.unidade || "")).toString("hex"),
+           nome: encrypt(Buffer.from(e.nome)).toString("base64"),
+           valor: encrypt(Buffer.from(e.valor)).toString("base64"),
+           unidade: encrypt(Buffer.from(e.unidade || "")).toString("base64"),
            referencia: encrypt(Buffer.from(e.ValorReferencia || "")).toString(
-             "hex",
+             "base64",
            ),
          },
        });
@@ -150,7 +150,7 @@ export async function PUT(req: NextRequest) {
     const exame = await prisma.exame.update({
       where: { id },
       data: {
-        anotacao: encrypt(Buffer.from(anotacao || "")).toString("hex"),
+        anotacao: encrypt(Buffer.from(anotacao || "")).toString("base64"),
         dataExame: dataExame ? new Date(dataExame) : undefined,
         tratamentoId,
       },
