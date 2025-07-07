@@ -71,19 +71,6 @@ export default function TabelaExames({
 }: TabelaExamesProps) {
   const [examesSugeridos, setExamesSugeridos] = useState<Exame[]>([]);
 
-  useEffect(() => {
-    async function fetchExamesSalvos() {
-      try {
-        const res = await fetch("/api/exames/sugestoes");
-        const dados = await res.json();
-        setExamesSugeridos(dados);
-      } catch (error) {
-        console.error("Erro ao buscar exames anteriores:", error);
-      }
-    }
-
-    fetchExamesSalvos();
-  }, []);
 
   return (
     <div className="overflow-x-auto rounded-lg border shadow-sm">
@@ -116,7 +103,7 @@ export default function TabelaExames({
                 <Input value={exame.unidades?.nome} readOnly />
               </td>
               <td className="border p-2">
-                <Input value={exame.resultados?.[0]?.valorReferencia} readOnly />
+                <Input value={exame.resultados?.[0]?.referencia} readOnly />
               </td>
               <td className="border p-2 text-center">
                 <span className="text-muted">Sugestão</span>
@@ -172,9 +159,9 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Input
-                  value={exame.valorReferencia}
+                  value={exame.referencia}
                   onChange={(e) =>
-                    onExameChange(index, "valorReferencia", e.target.value)
+                    onExameChange(index, "referencia", e.target.value)
                   }
                   placeholder="Ex: 4.5 - 6.0"
                 />

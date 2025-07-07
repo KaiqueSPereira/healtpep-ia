@@ -21,6 +21,7 @@ type Exame = {
   profissional?: { nome: string };
   unidades?: { nome: string };
   tratamento?: { nome: string };
+  tipo?: string;
   resultados?: Resultado[];
 };
 
@@ -37,7 +38,7 @@ export function ExameGrid({ exames , onDeleteClick }: Props) {
   }
 
   const handleEdit = (id: string) => {
-    router.push(`/exames/editar/${id}`);
+    router.push(`/exames/${id}/editar`);
   };
 
   return (
@@ -53,10 +54,12 @@ export function ExameGrid({ exames , onDeleteClick }: Props) {
           <CardContent className="pt-4">
             <div className="mb-1 text-sm text-muted-foreground">
               {new Date(exame.dataExame).toLocaleDateString("pt-BR")}
+               - 
+              {exame.tipo || ""}
             </div>
 
             <div className="text-lg font-bold text-primary">
-              {exame.profissional?.nome || "Profissional não informado"}
+              { exame.profissional?.nome || "Profissional não informado"}
             </div>
 
             {exame.tratamento?.nome && (

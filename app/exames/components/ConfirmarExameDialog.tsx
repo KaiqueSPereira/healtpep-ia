@@ -70,7 +70,7 @@ export const ConfirmarExameDialog = ({
                     {exame.unidade === "Outro"
                       ? exame.outraUnidade
                       : exame.unidade || ""}{" "}
-                    — Ref: {exame.valorReferencia || "-"}
+                    — Ref: {exame.referencia || "-"}
                   </li>
                 ))}
               </ul>

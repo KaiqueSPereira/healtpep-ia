@@ -1,3 +1,4 @@
+// app/exames/components/ExameFormWrapper.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,19 +7,12 @@ import { useSession } from "next-auth/react";
 
 import Header from "../../_components/header";
 import Footer from "../../_components/footer";
-import MenuUnidades from "../../unidades/_components/menuunidades";
-import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
+// Remove MenuUnidades, MenuProfissionais, MenuTratamentos imports here
 import TabelaExames from "./TabelaExames";
 import { Button } from "../../_components/ui/button";
 import { Input } from "../../_components/ui/input";
 import { Label } from "../../_components/ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "../../_components/ui/select";
+// Remove Select imports here
 import { Textarea } from "../../_components/ui/textarea";
 import { toast } from "../../_hooks/use-toast";
 
@@ -28,17 +22,24 @@ import {
   Unidade,
   Tratamento,
   ResultadoExame,
+  AnaliseApiResponse, 
+  ExameCompleto
 } from "../../_components/types";
 import { ConfirmarExameDialog } from "./ConfirmarExameDialog";
-import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
+import { ExamDetailsForm } from "./ExamDetailForm";
 
-export function  ExameFormWrapper() {
+
+
+// ... (AnaliseApiResponse and ExameCompleto types remain) ...
+
+export function  ExameFormWrapper({ existingExamData }: { existingExamData?: ExameCompleto | null }) {
+  // Keep state that is shared or managed by the parent
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(
     null,
   );
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]); // Keep professionals state here as it depends on selectedUnidade
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
   const [selectedTratamento, setSelectedTratamento] =
@@ -50,34 +51,19 @@ export function  ExameFormWrapper() {
   const [anotacao, setAnotacao] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
-  const [loadingAnalysis, setLoadingAnalysis] = useState(false); // Novo estado para o loading da análise
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
+  const [exameResultados, setExameResultados] = useState<ResultadoExame[]>([]);
 
-  const [exame, setExame] = useState<{
-    nome: string;
-    dataExame: string;
-    anotacao: string;
-    resultados: ResultadoExame[];
-  }>({
-    nome: "",
-    dataExame: "",
-    anotacao: "",
-    resultados: [
-      {
-        nome: "",
-        valor: "",
-        unidade: "",
-        valorReferencia: "",
-        outraUnidade: "",
-      },
-    ],
-  });
+  const [selectorsKey, setSelectorsKey] = useState(0);
+
 
   const router = useRouter();
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  useEffect(() => {
+  // Fetch consultations and treatments remain here
+   useEffect(() => {
     if (!userId) return;
 
     fetch(`/api/consultas?userId=${userId}`)
@@ -109,41 +95,64 @@ export function  ExameFormWrapper() {
     fetchTratamentos();
   }, [session?.user?.id]);
 
+   // Fetch professionals based on selected unit - Keep this here
+   useEffect(() => {
+        if (!selectedUnidade?.id) {
+          setProfissionais([]);
+          return;
+        }
+        fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
+          .then((r) => r.json())
+          .then((d) => setProfissionais(d.profissionais || []))
+          .catch(() =>
+            toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
+          );
+      }, [selectedUnidade]);
+
+
+  // Populate form with existing data when editing - Keep this here
   useEffect(() => {
-    if (!selectedUnidade?.id) {
-      setProfissionais([]);
-      return;
+    if (existingExamData) {
+      console.log("Existing exam data received:", existingExamData);
+      console.log("Value of existingExamData.tipoExame:", existingExamData.tipoExame);
+
+      setTipoExame(existingExamData.tipoExame || "");
+      console.log("tipoExame state after setting in useEffect:", existingExamData.tipoExame || "");
+
+
+      setDataExame(existingExamData.dataExame.split('T')[0] || "");
+      setAnotacao(existingExamData.anotacao || "");
+      setExameResultados(existingExamData.resultados || []);
+      console.log("exameResultados state after setting from existing data:", existingExamData.resultados);
+
+
+      setSelectedConsulta(existingExamData.consulta || null);
+      setSelectedProfissional(existingExamData.profissional || null);
+      setSelectedUnidade(existingExamData.unidades || null);
+      setSelectedTratamento(existingExamData.tratamento || null);
+
+
+      setSelectorsKey(prevKey => prevKey + 1);
     }
-    fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
-      .then((r) => r.json())
-      .then((d) => setProfissionais(d.profissionais || []))
-      .catch(() =>
-        toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
-      );
-  }, [selectedUnidade]);
+  }, [existingExamData]);
 
 
   const handleAddExame = () => {
-    setExame((prev) => ({
-      ...prev,
-      resultados: [
-        ...(prev.resultados || []),
-        {
-          nome: "",
-          valor: "",
-          unidade: "",
-          valorReferencia: "",
-          outraUnidade: "",
-        },
-      ],
-    }));
+    setExameResultados((prev) => [
+      ...(prev || []),
+      {
+        id: crypto.randomUUID(),
+        nome: "",
+        valor: "",
+        unidade: "",
+        referencia: "",
+        outraUnidade: "",
+      },
+    ]);
   };
 
   const handleRemoveExame = (index: number) => {
-    setExame((prev) => ({
-      ...prev,
-      resultados: (prev.resultados || []).filter((_, i) => i !== index),
-    }));
+    setExameResultados((prev) => (prev || []).filter((_, i) => i !== index));
   };
 
   const handleExameChange = (
@@ -151,21 +160,20 @@ export function  ExameFormWrapper() {
     field: keyof ResultadoExame,
     value: string,
   ) => {
-    setExame((prev) => {
-      const novosResultados = [...(prev.resultados || [])];
+    setExameResultados((prev) => {
+      const novosResultados = [...(prev || [])];
       novosResultados[index] = { ...novosResultados[index], [field]: value };
-      return { ...prev, resultados: novosResultados };
+      console.log("exameResultados state after change:", novosResultados);
+      return novosResultados;
     });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     setSelectedFile(file);
-    setExame((prev) => ({
-      ...prev,
-      resultados: [],
-      anotacao: "",
-    }));
+    setExameResultados([]);
+    setAnotacao("");
+    setTipoExame("");
   };
 
   const handleAnalyzeFile = async () => {
@@ -174,7 +182,7 @@ export function  ExameFormWrapper() {
       return;
     }
 
-    setLoadingAnalysis(true); // Inicia o loading da análise
+    setLoadingAnalysis(true);
 
     const formData = new FormData();
     formData.append("file", selectedFile);
@@ -186,59 +194,46 @@ export function  ExameFormWrapper() {
       });
 
       if (!res.ok) {
-        const errorText = await res.text();
-        console.error("Erro ao analisar exame:", errorText);
- toast({ title: "Erro ao analisar exame", variant: "destructive", duration: 5000 });
-        // Limpa os resultados e anotação em caso de erro na análise
-        setExame((prev) => ({
-          ...prev,
-          resultados: [],
-          anotacao: "",
-        }));
+        const errorData = await res.json();
+        console.error("Erro ao analisar exame:", errorData);
+        toast({ title: "Erro ao analisar arquivo", description: errorData.error || "Ocorreu um erro na análise.", variant: "destructive", duration: 5000 });
+        setExameResultados([]);
+        setAnotacao("");
         return;
       }
 
-      const data = await res.json();
+      const data: AnaliseApiResponse = await res.json();
 
-      console.log("Resposta da API /api/exames/analise:", data);
+      console.log("Resposta da API /api/analise-arquivo:", data);
 
       if (data.resultados?.length) {
-        setExame((prev) => ({
-          ...prev,
-          resultados: data.resultados.map((res: any) => ({...res, outraUnidade: ''})), // Initialize outraUnidade
-        }));
- toast({ title: "Análise concluída com sucesso!", variant: "default", duration: 5000 });
+        setExameResultados(data.resultados!.map((res: ResultadoExame) => ({ // Adicione ": ResultadoExame" aqui
+          ...res,
+          outraUnidade: '',
+          referencia: res.referencia || '',
+          nome: res.nome || '',
+          valor: res.valor || '',
+          unidade: res.unidade || '',
+        })));
+        toast({ title: "Análise concluída com sucesso! Resultados extraídos.", variant: "default", duration: 5000 });
       } else {
- toast({ title: "Análise concluída, mas nenhum resultado encontrado.", variant: "default", duration: 5000 });
-         setExame((prev) => ({ // Garante que os resultados sejam limpos se nada for encontrado
-            ...prev,
-            resultados: [],
-         }));
+        toast({ title: "Análise concluída, mas nenhum resultado específico encontrado.", variant: "default", duration: 5000 });
+        setExameResultados([]);
       }
 
+     if (data.anotacao !== undefined && data.anotacao !== null) {
+      setAnotacao(data.anotacao ?? "");
+    } else {
+       setAnotacao("");
+    }
 
-      if (data.anotacao) {
-        setExame((prev) => ({
-          ...prev,
- anotacao: data.anotacao, // Assuming data.anotacao is already a string
-        }));
-      } else {
-         setExame((prev) => ({ // Garante que a anotação seja limpa se nada for retornado
-            ...prev,
-            anotacao: "",
-         }));
-      }
-
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro na chamada da API de análise:", error);
-      toast({ title: "Erro ao analisar arquivo", variant: "destructive", duration: 5000 });
-       setExame((prev) => ({ // Limpa os resultados e anotação em caso de erro na chamada
-          ...prev,
-          resultados: [],
-          anotacao: "",
-       }));
+      toast({ title: "Erro inesperado na análise", description: error.message || "Ocorreu um erro inesperado durante a análise.", variant: "destructive", duration: 5000 });
+       setExameResultados([]);
+       setAnotacao("");
     } finally {
-      setLoadingAnalysis(false); // Finaliza o loading da análise
+      setLoadingAnalysis(false);
     }
   };
 
@@ -247,42 +242,42 @@ export function  ExameFormWrapper() {
     setLoadingSubmit(true);
 
     console.log("Início do handleSubmit:");
-    console.log("selectedProfissional:", selectedProfissional); // Log do objeto completo
-    console.log("selectedUnidade:", selectedUnidade); // Log do objeto completo
-    console.log("selectedConsulta:", selectedConsulta); // Log do objeto completo
-    console.log("selectedTratamento:", selectedTratamento); // Log do objeto completo
+    console.log("selectedProfissional:", selectedProfissional);
+    console.log("selectedUnidade:", selectedUnidade);
+    console.log("selectedConsulta:", selectedConsulta);
+    console.log("selectedTratamento:", selectedTratamento);
     console.log("tipoExame:", tipoExame);
-    console.log("exame.dataExame:", exame.dataExame); // Log do estado da data
-    console.log("exame.anotacao:", exame.anotacao); // Log do estado da anotação
-    console.log("selectedFile:", selectedFile); // Log do arquivo selecionado
+    console.log("dataExame:", dataExame);
+    console.log("anotacao:", anotacao);
+    console.log("selectedFile:", selectedFile);
+    console.log("exameResultados (antes de enviar):", exameResultados);
 
 
     const needsAnalysis = ["urina", "sangue"].includes(tipoExame);
-    const analysisDone = needsAnalysis ? exame.resultados?.length > 0 : true;
+    const analysisDoneAndResultsFound = needsAnalysis ? (exameResultados?.length > 0) : true;
 
-    // ✅ Validação revisada com mensagem mais clara
+
     if (
       !userId ||
       !selectedProfissional?.id ||
       !selectedUnidade?.id ||
-      !selectedFile ||
-      !exame.dataExame ||
-      !exame.anotacao ||
+      (!existingExamData && !selectedFile) ||
+      !dataExame ||
       !tipoExame ||
-      (!selectedConsulta?.id && !selectedTratamento?.id) || // Validar consultaId OU tratamentoId
-      (needsAnalysis && !analysisDone)
+      (!selectedConsulta?.id && !selectedTratamento?.id) ||
+      (needsAnalysis && !analysisDoneAndResultsFound && !existingExamData)
     ){
       console.log("Validação no handleSubmit falhou!");
       let errorMessage = "Preencha todos os campos obrigatórios.";
 
-      if (!selectedProfissional?.id) errorMessage = "Por favor, selecione um profissional.";
+      if (!userId) errorMessage = "Erro de autenticação. Por favor, recarregue a página.";
+      else if (!selectedProfissional?.id) errorMessage = "Por favor, selecione um profissional.";
       else if (!selectedUnidade?.id) errorMessage = "Por favor, selecione uma unidade.";
-      else if (!selectedFile) errorMessage = "Por favor, selecione um arquivo.";
-      else if (!exame.dataExame) errorMessage = "Por favor, preencha a data do exame.";
-      else if (!exame.anotacao) errorMessage = "Por favor, preencha a anotação.";
+      else if (!existingExamData && !selectedFile) errorMessage = "Por favor, selecione um arquivo.";
+      else if (!dataExame) errorMessage = "Por favor, preencha a data do exame.";
       else if (!tipoExame) errorMessage = "Por favor, selecione o tipo de exame.";
-      else if (!selectedConsulta?.id && !selectedTratamento?.id) errorMessage = "Por favor, selecione uma consulta ou um tratamento."; // Mensagem específica
-      else if (needsAnalysis && !analysisDone) errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos.";
+      else if (!selectedConsulta?.id && !selectedTratamento?.id) errorMessage = "Por favor, selecione uma consulta ou um tratamento.";
+      else if (needsAnalysis && !analysisDoneAndResultsFound && !existingExamData) errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos para este tipo de exame.";
 
 
       toast({ title: errorMessage, variant: "destructive", duration: 5000 });
@@ -293,48 +288,74 @@ export function  ExameFormWrapper() {
     try {
       const formData = new FormData();
 
-      formData.append("userId", userId);
-      formData.append("profissionalId", selectedProfissional.id);
-      formData.append("unidadeId", selectedUnidade.id);
-      formData.append("consultaId", selectedConsulta?.id || "");
-      formData.append("tratamentoId", selectedTratamento?.id || "");
-      formData.append("anotacao", exame.anotacao);
-      formData.append("dataExame", exame.dataExame);
-      formData.append("file", selectedFile);
-      formData.append("tipoExame", tipoExame);
-      // Removendo a adição do campo 'nome' já que você não quer um campo separado
-      // formData.append("nome", tipoExame); // Removido
+      if (userId) formData.append("userId", userId);
+      if (selectedProfissional?.id) formData.append("profissionalId", selectedProfissional.id);
+      if (selectedUnidade?.id) formData.append("unidadeId", selectedUnidade.id);
+      if (selectedConsulta?.id) formData.append("consultaId", selectedConsulta.id); else formData.append("consultaId", "");
+      if (selectedTratamento?.id) formData.append("tratamentoId", selectedTratamento.id); else formData.append("tratamentoId", "");
+      formData.append("anotacao", anotacao);
+      formData.append("dataExame", dataExame);
+      if (selectedFile) formData.append("file", selectedFile);
+      formData.append("tipo", tipoExame);
 
-      if (needsAnalysis && exame.resultados) {
-        formData.append(
-          "exames",
-          JSON.stringify(
-            exame.resultados.map((resultado) => ({
-              ...resultado,
-              unidade:
-                resultado.unidade === "Outro"
-                  ? resultado.outraUnidade
-                  : resultado.unidade,
-            })),
-          ),
-        );
+
+      let res;
+      if (existingExamData) {
+        // Update existing exam
+        res = await fetch(`/api/exames/${existingExamData.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            anotacao: anotacao,
+            dataExame: dataExame,
+            tratamentoId: selectedTratamento?.id || null,
+             tipo: tipoExame,
+             profissionalId: selectedProfissional?.id || null,
+             unidadeId: selectedUnidade?.id || null,
+             consultaId: selectedConsulta?.id || null,
+             resultados: exameResultados.map(r => ({ // Include results for update
+                 id: r.id,
+                 nome: r.nome,
+                 valor: r.valor,
+                 unidade: r.unidade === "Outro" ? r.outraUnidade : r.unidade,
+                 referencia: r.referencia,
+             })),
+          }),
+        });
+      } else {
+         formData.append("tipo", tipoExame);
+
+         if (needsAnalysis && exameResultados.length > 0) {
+             formData.append(
+                 "exames",
+                 JSON.stringify(
+                     exameResultados.map((resultado) => ({
+                         ...resultado,
+                         unidade:
+                             resultado.unidade === "Outro"
+                                 ? resultado.outraUnidade
+                                 : resultado.unidade,
+                     })),
+                 ),
+             );
+         }
+
+        res = await fetch("/api/exames", {
+          method: "POST",
+          body: formData,
+        });
       }
 
-      console.log("Conteúdo do formData antes de enviar:", Object.fromEntries(formData.entries()));
-
-      const res = await fetch("/api/exames/exame", {
-        method: "POST",
-        body: formData,
-      });
 
       if (res.ok) {
-        toast({ title: "Exame cadastrado com sucesso!", variant: "default", duration: 5000 });
+        toast({ title: existingExamData ? "Exame atualizado com sucesso!" : "Exame cadastrado com sucesso!", variant: "default", duration: 5000 });
         router.push("/exames");
       } else {
-        // Se o backend retornar mais detalhes no erro, tentar exibir aqui
-        const error = await res.json();
-         toast({ title: "Erro ao enviar o exame", description: error.error || "Ocorreu um erro.", variant: "destructive", duration: 5000 }); // Tentar pegar mensagem de erro do backend
-        console.error("Erro do backend:", error);
+        const errorData = await res.json();
+        toast({ title: existingExamData ? "Erro ao atualizar o exame" : "Erro ao enviar o exame", description: errorData.error || (existingExamData ? "Ocorreu um erro ao atualizar o exame." : "Ocorreu um erro ao salvar o exame."), variant: "destructive", duration: 5000 });
+        console.error("Erro do backend:", errorData);
       }
     } catch (err: any) {
       toast({ title: "Erro inesperado", description: err.message || "Ocorreu um erro inesperado.", variant: "destructive", duration: 5000 });
@@ -344,115 +365,42 @@ export function  ExameFormWrapper() {
     }
   };
 
+  // Log tipoExame state here to see its value after updates
+  console.log("Current tipoExame state:", tipoExame);
+
 
   return (
     <>
       <Header />
       <main className="container mx-auto space-y-8 py-8">
-        <h1 className="text-3xl font-bold">Cadastrar Exame</h1>
-        <form className="space-y-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <Label>Consulta</Label>
-              <Select
-                value={selectedConsulta?.id || "none"}
-                onValueChange={(id) => {
-                  if (id === "none") {
-                    setSelectedConsulta(null);
-                    setSelectedProfissional(null);
-                    setSelectedUnidade(null);
-                    console.log("Início do handleSubmit:");
-                    console.log("selectedProfissional?.id:", selectedProfissional?.id);
-                    console.log("selectedUnidade?.id:", selectedUnidade?.id);
-                    console.log("selectedConsulta?.id:", selectedConsulta?.id);
-                  } else {
-                    const consulta = consultas.find((c) => c.id === id);
-                    console.log("Objeto consulta encontrado ao selecionar:", consulta); // <-- Adicionar este log aqui
-                    setSelectedConsulta(consulta || null);
-                    setSelectedProfissional(consulta?.profissional || null);
-                    setSelectedUnidade(consulta?.unidade || null);
-                    console.log("Estados após selecionar consulta:", {
-                      selectedConsulta: consulta,
-                      selectedProfissional: consulta?.profissional,
-                      selectedUnidade: consulta?.unidade,
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma consulta" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma</SelectItem>
-                  {consultas.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {new Date(c.data).toLocaleDateString()} -{" "}
-                      {c.profissional?.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {!selectedConsulta && (
-              <>
-                <div>
-                  <Label>Unidade</Label>
-                  <MenuUnidades
-                    selectedUnidade={selectedUnidade}
-                    onUnidadeSelect={setSelectedUnidade}
-                  />
-                </div>
-                <div>
-                  <Label>Profissional</Label>
-                  <MenuProfissionais
-                    profissionais={profissionais}
-                    selectedProfissional={selectedProfissional}
-                    onProfissionalSelect={setSelectedProfissional}
-                  />
-                </div>
-              </>
-            )}
-
-            <div>
-              <Label>Tratamento</Label>
-              <MenuTratamentos
-                tratamentos={tratamentos}
+        <h1 className="text-3xl font-bold">{existingExamData ? "Editar Exame" : "Cadastrar Exame"}</h1> {/* Dynamic title */}
+        <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}> {/* Prevent default form submission */}
+           {/* Use the new ExamDetailsForm component here */}
+           <ExamDetailsForm
+                consultas={consultas}
+                selectedConsulta={selectedConsulta}
+                onConsultaSelect={setSelectedConsulta}
+                selectedUnidade={selectedUnidade}
+                onUnidadeSelect={setSelectedUnidade}
+                profissionais={profissionais} // Pass professionals state down
+                selectedProfissional={selectedProfissional}
+                onProfissionalSelect={setSelectedProfissional}
+                tratamentos={tratamentos} // Pass treatments state down
                 selectedTratamento={selectedTratamento}
                 onTratamentoSelect={setSelectedTratamento}
-              />
-            </div>
+                dataExame={dataExame}
+                onDataExameChange={setDataExame}
+                tipoExame={tipoExame}
+                onTipoExameChange={setTipoExame}
+                selectorsKey={selectorsKey}
+           />
 
-            <div>
-              <Label>Data do Exame</Label>
-              <Input
-                type="date"
-                value={exame.dataExame}
-                onChange={(e) => setExame(prev => ({ ...prev, dataExame: e.target.value }))}
-              />
-            </div>
 
-            <div>
-              <Label>Tipo de Exame</Label>
-              <Select value={tipoExame} onValueChange={setTipoExame}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo de exame" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sangue">Sangue</SelectItem>
-                  <SelectItem value="urina">Urina</SelectItem>
-                  <SelectItem value="usg">USG</SelectItem>
-                  <SelectItem value="raiox">Raio-X</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
           <div>
             <Label>Anotação</Label>
             <Textarea
-              value={exame.anotacao}
-              onChange={(e) => setExame(prev => ({ ...prev, anotacao: e.target.value }))}
+              value={anotacao} // Use anotacao state
+              onChange={(e) => setAnotacao(e.target.value)} // Update anotacao state
             />
           </div>
           <div>
@@ -462,25 +410,32 @@ export function  ExameFormWrapper() {
                 type="file"
                 accept="image/*,.pdf"
                 onChange={handleFileChange}
+                disabled={existingExamData ? true : false} // Disable file upload when editing
               />
                <Button
                 onClick={handleAnalyzeFile}
-                disabled={!selectedFile || loadingAnalysis}
-                type="button" // Importante para não submeter o formulário
+                disabled={!selectedFile || loadingAnalysis || !!existingExamData} // Disable analysis button when editing
+                type="button"
               >
                 {loadingAnalysis ? "Analisando..." : "Analisar Arquivo"}
               </Button>
             </div>
-            {selectedFile && (
+            {selectedFile && !existingExamData && ( // Only show selected file name for new exams
               <p className="mt-1 text-sm text-muted-foreground">
                 Arquivo selecionado: {selectedFile.name}
               </p>
             )}
+             {existingExamData?.nomeArquivo && ( // Show existing file name when editing
+                 <p className="mt-1 text-sm text-muted-foreground">
+                     Arquivo existente: {existingExamData.nomeArquivo}
+                 </p>
+             )}
           </div>
+
           {["sangue", "urina"].includes(tipoExame) && (
             <>
               <TabelaExames
-                exames={exame.resultados || []}
+                exames={exameResultados || []} // Use exameResultados state
                 onAddExame={handleAddExame}
                 onRemoveExame={handleRemoveExame}
                 onExameChange={handleExameChange}
@@ -491,18 +446,22 @@ export function  ExameFormWrapper() {
           <ConfirmarExameDialog
             loadingSubmit={loadingSubmit}
             tipoExame={tipoExame}
-            dataExame={exame.dataExame}
+            dataExame={dataExame} // Use dataExame state
             selectedProfissional={selectedProfissional}
             selectedUnidade={selectedUnidade}
-            anotacao={exame.anotacao || ""}
-            exames={exame.resultados || []}
+            anotacao={anotacao || ""} // Use anotacao state
+            exames={exameResultados || []} // Use exameResultados state
             onSubmit={handleSubmit}
           >
             <Button
-              disabled={loadingSubmit || !selectedFile}
+              disabled={
+                loadingSubmit ||
+                (!existingExamData && !selectedFile) || // File is required for new exams
+                (["sangue", "urina"].includes(tipoExame) && !existingExamData && (!exameResultados || exameResultados.length === 0)) // Validate analysis and results only for new exams of types that need analysis
+              }
               className="w-full"
             >
-              {loadingSubmit ? "Enviando..." : "Cadastrar Exame"}
+              {loadingSubmit ? (existingExamData ? "Atualizando..." : "Enviando...") : (existingExamData ? "Atualizar Exame" : "Cadastrar Exame")} {/* Dynamic button text */}
             </Button>
           </ConfirmarExameDialog>
         </form>

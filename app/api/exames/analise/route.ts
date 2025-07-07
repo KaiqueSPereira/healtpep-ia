@@ -1,7 +1,16 @@
+// app/api/exames/analise/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createWorker } from "tesseract.js";
 import OpenAI from "openai";
+import { PdfReader, DataEntry } from 'pdfreader';
+import { Buffer } from 'buffer';
 
+// Configuração do OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Interface para o resultado do exame
 interface ExameResultado {
   nome: string;
   valor: string;
@@ -9,13 +18,7 @@ interface ExameResultado {
   valorReferencia: string;
 }
 
-export const dynamic = "force-dynamic";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Nova função para extrair exames usando IA
+// Função para extrair exames usando IA
 async function extrairExamesDeTextoComIA(texto: string): Promise<ExameResultado[]> {
   try {
     const prompt = `Analise o seguinte texto de um relatório de exame de sangue e extraia os resultados dos exames. Retorne os dados em formato JSON, onde cada objeto no array representa um resultado de exame com as chaves "nome", "valor", "unidade", e "valorReferencia". Se um campo não estiver disponível, use uma string vazia.
@@ -53,8 +56,7 @@ Formato JSON de saída:
 
         for (const key in parsedResponse) {
             if (Array.isArray(parsedResponse[key])) {
-                 // Validar se os objetos dentro do array têm a estrutura esperada
-                 const resultadosValidos = parsedResponse[key].filter((item: ExameResultado) => // Usando a interface
+                 const resultadosValidos = parsedResponse[key].filter((item: ExameResultado) =>
                     typeof item.nome === 'string' &&
                     typeof item.valor === 'string' &&
                     typeof item.unidade === 'string' &&
@@ -74,7 +76,7 @@ Formato JSON de saída:
         if (jsonMatch && jsonMatch[0]) {
              try {
                  const fallbackParsed = JSON.parse(jsonMatch[0]);
-                 const resultadosValidos = fallbackParsed.filter((item: ExameResultado) => // Usando a interface
+                 const resultadosValidos = fallbackParsed.filter((item: ExameResultado) =>
                     typeof item.nome === 'string' &&
                     typeof item.valor === 'string' &&
                     typeof item.unidade === 'string' &&
@@ -97,18 +99,17 @@ Formato JSON de saída:
   }
 }
 
-import { PdfReader, DataEntry } from 'pdfreader';
-
+// Função para extrair texto de PDF
 async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let fullText = '';
-   
+
  new PdfReader({}).parseBuffer(buffer, (err: Error | string | null | undefined, item: DataEntry | null | undefined) => {
       if (err) {
         console.error("Erro ao extrair texto com pdfreader:", err);
         return reject(err);
- } else if (item === null || item === undefined) { 
-       
+ } else if (item === null || item === undefined) {
+
         fullText += ' ';
 
  fullText += ' ';
@@ -120,52 +121,74 @@ async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
       }
 
       if (item && 'page' in item && item.page !== undefined) {
- fullText += '\\n'; 
+ fullText += '\\n';
       }
     });
   });
 }
+
+// Função POST para a API de análise
 export async function POST(req: NextRequest) {
-  const formData = await req.formData();
-  const file = formData.get("file") as File;
-
-  if (!file) {
-    return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
-  }
-
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const mime = file.type;
-
-  let textoExtraido = "";
+  console.log("--- Início do POST em /api/exames/analise ---");
 
   try {
-    if (mime === "application/pdf") {
-      textoExtraido = await extrairTextoDePdf(buffer); // Usar a nova função
-    } else if (mime.startsWith("image/")) {
-      const worker = await createWorker("por");
-      const {
-        data: { text },
-      } = await worker.recognize(buffer);
-      await worker.terminate();
-      textoExtraido = text;
-    } else {
-      return NextResponse.json(
-        { error: "Tipo de arquivo não suportado" },
-        { status: 415 },
-      );
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      console.log("Arquivo não enviado para análise.");
+      return NextResponse.json({ error: "Arquivo não enviado" }, { status: 400 });
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const fileBuffer = Buffer.from(arrayBuffer);
+    const mime = file.type;
+
+    let textoExtraido = "";
+
+    try { // Try para extração de texto
+      if (mime === "application/pdf") {
+        textoExtraido = await extrairTextoDePdf(fileBuffer);
+      } else if (mime.startsWith("image/")) {
+        const worker = await createWorker("por");
+        const {
+          data: { text },
+        } = await worker.recognize(fileBuffer);
+        await worker.terminate();
+        textoExtraido = text;
+      } else {
+        console.log(`Tipo de arquivo não suportado para análise: ${mime}`);
+        return NextResponse.json(
+          { error: "Tipo de arquivo não suportado para análise" },
+          { status: 415 },
+        );
+      }
+    } catch (extractionError) { // Catch para extração de texto
+        console.error("Erro ao extrair texto do arquivo para análise:", extractionError);
+         return NextResponse.json(
+          { error: "Erro ao extrair texto do arquivo para análise" },
+          { status: 500 },
+        );
     }
 
     const examesExtraidosPelaIA = await extrairExamesDeTextoComIA(textoExtraido);
 
+     // Definir anotação com o texto extraído se a IA não encontrar resultados
+     const anotacaoFinal = examesExtraidosPelaIA.length > 0 ? "" : textoExtraido.trim();
+
+    console.log("Análise concluída. Retornando resultados e anotação.");
+    console.log("--- Fim do POST em /api/exames/analise ---");
+
     return NextResponse.json({
       resultados: examesExtraidosPelaIA,
-      anotacao: examesExtraidosPelaIA.length > 0 ? "" : textoExtraido.trim(),
+      anotacao: anotacaoFinal,
     });
+
   } catch (error) {
-    console.error("Erro ao processar arquivo:", error);
+    console.error("Erro geral no handler POST de análise:", error);
+    console.log("--- Fim do POST em /api/exames/analise com erro ---");
     return NextResponse.json(
-      { error: "Erro ao processar arquivo" },
+      { error: "Erro interno no servidor durante a análise." },
       { status: 500 },
     );
   }

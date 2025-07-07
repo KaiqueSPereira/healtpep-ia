@@ -7,14 +7,33 @@ import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
 import { Button } from "@/app/_components/ui/button";
 
+// Interface para o resultado do exame (pode ser a mesma usada na API ou uma adaptada para o frontend)
+interface ExameResultadoFrontend {
+    id: string; // Assumindo que o resultado tem um ID
+    nome: string;
+    valor: string;
+    unidade: string;
+    referencia: string; // Usar a chave correta
+    exameId: string; // Adicionar o ID do exame
+    createdAt: Date; // Adicionar timestamps se presentes
+    updatedAt: Date;
+}
+
+// Estender a interface Exame para incluir o array de resultados com a nova interface
+interface ExameComResultados extends Exame {
+    resultados?: ExameResultadoFrontend[];
+}
+
+
 export default function ExameDetalhePage() {
   const params = useParams();
   const id = params?.id as string;
-  const [exame, setExame] = useState<Exame | null>(null);
+  const [exame, setExame] = useState<ExameComResultados | null>(null); // Usar a interface estendida
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
+    // Certifique-se de que o endpoint /api/exames/${id} retorna o objeto { exame: {...} }
     fetch(`/api/exames/${id}`)
       .then((res) => res.json())
       .then((data) => setExame(data?.exame))
@@ -55,7 +74,8 @@ export default function ExameDetalhePage() {
 
           <div>
             <h2 className="mb-2 text-lg font-semibold">Resultados</h2>
-            {exame.resultados && typeof exame.resultados === "object" ? (
+            {/* Alterado: Verificar se resultados é um array e iterar diretamente */}
+            {exame.resultados && Array.isArray(exame.resultados) && exame.resultados.length > 0 ? (
               <table className="w-full border text-sm">
                 <thead>
                   <tr className="bg-muted">
@@ -66,21 +86,12 @@ export default function ExameDetalhePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(exame.resultados).map(
-                    (
-                      [key, item]: [
-                        string,
-                        {
-                          nome: string;
-                          valor: string;
-                          unidade: string;
-                          outraUnidade?: string;
-                          ValorReferencia?: string;
-                        }
-                      ]
-                    ) => {
+                  {/* Alterado: Iterar diretamente sobre o array de resultados */}
+                  {exame.resultados.map( // Iterando sobre o array
+                    (item: ExameResultadoFrontend) => { // Desestruturando o item diretamente
+                      // Lógica para verificar se o valor está fora do intervalo de referência
                       const valor = parseFloat(item.valor);
-                      const referencia = item.ValorReferencia || "";
+                      const referencia = item.referencia || ""; // Usar item.referencia (minúsculo)
                       const [minRef, maxRef] = referencia
                         .split("-")
                         .map((v: string) => parseFloat(v.trim()));
@@ -90,7 +101,7 @@ export default function ExameDetalhePage() {
                         (valor < minRef || valor > maxRef);
 
                       return (
-                        <tr key={key}>
+                        <tr key={item.id}> {/* Usar o ID do resultado como key */}
                           <td className="border p-2">{item.nome}</td>
                           <td
                             className={`border p-2 font-medium ${
@@ -100,11 +111,10 @@ export default function ExameDetalhePage() {
                             {item.valor}
                           </td>
                           <td className="border p-2">
-                            {item.unidade === "Outro"
-                              ? item.outraUnidade
-                              : item.unidade}
+                             {/* Verificar se item.unidade ou item.outraUnidade existe, dependendo da sua estrutura final */}
+                             {item.unidade} {/* Assumindo que a unidade já vem formatada */}
                           </td>
-                          <td className="border p-2">{item.ValorReferencia}</td>
+                          <td className="border p-2">{item.referencia}</td> {/* Usar item.referencia (minúsculo) */}
                         </tr>
                       );
                     },
@@ -120,7 +130,7 @@ export default function ExameDetalhePage() {
             <div>
               <h2 className="mb-2 text-lg font-semibold">Arquivo Anexo</h2>
               <iframe
-                src={`/api/exames/arquivo?id=${exame.id}`}
+                src={`/api/exames/${exame.id}/arquivo`} // Caminho da API ajustado
                 className="h-[600px] w-full rounded-md border"
                 title="Arquivo do Exame"
               />

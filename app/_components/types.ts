@@ -88,12 +88,12 @@ export interface TabelaExamesProps {
   >;
 }
 
-// Atualize o tipo Exame para incluir esses relacionamentos:
 export type ResultadoExame = {
+  id: string; // Adicionado id
   nome: string;
   valor: string;
   unidade: string;
-  valorReferencia?: string;
+  referencia?: string; // Corrigido para 'referencia'
   outraUnidade?: string;
 };
 
@@ -127,3 +127,21 @@ export type Exame = {
   };
 };
 
+export interface AnaliseApiResponse { 
+  resultados?: ResultadoExame[];
+  anotacao?: string;
+}
+
+export type ExameCompleto = { 
+  id: string;
+  nome: string;
+  dataExame: string;
+  anotacao?: string;
+  nomeArquivo?: string;
+  profissional?: Profissional;
+  unidades?: Unidade;
+  resultados?: ResultadoExame[];
+  tratamento?: Tratamento;
+  consulta?: Consulta;
+  tipoExame?: string;
+};

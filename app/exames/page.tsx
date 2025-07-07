@@ -103,8 +103,8 @@ export default function ExamesPage() {
          setLoading(false);
          return;
        }
-      fetch("/api/exames/exame") // Fetch from the full exams API
-        .then((res) => res.json())
+      fetch("/api/exames") // Fetch from the full exams API
+        .then((res) => res.json()) // Consider if this endpoint should also return decrypted data for the list view
         .then((data) => {
            if (!Array.isArray(data)) {
               console.error("Full Exams API did not return an array:", data);
@@ -211,7 +211,7 @@ export default function ExamesPage() {
     if (!examToDelete) return;
 
     try {
-      const res = await fetch(`/api/exames/exame?id=${examToDelete}`, {
+      const res = await fetch(`/api/exames/${examToDelete}`, {
         method: "DELETE",
       });
 
