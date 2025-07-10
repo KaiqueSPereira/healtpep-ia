@@ -105,7 +105,7 @@ export function ProfissionalFormWrapper() {
       });
 
       if (response.ok) {
-        router.push("/");
+        router.push("/profissionais");
       } else {
         const errorDetails = await response.json();
         console.error("Erro ao criar profissional:", errorDetails);

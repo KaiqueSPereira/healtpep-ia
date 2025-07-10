@@ -36,7 +36,6 @@ interface FormData {
   endereco?: Endereco;
 }
 
-
 export function UnidadeFormWrapper() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -55,7 +54,7 @@ export function UnidadeFormWrapper() {
   
     const fetchUnidadeById = async (unidadeid: string) => {
       try {
-        const response = await fetch(`/api/unidades/${unidadeid}`);
+        const response = await fetch(`/api/unidadesaude/${unidadeid}`);
         if (!response.ok) throw new Error("Erro ao buscar unidade");
   
         const data: { unidade: Unidade; endereco: Endereco } =
@@ -98,12 +97,13 @@ export function UnidadeFormWrapper() {
           body: JSON.stringify({
             nome: data.unidade.nome,
             tipo: data.unidade.tipo,
+            telefone: data.unidade.telefone,
             enderecoId: selectedEndereco?.id, // Ajustado para enviar enderecoId como string
           }),
         });
   
         if (response.ok) {
-          router.push("/");
+          router.push("/unidades");
         } else {
           console.error("Erro ao criar unidade");
           const errorDetails = await response.json();
@@ -136,7 +136,7 @@ export function UnidadeFormWrapper() {
   
     const handleSubmit = async (data: FormData) => {
       if (!selectedEndereco) {
-        alert("Selecione um endereĂ§o antes de salvar.");
+        alert("Selecione um endereço antes de salvar.");
         return;
       }
   
@@ -199,7 +199,19 @@ export function UnidadeFormWrapper() {
                   </FormItem>
                 )}
               />
-  
+               <FormField
+                control={form.control}
+                name="unidade.telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <label>Telefone da Unidade:</label>
+                    <FormControl>
+                      <Input {...field} required />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
               <div>
                 <label>Escolher Endereço Existente</label>

@@ -150,6 +150,7 @@ model UnidadeDeSaude {
   id            String         @id @default(uuid())
   nome          String
   tipo          String?
+  telefone      String?
   enderecoId    String?        @unique
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

@@ -47,11 +47,14 @@ const UnidadeDetalhesPage = () => {
   }>({});
 
   useEffect(() => {
+   
     if (!unidadeId) {
+
       setError("ID da unidade não foi fornecido.");
       setLoading(false);
       return;
     }
+    console.log("Fetching data for unidadeId:", unidadeId);
 
     const fetchData = async () => {
       try {
@@ -120,6 +123,9 @@ const UnidadeDetalhesPage = () => {
   }, [unidadeId]);
 
   const salvarAlteracoes = async () => {
+    console.log("Saving changes for unidadeId:", unidadeId);
+    console.log("Unidade data being sent:", unidade);
+
     try {
       const res = await fetch(`/api/unidadesaude/${unidadeId}`, {
         method: "PATCH",
@@ -160,6 +166,15 @@ const UnidadeDetalhesPage = () => {
               type="text"
               value={unidade.nome}
               onChange={(e) => setUnidade({ ...unidade, nome: e.target.value })}
+              className="w-full rounded border bg-black p-2 text-white"
+            />
+            <label>Telefone:</label>
+            <input
+              type="text"
+              value={unidade.telefone || ""}
+              onChange={(e) =>
+                setUnidade({ ...unidade, telefone: e.target.value })
+              }
               className="w-full rounded border bg-black p-2 text-white"
             />
             <label>Tipo:</label>

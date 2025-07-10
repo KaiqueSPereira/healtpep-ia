@@ -49,13 +49,20 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const nome = body.nome; // Nome da unidade
+    const nome = body.nome; 
+    const telefone = body.telefone;
     const { tipo, enderecoId } = body;
 
     // Validação dos campos obrigatórios
     if (!nome || typeof nome !== "string") {
       return NextResponse.json(
         { error: "O campo 'nome' é obrigatorio e deve ser uma string valida" },
+        { status: 400 },
+      );
+    }
+    if (!telefone || typeof telefone !== "string") {
+      return NextResponse.json(
+        { error: "O campo 'telefone' é obrigatorio e deve ser uma string valida" },
         { status: 400 },
       );
     }
@@ -93,6 +100,7 @@ export async function POST(req: Request) {
       data: {
         nome,
         tipo,
+        telefone,
         endereco: {
           connect: { id: enderecoId }, // Associa o endereço ao criar a unidade
         },
@@ -104,45 +112,6 @@ export async function POST(req: Request) {
     console.error("Erro ao cadastrar a unidade:", error);
     return NextResponse.json(
       { error: "Falha ao cadastrar a unidade" },
-      { status: 500 },
-    );
-  }
-}
-
-// Método PATCH
-export async function PATCH(req: Request) {
-  try {
-    const body = await req.json();
-    const { id, nome, tipo, endereco } = body;
-
-    if (!id) {
-      return NextResponse.json(
-        { error: "O campo 'id' é obrigatório" },
-        { status: 400 },
-      );
-    }
-
-    const unidadeAtualizada = await db.unidadeDeSaude.update({
-      where: { id },
-      data: {
-        nome,
-        tipo,
-        endereco: endereco
-          ? {
-              upsert: {
-                update: endereco, // Atualizar endereço existente
-                create: endereco, // Criar novo endereço se não existir
-              },
-            }
-          : undefined,
-      },
-    });
-
-    return NextResponse.json(unidadeAtualizada);
-  } catch (error) {
-    console.error("Erro ao atualizar a unidade:", error);
-    return NextResponse.json(
-      { error: "Falha ao atualizar a unidade" },
       { status: 500 },
     );
   }

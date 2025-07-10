@@ -48,6 +48,7 @@ export type Unidade = {
   id: string;
   nome: string;
   tipo: string;
+  telefone?: string;
   endereco: {
     nome: string;
   };
@@ -143,5 +144,5 @@ export type ExameCompleto = {
   resultados?: ResultadoExame[];
   tratamento?: Tratamento;
   consulta?: Consulta;
-  tipoExame?: string;
+  tipo?: string;
 };

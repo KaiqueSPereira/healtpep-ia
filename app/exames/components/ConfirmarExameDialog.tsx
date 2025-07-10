@@ -14,7 +14,7 @@ import { Exame, Profissional, Unidade } from "@/app/_components/types";
 
 interface ConfirmarExameDialogProps {
   loadingSubmit: boolean;
-  tipoExame: string;
+  tipo: string;
   dataExame: string;
   selectedProfissional: Profissional | null;
   selectedUnidade: Unidade | null;
@@ -26,7 +26,7 @@ interface ConfirmarExameDialogProps {
 
 export const ConfirmarExameDialog = ({
   loadingSubmit,
-  tipoExame,
+  tipo,
   dataExame,
   selectedProfissional,
   selectedUnidade,
@@ -44,7 +44,7 @@ export const ConfirmarExameDialog = ({
         </DialogHeader>
         <div className="space-y-2 text-sm text-muted-foreground max-h-[400px] overflow-y-auto">
           <p>
-            <strong>Tipo:</strong> {tipoExame || "Não selecionado"}
+            <strong>Tipo:</strong> {tipo || "Não selecionado"}
           </p>
           <p>
             <strong>Data:</strong> {dataExame || "Não definida"}
@@ -60,7 +60,7 @@ export const ConfirmarExameDialog = ({
           <p>
             <strong>Anotação:</strong> {anotacao || "Nenhuma"}
           </p>
-          {["sangue", "urina"].includes(tipoExame) && exames && (
+          {["Sangue", "Urina"].includes(tipo) && exames && (
             <>
               <p className="pt-2 font-semibold">Exames:</p>
               <ul className="list-disc pl-4">

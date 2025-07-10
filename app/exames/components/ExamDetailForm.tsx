@@ -36,10 +36,9 @@ interface ExamDetailsFormProps {
     dataExame: string;
     onDataExameChange: (data: string) => void;
 
-    tipoExame: string;
-    onTipoExameChange: (tipo: string) => void;
+    tipo: string;
+    onTipoChange: (tipo: string) => void;
 
-     // This key is used to force re-render selectors when editing
     selectorsKey: number;
 }
 
@@ -50,9 +49,12 @@ export function ExamDetailsForm({
     profissionais, selectedProfissional, onProfissionalSelect,
     tratamentos, selectedTratamento, onTratamentoSelect,
     dataExame, onDataExameChange,
-    tipoExame, onTipoExameChange,
+    tipo, onTipoChange,
     selectorsKey
 }: ExamDetailsFormProps) {
+
+    console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); // Cole aqui
+    console.log("Value passed to MenuProfissionais (selectedProfissional):", selectedProfissional);
 
      const { data: session } = useSession();
      const userId = session?.user?.id;
@@ -91,20 +93,25 @@ export function ExamDetailsForm({
                     onValueChange={(id) => {
                       if (id === "none") {
                         onConsultaSelect(null);
-                        // If profissional and unidade states are in parent, call their setters here
                         onProfissionalSelect(null);
                         onUnidadeSelect(null);
                       } else {
                         const consulta = consultas.find((c) => c.id === id);
                         onConsultaSelect(consulta || null);
-                         // If profissional and unidade states are in parent, call their setters here
                         onProfissionalSelect(consulta?.profissional || null);
                         onUnidadeSelect(consulta?.unidade || null);
                       }
                     }}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma consulta" />
+                      <SelectValue>
+                        {selectedConsulta ? (
+        
+                        `${new Date(selectedConsulta.data).toLocaleDateString()} - ${selectedConsulta.profissional?.nome}`
+                          ) : (
+                            "Selecione uma consulta"
+                          )}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhuma</SelectItem>
@@ -167,15 +174,15 @@ export function ExamDetailsForm({
              {/* Tipo de Exame Select */}
             <div>
               <Label>Tipo de Exame</Label>
-              <Select value={tipoExame} onValueChange={onTipoExameChange}> {/* Call parent handler */}
+              <Select value={tipo} onValueChange={onTipoChange}> {/* Call parent handler */}
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo de exame" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sangue">Sangue</SelectItem>
-                  <SelectItem value="urina">Urina</SelectItem>
-                  <SelectItem value="usg">USG</SelectItem>
-                  <SelectItem value="raiox">Raio-X</SelectItem>
+                  <SelectItem value="Sangue">Sangue</SelectItem>
+                  <SelectItem value="Urina">Urina</SelectItem>
+                  <SelectItem value="USG">USG</SelectItem>
+                  <SelectItem value="Raio-X">Raio-X</SelectItem>
                   <SelectItem value="outros">Outros</SelectItem>
                 </SelectContent>
               </Select>

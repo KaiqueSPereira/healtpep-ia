@@ -33,13 +33,28 @@ export default function ExameDetalhePage() {
 
   useEffect(() => {
     if (!id) return;
-    // Certifique-se de que o endpoint /api/exames/${id} retorna o objeto { exame: {...} }
+
+    // Fetch exam details
     fetch(`/api/exames/${id}`)
       .then((res) => res.json())
       .then((data) => setExame(data?.exame))
       .catch((err) => console.error("Erro ao buscar exame:", err))
       .finally(() => setLoading(false));
+
+    // Fetch the Data URL for the file
+    fetch(`/api/exames/arquivo?id=${id}`)
+      .then((res) => res.text()) // Get the response as text (the Data URL string)
+      .then((dataUrl) => {
+        // Find the iframe element and set its src
+        const iframe = document.querySelector('iframe[title="Arquivo do Exame"]');
+        if (iframe) {
+          iframe.setAttribute('src', dataUrl);
+        }
+      })
+      .catch((err) => console.error("Erro ao buscar arquivo do exame:", err));
+
   }, [id]);
+
 
   if (loading) {
     return <p className="p-4 text-muted-foreground">Carregando exame...</p>;
@@ -130,7 +145,7 @@ export default function ExameDetalhePage() {
             <div>
               <h2 className="mb-2 text-lg font-semibold">Arquivo Anexo</h2>
               <iframe
-                src={`/api/exames/${exame.id}/arquivo`} // Caminho da API ajustado
+                src={`/api/exames/arquivo?id=${exame.id}`} // Caminho da API ajustado
                 className="h-[600px] w-full rounded-md border"
                 title="Arquivo do Exame"
               />

@@ -91,8 +91,8 @@ export async function POST(req: NextRequest) {
     const anotacao = formData.get("anotacao")?.toString() || ""; // Anotação agora vem do frontend
     const dataExame = formData.get("dataExame")?.toString();
     const file = formData.get("file") as File | null;
-    const tipo = formData.get("tipoExame")?.toString();
-    const examesRaw = formData.get("exames")?.toString(); // Os resultados agora vêm do frontend em JSON stringificado
+    const tipo = formData.get("tipo")?.toString();
+    const examesRaw = formData.get("exames")?.toString(); // Os resultados agora vêm do frontend em JSON stringificadoconst tipo = formData.get("tipo")?.toString();
 
 
     console.log("Dados extraídos do FormData:", {

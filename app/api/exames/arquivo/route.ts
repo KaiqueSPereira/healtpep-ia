@@ -42,7 +42,6 @@ export async function GET(req: NextRequest) {
       gif: "image/gif",
       bmp: "image/bmp",
       webp: "image/webp",
-      // Adicione outros tipos de arquivo conforme necessário
       txt: "text/plain",
       // ...
     };
@@ -56,11 +55,13 @@ export async function GET(req: NextRequest) {
     console.log("Content-Disposition enviado:", `inline; filename="${exame.nomeArquivo}"`);
     // --- Fim dos logs ---
 
-    // Use o buffer descriptografado na resposta
-    return new Response(decryptedFileBuffer, {
+    
+    const base64File = decryptedFileBuffer.toString('base64');
+    const dataUrl = `data:${contentType};base64,${base64File}`;
+
+    return new Response(dataUrl, {
       headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${exame.nomeArquivo}"`,
+        "Content-Type": "text/plain", 
         "Cache-Control": "no-store",
       },
     });

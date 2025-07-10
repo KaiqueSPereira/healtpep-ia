@@ -7,12 +7,10 @@ import { useSession } from "next-auth/react";
 
 import Header from "../../_components/header";
 import Footer from "../../_components/footer";
-// Remove MenuUnidades, MenuProfissionais, MenuTratamentos imports here
 import TabelaExames from "./TabelaExames";
 import { Button } from "../../_components/ui/button";
 import { Input } from "../../_components/ui/input";
 import { Label } from "../../_components/ui/label";
-// Remove Select imports here
 import { Textarea } from "../../_components/ui/textarea";
 import { toast } from "../../_hooks/use-toast";
 
@@ -28,10 +26,6 @@ import {
 import { ConfirmarExameDialog } from "./ConfirmarExameDialog";
 import { ExamDetailsForm } from "./ExamDetailForm";
 
-
-
-// ... (AnaliseApiResponse and ExameCompleto types remain) ...
-
 export function  ExameFormWrapper({ existingExamData }: { existingExamData?: ExameCompleto | null }) {
   // Keep state that is shared or managed by the parent
   const [consultas, setConsultas] = useState<Consulta[]>([]);
@@ -46,7 +40,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
     useState<Tratamento | null>(null);
   const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
 
-  const [tipoExame, setTipoExame] = useState<string>("");
+  const [tipo, setTipo] = useState<string>("");
   const [dataExame, setDataExame] = useState<string>("");
   const [anotacao, setAnotacao] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -109,26 +103,21 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
           );
       }, [selectedUnidade]);
 
-
-  // Populate form with existing data when editing - Keep this here
-  useEffect(() => {
+    useEffect(() => {
     if (existingExamData) {
       console.log("Existing exam data received:", existingExamData);
-      console.log("Value of existingExamData.tipoExame:", existingExamData.tipoExame);
 
-      setTipoExame(existingExamData.tipoExame || "");
-      console.log("tipoExame state after setting in useEffect:", existingExamData.tipoExame || "");
-
-
+      setTipo(existingExamData.tipo || "");
       setDataExame(existingExamData.dataExame.split('T')[0] || "");
       setAnotacao(existingExamData.anotacao || "");
       setExameResultados(existingExamData.resultados || []);
       console.log("exameResultados state after setting from existing data:", existingExamData.resultados);
-
-
       setSelectedConsulta(existingExamData.consulta || null);
+      console.log("Inspecting existingExamData.consulta before setSelectedConsulta:", existingExamData.consulta);
       setSelectedProfissional(existingExamData.profissional || null);
+      console.log("Value being used for setSelectedProfissional:", existingExamData.profissional);
       setSelectedUnidade(existingExamData.unidades || null);
+      console.log("Value being used for setSelectedUnidade:", existingExamData.unidades);
       setSelectedTratamento(existingExamData.tratamento || null);
 
 
@@ -173,7 +162,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
     setSelectedFile(file);
     setExameResultados([]);
     setAnotacao("");
-    setTipoExame("");
+    setTipo("");
   };
 
   const handleAnalyzeFile = async () => {
@@ -246,14 +235,14 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
     console.log("selectedUnidade:", selectedUnidade);
     console.log("selectedConsulta:", selectedConsulta);
     console.log("selectedTratamento:", selectedTratamento);
-    console.log("tipoExame:", tipoExame);
+    console.log("tipo:", tipo);
     console.log("dataExame:", dataExame);
     console.log("anotacao:", anotacao);
     console.log("selectedFile:", selectedFile);
     console.log("exameResultados (antes de enviar):", exameResultados);
 
 
-    const needsAnalysis = ["urina", "sangue"].includes(tipoExame);
+    const needsAnalysis = ["Urina", "Sangue"].includes(tipo);
     const analysisDoneAndResultsFound = needsAnalysis ? (exameResultados?.length > 0) : true;
 
 
@@ -263,7 +252,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
       !selectedUnidade?.id ||
       (!existingExamData && !selectedFile) ||
       !dataExame ||
-      !tipoExame ||
+      !tipo ||
       (!selectedConsulta?.id && !selectedTratamento?.id) ||
       (needsAnalysis && !analysisDoneAndResultsFound && !existingExamData)
     ){
@@ -275,7 +264,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
       else if (!selectedUnidade?.id) errorMessage = "Por favor, selecione uma unidade.";
       else if (!existingExamData && !selectedFile) errorMessage = "Por favor, selecione um arquivo.";
       else if (!dataExame) errorMessage = "Por favor, preencha a data do exame.";
-      else if (!tipoExame) errorMessage = "Por favor, selecione o tipo de exame.";
+      else if (!tipo) errorMessage = "Por favor, selecione o tipo de exame.";
       else if (!selectedConsulta?.id && !selectedTratamento?.id) errorMessage = "Por favor, selecione uma consulta ou um tratamento.";
       else if (needsAnalysis && !analysisDoneAndResultsFound && !existingExamData) errorMessage = "Por favor, analise o arquivo e garanta que resultados foram extraídos para este tipo de exame.";
 
@@ -296,7 +285,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
       formData.append("anotacao", anotacao);
       formData.append("dataExame", dataExame);
       if (selectedFile) formData.append("file", selectedFile);
-      formData.append("tipo", tipoExame);
+      formData.append("tipo", tipo);
 
 
       let res;
@@ -311,7 +300,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
             anotacao: anotacao,
             dataExame: dataExame,
             tratamentoId: selectedTratamento?.id || null,
-             tipo: tipoExame,
+             tipo: tipo,
              profissionalId: selectedProfissional?.id || null,
              unidadeId: selectedUnidade?.id || null,
              consultaId: selectedConsulta?.id || null,
@@ -325,7 +314,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
           }),
         });
       } else {
-         formData.append("tipo", tipoExame);
+         formData.append("tipo", tipo);
 
          if (needsAnalysis && exameResultados.length > 0) {
              formData.append(
@@ -365,10 +354,6 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
     }
   };
 
-  // Log tipoExame state here to see its value after updates
-  console.log("Current tipoExame state:", tipoExame);
-
-
   return (
     <>
       <Header />
@@ -390,8 +375,11 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
                 onTratamentoSelect={setSelectedTratamento}
                 dataExame={dataExame}
                 onDataExameChange={setDataExame}
-                tipoExame={tipoExame}
-                onTipoExameChange={setTipoExame}
+                tipo={tipo} // Pass the type state down
+                onTipoChange={(value) => { // Add console log and update state
+ console.log("Tipo changed to:", value);
+ setTipo(value);
+                }}
                 selectorsKey={selectorsKey}
            />
 
@@ -432,7 +420,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
              )}
           </div>
 
-          {["sangue", "urina"].includes(tipoExame) && (
+          {["Sangue", "Urina"].includes(tipo) && (
             <>
               <TabelaExames
                 exames={exameResultados || []} // Use exameResultados state
@@ -445,7 +433,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
 
           <ConfirmarExameDialog
             loadingSubmit={loadingSubmit}
-            tipoExame={tipoExame}
+            tipo={tipo}
             dataExame={dataExame} // Use dataExame state
             selectedProfissional={selectedProfissional}
             selectedUnidade={selectedUnidade}
@@ -457,7 +445,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
               disabled={
                 loadingSubmit ||
                 (!existingExamData && !selectedFile) || // File is required for new exams
-                (["sangue", "urina"].includes(tipoExame) && !existingExamData && (!exameResultados || exameResultados.length === 0)) // Validate analysis and results only for new exams of types that need analysis
+                (["Sangue", "Urina"].includes(tipo) && !existingExamData && (!exameResultados || exameResultados.length === 0)) // Validate analysis and results only for new exams of types that need analysis
               }
               className="w-full"
             >

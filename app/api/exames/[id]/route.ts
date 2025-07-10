@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma, db } from "@/app/_lib/prisma"; // Adicionado 'db' caso seja usado no PUT/DELETE original
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { safeDecrypt, encryptString } from "@/app/_lib/crypto"; // Adicionado encryptString para o PUT
+import { safeDecrypt, encryptString, decrypt } from "@/app/_lib/crypto"; // Adicionado encryptString para o PUT
 
 
 export async function GET(
@@ -28,13 +28,26 @@ export async function GET(
         id,
         userId,
       },
-      include: {
+      select: {
+        id: true,
+        nome: true,
+        nomeArquivo: true,
+        dataExame: true,
+        anotacao: true,
+        userId: true,
+        profissionalId: true,
+        consultaId: true,
+        unidadesId: true,
+        tratamentoId: true,
+        tipo: true,
         profissional: true,
         unidades: true,
         consulta: true,
-        resultados: true, // necessário para descriptografar os resultados também
+        tratamento: true,
+        resultados: true,
       },
     });
+    console.log("Raw exam data from DB:", exame);
 
     if (!exame) {
       return NextResponse.json(
@@ -48,7 +61,11 @@ export async function GET(
       nome: exame.nome ? safeDecrypt(exame.nome) : null,
       nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
       anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
-      tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+      tipo: exame.tipo || null,
+      consulta: exame.consultaId || null,
+      tratamento: exame.tratamento || null,
+      profissional: exame.profissional || null,
+      unidades: exame.unidades || null,
       resultados: exame.resultados?.map((r) => ({
         ...r,
         nome: safeDecrypt(r.nome) ?? '',
