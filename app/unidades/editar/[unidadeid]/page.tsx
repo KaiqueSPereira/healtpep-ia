@@ -5,7 +5,6 @@ import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/app/_components/ui/button";
 import { ChevronLeftIcon, Loader2 } from "lucide-react";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer";
 import {
   Popover,
   PopoverContent,
@@ -253,7 +252,6 @@ const UnidadeDetalhesPage = () => {
           </div>
         </div>
       )}
-      <Footer />
     </div>
   );
 };

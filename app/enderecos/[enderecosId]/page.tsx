@@ -13,7 +13,6 @@ import {
 } from "@/app/_components/ui/form";
 import { Input } from "@/app/_components/ui/input";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer";
 import { toast } from "@/app/_hooks/use-toast";
 
 type EnderecoForm = {
@@ -54,8 +53,7 @@ const EnderecoDialog: React.FC = () => {
   const handleSubmit = async (data: EnderecoForm) => {
     if (!session?.user?.id) {
       console.error("Usuário não autenticado.");
-      toast("Usuário não autenticado.","foreground",
-        { title: "Usuário não autenticado." });
+      toast({ title: "Usuário não autenticado.", variant: "destructive", duration: 5000 });
       return;
     }
 
@@ -79,13 +77,11 @@ const EnderecoDialog: React.FC = () => {
         throw new Error(error.error || "Erro ao salvar o endereço.");
       }
 
-      toast("Endereço salvo com sucesso!","foreground",
-        { title: "Endereço salvo com sucesso!" });
+      toast({ title: "Endereço salvo com sucesso!", variant: "default", duration: 5000 });
       form.reset();
     } catch (error) {
       console.error("Erro ao salvar o endereço:", error);
-      toast("Erro ao salvar o endereço","foreground",
-        { title: "Erro ao salvar o endereço" });
+      toast({ title: "Erro ao salvar o endereço", variant: "destructive", duration: 5000 });
     }
   };
 
@@ -107,7 +103,7 @@ const EnderecoDialog: React.FC = () => {
         })
         .catch((error) => {
           console.error("Erro ao consultar o CEP:", error);
-          toast("Erro ao consultar o CEP", "foreground", { title: "Erro ao consultar o CEP"}
+          toast({ title: "Erro ao consultar o CEP", variant: "destructive", duration: 5000 }
           );
         });
     }
@@ -236,7 +232,6 @@ const EnderecoDialog: React.FC = () => {
           </Form>
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { randomUUID } from "crypto";
 import { authOptions } from "@/app/_lib/auth";
-import { db, prisma } from "@/app/_lib/prisma";
+import { prisma } from "@/app/_lib/prisma";
 import { encrypt, encryptString, safeDecrypt } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
 

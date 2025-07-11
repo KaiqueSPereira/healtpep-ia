@@ -64,7 +64,7 @@ export function ProfissionalFormWrapper() {
       setSelectedUnidade(data.unidade);
     } catch (error) {
       console.error("Erro ao buscar profissional:", error);
-      toast("Erro ao buscar profissional.", "destructive", { duration: 5000 });
+        toast({title: "Erro ao buscar profissional.",variant: "destructive", duration: 5000});
     }
   };
 
@@ -85,7 +85,7 @@ export function ProfissionalFormWrapper() {
       setUnidades(data);
     } catch (error) {
       console.error("Erro ao buscar unidades:", error);
-      toast("Erro ao buscar unidades.", "destructive", { duration: 5000 });
+      toast({title:"Erro ao buscar unidades.", variant: "destructive", duration: 5000});
     }
   };
 
@@ -278,7 +278,6 @@ export function ProfissionalFormWrapper() {
           </form>
         </Form>
       </div>
-      <Footer />
     </div>
   );
 }

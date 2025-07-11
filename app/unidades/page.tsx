@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, CalendarCheck, Loader2, AlertCircle } from "lucide-react";
 import Header from "../_components/header";
-import Footer from "../_components/footer";
 import Link from "next/link";
 import { Button } from "../_components/ui/button";
 import {
@@ -139,7 +138,7 @@ const UnidadesPage = () => {
         setUnidades((unidades) =>
           unidades.filter((unidade) => unidade.id !== deleteId),
         );
-        toast("Unidade apagada com sucesso!", "foreground", { duration: 5000 });
+        toast({title: "Unidade apagada com sucesso!", variant:"destructive", duration: 5000 });
       })
       .catch((error) => {
         console.error("Erro ao apagar unidade:", error);
@@ -220,7 +219,6 @@ const UnidadesPage = () => {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 };

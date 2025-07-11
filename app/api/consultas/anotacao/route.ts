@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(createdAnotacao, { status: 201 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao criar anotação:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor ao criar anotação" },

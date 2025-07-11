@@ -14,10 +14,10 @@ import {
 } from "@/app/_components/ui/form";
 import { Input } from "@/app/_components/ui/input";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { Profissional } from "@/app/_components/types";
+import { title } from "process";
 
 type TratamentoForm = {
   nome: string;
@@ -71,7 +71,7 @@ const NewTratamento: React.FC = () => {
 
   const handleSubmit = async (data: TratamentoForm) => {
     if (!session?.user) {
-      toast("Usuário não autenticado.", "destructive", { title: "Usuário não autenticado." });
+      toast({title:"Usuário não autenticado.", variant: "destructive", duration: 5000});
       return;
     }
 
@@ -96,14 +96,14 @@ const NewTratamento: React.FC = () => {
       }
 
       console.log("Tratamento salvo com sucesso.");
-      toast("Tratamento salvo com sucesso.", "default", { title: "Tratamento salvo com sucesso." });
+        toast({title:"Tratamento salvo com sucesso.", variant: "default", duration: 5000});
 
       setTimeout(() => {
         router.push("/");
       }, 1000);
     } catch (error) {
       console.error("Erro ao salvar o tratamento:", error);
-      toast("Ocorreu um erro ao salvar o tratamento.", "destructive", { title: "Ocorreu um erro ao salvar o tratamento." });
+      toast({title:"Ocorreu um erro ao salvar o tratamento.", variant: "destructive",duration: 5000});
     }
   };
 
@@ -158,7 +158,6 @@ const NewTratamento: React.FC = () => {
           </Form>
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

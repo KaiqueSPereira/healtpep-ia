@@ -7,6 +7,16 @@ interface ConsultaParams {
   params: { consultaId: string };
 }
 
+// Interfaces simples baseadas no uso no código
+interface Anotacao {
+  id: string;
+  anotacao: string;
+  consultaId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  // Adicione outras propriedades se forem usadas
+}
+
 // 📌 GET - Buscar uma consulta específica
 export async function GET(_request: Request, { params }: ConsultaParams) {
   try {
@@ -34,20 +44,25 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
       motivo: consulta.motivo ? safeDecrypt(consulta.motivo) : null,
       tipodeexame: consulta.tipodeexame ? safeDecrypt(consulta.tipodeexame) : null,
        // Certifique-se de que Anotacoes existe antes de mapear
-      Anotacoes: consulta.Anotacoes ? consulta.Anotacoes.map((anotacao: any) => ({
+      Anotacoes: consulta.Anotacoes ? consulta.Anotacoes.map((anotacao: Anotacao) => ({ // Usando a interface Anotacao
         ...anotacao,
         anotacao: safeDecrypt(anotacao.anotacao),
       })) : [], // Retorna array vazio se não houver Anotacoes
-      // Certifique-se de que Exame existe antes de mapear
-      Exame: consulta.Exame ? consulta.Exame.map((exame: any) => ({
-          ...exame,
-          resultado: exame.resultado ? safeDecrypt(exame.resultado) : null,
-      })) : [], // Retorna array vazio se não houver Exame
+      
+      Exame: consulta.Exame ? consulta.Exame.map((exame) => {
+      return {
+        ...exame,
+        // Trate as propriedades conforme solicitado
+        tipo: typeof exame.tipo === 'string' ? safeDecrypt(exame.tipo) : exame.tipo, // Verifique o tipo antes de descriptografar
+        anotacao: typeof exame.anotacao === 'string' ? safeDecrypt(exame.anotacao) : exame.anotacao, // Verifique o tipo
+        dataExame: typeof exame.dataExame === 'object' ? exame.dataExame.toISOString() : exame.dataExame, // Converte Date para ISO string
+      };
+     }) : [], // Retorna array vazio se não houver Exame
     };
 
     return NextResponse.json(decryptedConsulta);
 
-  } catch (error: any) {
+  } catch (error) { 
     console.error("Erro ao buscar consulta:", error);
     return NextResponse.json(
       { error: "Erro interno do servidor" },
@@ -61,9 +76,9 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
   try {
     const body = await request.json();
     // Remover anotacaoId e anotacao do body, pois este PATCH é para a consulta
-    const { motivo, tipodeexame, anotacaoId, anotacao, ...rest } = body;
+    const { motivo, tipodeexame, ...rest } = body; // Removido anotacaoId e anotacao
 
-    let dataToUpdate: any = { ...rest };
+    const dataToUpdate = { ...rest }; // Mudado para const e removido : any
 
     if (motivo !== undefined) {
       dataToUpdate.motivo = motivo ? encryptString(motivo) : null;
@@ -81,7 +96,7 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
 
     return NextResponse.json(consultaAtualizada);
 
-  } catch (error: any) {
+  } catch (error) { // Removido ': any'
     console.error("Erro ao atualizar consulta:", error);
     return NextResponse.json(
       { error: "Erro ao atualizar consulta" },
@@ -99,7 +114,7 @@ export async function DELETE(_request: Request, { params }: ConsultaParams) {
       { message: "Consulta deletada com sucesso" },
       { status: 200 },
     );
-  } catch (error: any) {
+  } catch (error) { // Removido ': any'
     console.error("Erro ao deletar consulta:", error);
     return NextResponse.json(
       { error: "Erro ao deletar consulta" },

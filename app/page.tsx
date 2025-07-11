@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import Header from "./_components/header";
 import Searchbar from "./_components/searchbar";
 import NovaConsulta from "./consulta/components/novaconsulta";
-import Footer from "./_components/footer";
 import AgendamentosList from "./consulta/components/agendamentolist";
 import { authOptions } from "./_lib/auth";
 import { Button } from "./_components/ui/button";
@@ -44,7 +43,6 @@ const Home = async () => {
           </div>
         </div>
       </div>
-      <Footer />
     </div>
   );
 };

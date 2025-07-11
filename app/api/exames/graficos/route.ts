@@ -11,10 +11,8 @@ function tryDecrypt(encryptedValue: string | null | undefined): string | null {
     return null;
   }
   try {
-    // Tenta o método mais recente (compatível com safeDecrypt/encryptString)
     return decryptString(encryptedValue);
-  } catch (e) {
-    // Se falhar, tenta o método hexadecimal anterior
+  } catch {
     try {
       // Verifica se a string pode ser hex (uma verificação simples)
       if (/^[0-9a-fA-F]+$/.test(encryptedValue)) {
@@ -32,32 +30,7 @@ function tryDecrypt(encryptedValue: string | null | undefined): string | null {
   }
 }
 
-
-type Resultado = {
-  id: string;
-  exameId: string;
-  nome: string;
-  valor: string;
-  unidade?: string | null;
-  referencia?: string | null;
-};
-
-type Exame = {
-  id: string;
-  userId: string;
-  nome: string;
-  dataExame: Date;
-  anotacao?: string | null;
-  nomeArquivo?: string | null;
-  profissionalId?: string | null;
-  unidadeSaudeId?: string | null; // Corrigido de unidadesId para unidadeSaudeId conforme o schema? Ou verificar o schema.
-  consultaId?: string | null;
-  resultados: Resultado[];
-};
-
-
-export async function GET(req: NextRequest) {
-   console.log("--- Início do GET em /api/exames/graficos ---");
+export async function GET() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
@@ -83,7 +56,6 @@ export async function GET(req: NextRequest) {
      console.log(`Encontrados ${exames.length} exames para gráficos.`);
 
     const decryptedExames = exames.map(exame => {
-       // Usando a função auxiliar tryDecrypt
       const decryptedNome = tryDecrypt(exame.nome);
       const decryptedAnotacao = tryDecrypt(exame.anotacao);
       const decryptedNomeArquivo = tryDecrypt(exame.nomeArquivo);
@@ -91,7 +63,6 @@ export async function GET(req: NextRequest) {
 
        const decryptedResultados = exame.resultados.map(resultado => ({
         ...resultado,
-         // Usando a função auxiliar tryDecrypt para os resultados
         nome: tryDecrypt(resultado.nome) || '', // Retorna string vazia se falhar para nome (obrigatório)
         valor: tryDecrypt(resultado.valor) || '', // Retorna string vazia se falhar para valor (obrigatório)
         unidade: tryDecrypt(resultado.unidade),

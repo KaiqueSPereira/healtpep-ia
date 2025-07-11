@@ -1,8 +1,5 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { ApiRouteHandler } from "../../types"; // Adjusted import path
-
-type UnidadeParams = Record<string, never>;
 
 // Método POST (mantido para a rota sem ID)
 export async function POST(req: Request) {
@@ -134,7 +131,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
 }
 
 // Método GET (para a rota sem ID, buscando todas as unidades)
-export const GET_ALL = async (request: Request) => {
+export const GET_ALL = async (_request: Request) => {
   try {
     const unidades = await db.unidadeDeSaude.findMany({
       select: {

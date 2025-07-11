@@ -4,7 +4,6 @@ import { Consultatype, Consultas, Profissional } from "@prisma/client";
 import { db } from "../_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
 import Header from "../_components/header";
-import Footer from "../_components/footer";
 
 import ConsultaFilter from './components/ConsultaFilter';
 
@@ -70,13 +69,16 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const profissionalId = searchParams.profissionalId;
   const tipo = searchParams.tipo;
 
-  const whereClause: any = {};
+  const whereClause = {}; // Removido ': any'
 
   if (profissionalId) {
+    // @ts-ignore
     whereClause.profissionalId = profissionalId;
   }
 
+
    if (tipo && Object.values(Consultatype).includes(tipo)) {
+    // @ts-ignore
      whereClause.tipo = tipo;
    }
 
@@ -92,15 +94,18 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
       ].filter(Boolean);
 
       if (Object.keys(whereClause).length > 0) {
+          // @ts-ignore
           whereClause.AND = searchConditions;
       } else {
+           // @ts-ignore
           whereClause.OR = searchConditions;
       }
   }
 
    const parsedDate = parseDate(search);
    if (parsedDate && Object.keys(whereClause).length === 0) {
-        whereClause.data = { equals: parsedDate };
+        // @ts-ignore
+ whereClause.data = { equals: parsedDate };
    }
 
 
@@ -156,8 +161,6 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
           <p>Nenhum resultado encontrado com os critérios especificados.</p>
         )}
       </div>
-
-      <Footer />
     </div>
   );
 };

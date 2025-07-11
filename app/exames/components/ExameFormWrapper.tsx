@@ -4,9 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-
 import Header from "../../_components/header";
-import Footer from "../../_components/footer";
 import TabelaExames from "./TabelaExames";
 import { Button } from "../../_components/ui/button";
 import { Input } from "../../_components/ui/input";
@@ -454,7 +452,6 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
           </ConfirmarExameDialog>
         </form>
       </main>
-      <Footer />
     </>
   );
 };

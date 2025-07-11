@@ -51,9 +51,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         setAgendamentosPassados(ultimos5Passados); // Usar os 5 mais recentes
       } catch (error) {
         console.error("Erro ao buscar consultas:", error);
-        toast("Erro ao carregar as consultas.", "destructive", {
-          title: "Erro ao carregar as consultas.",
-        });
+        toast({title: "Erro ao carregar as consultas.", variant: "destructive", duration: 5000});
       } finally {
         setLoading(false);
       }

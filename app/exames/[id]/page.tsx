@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Exame } from "@/app/_components/types";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer";
 import { Button } from "@/app/_components/ui/button";
 
 // Interface para o resultado do exame (pode ser a mesma usada na API ou uma adaptada para o frontend)
@@ -183,7 +182,6 @@ export default function ExameDetalhePage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

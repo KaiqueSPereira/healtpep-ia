@@ -16,7 +16,6 @@ import {
 } from "../_components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import Header from "../_components/header";
-import Footer from "../_components/footer";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -61,7 +60,7 @@ const ProfissionaisPage = () => {
   };
 
   const handleCardClick = (profissionalId: string) => {
-    router.push(`/profissionais/${profissionalId}/editar`);
+    router.push(`/profissionais/${profissionalId}`);
   };
 
   return (
@@ -144,7 +143,6 @@ const ProfissionaisPage = () => {
           </div>
         )}
       </div>
-      <Footer />
     </div>
   );
 };

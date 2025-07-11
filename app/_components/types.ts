@@ -28,7 +28,7 @@ export interface Tratamento {
 export interface Agendamento {
   id: string;
   tipo: string;
-  data: string;
+  data: Date;
   profissional?: { nome: string };
   unidade?: { nome: string };
 }

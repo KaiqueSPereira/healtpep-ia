@@ -53,7 +53,7 @@ export function ExamDetailsForm({
     selectorsKey
 }: ExamDetailsFormProps) {
 
-    console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); // Cole aqui
+    console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); 
     console.log("Value passed to MenuProfissionais (selectedProfissional):", selectedProfissional);
 
      const { data: session } = useSession();
@@ -63,22 +63,15 @@ export function ExamDetailsForm({
      // Fetch professionals based on selected unit - this logic can stay here
       useEffect(() => {
         if (!selectedUnidade?.id) {
-          // Assuming you have a way to set professionals state within this component
-          // or that profissionais is passed down and handled appropriately.
-          // If profissionais state is managed in the parent, this effect might need to be in the parent.
-          // For now, let's assume profissionais is managed in the parent and passed down.
-          // If you move the state here, you'd need setProfissionais state here.
-          // setProfissionais([]);
+          setProfissionais([]);
           return;
         }
-         // Assuming profissional fetching is handled in the parent component and passed down
-        // If you move the fetch logic here, you'd need setProfissionais here.
-        // fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
-        //   .then((r) => r.json())
-        //   .then((d) => setProfissionais(d.profissionais || []))
-        //   .catch(() =>
-        //     toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
-        //   );
+        fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
+          .then((r) => r.json())
+           .then((d) => setProfissionais(d.profissionais || []))
+           .catch(() =>
+            toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
+           );
       }, [selectedUnidade]); // Dependency array
 
 

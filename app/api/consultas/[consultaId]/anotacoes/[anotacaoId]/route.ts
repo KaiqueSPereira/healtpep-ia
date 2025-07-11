@@ -33,7 +33,7 @@ export async function PATCH(
 
     return NextResponse.json(updatedAnotacao, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao atualizar anotação:", error);
     return NextResponse.json(
       { error: "Erro ao atualizar anotação." },
@@ -52,7 +52,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Anotação deletada com sucesso." }, { status: 200 });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Erro ao deletar anotação:", error);
     return NextResponse.json({ error: "Erro ao deletar anotação." }, { status: 500 });
   }

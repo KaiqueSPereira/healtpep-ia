@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer";
 import { toast } from "@/app/_hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import ExameLineChart from "./components/ExameLineChart";
@@ -334,7 +333,6 @@ export default function ExamesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-       <Footer />
     </div>
   );
 }
