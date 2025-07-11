@@ -108,7 +108,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // Método DELETE
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE( { params }: { params: { id: string } }) {
   const { id } = params; // Get ID from URL parameters
 
   if (!id) {
@@ -129,56 +129,3 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     );
   }
 }
-
-// Método GET (para a rota sem ID, buscando todas as unidades)
-export const GET_ALL = async (_request: Request) => {
-  try {
-    const unidades = await db.unidadeDeSaude.findMany({
-      select: {
-        id: true,
-        nome: true,
-        tipo: true,
-        enderecoId: true,
-        createdAt: true,
-        updatedAt: true,
-        telefone: true,
-        endereco: {
-          select: {
-            id: true,
-            CEP: true,
-            numero: true,
-            rua: true,
-            bairro: true,
-            municipio: true,
-            UF: true,
-            nome: true,
-            userId: true,
-            unidadeId: true,
-            createdAt: true,
-            updatedAt: true,
-          }
-        },
-        profissionais: {
-          select: {
-            id: true,
-            nome: true,
-            especialidade: true,
-            NumClasse: true,
-            createdAt: true,
-            updatedAt: true,
-          }
-        },
-        consultas: true,
-        exames: true,
-      }
-    });
-
-    return NextResponse.json(unidades);
-  } catch (error) {
-    console.error("Erro ao buscar unidades:", error);
-    return NextResponse.json(
-      { error: "Erro interno do servidor" },
-      { status: 500 },
-    );
-  }
-};

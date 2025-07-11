@@ -214,9 +214,9 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
        setAnotacao("");
     }
 
-    } catch (error: any) {
+    } catch (error: unknown ) {
       console.error("Erro na chamada da API de análise:", error);
-      toast({ title: "Erro inesperado na análise", description: error.message || "Ocorreu um erro inesperado durante a análise.", variant: "destructive", duration: 5000 });
+      toast({ title:"Ocorreu um erro inesperado durante a análise.", variant: "destructive", duration: 5000 });
        setExameResultados([]);
        setAnotacao("");
     } finally {
@@ -344,10 +344,7 @@ export function  ExameFormWrapper({ existingExamData }: { existingExamData?: Exa
         toast({ title: existingExamData ? "Erro ao atualizar o exame" : "Erro ao enviar o exame", description: errorData.error || (existingExamData ? "Ocorreu um erro ao atualizar o exame." : "Ocorreu um erro ao salvar o exame."), variant: "destructive", duration: 5000 });
         console.error("Erro do backend:", errorData);
       }
-    } catch (err: any) {
-      toast({ title: "Erro inesperado", description: err.message || "Ocorreu um erro inesperado.", variant: "destructive", duration: 5000 });
-      console.error("Erro no frontend:", err);
-    } finally {
+    }  finally {
       setLoadingSubmit(false);
     }
   };

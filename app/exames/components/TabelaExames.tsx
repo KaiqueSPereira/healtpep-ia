@@ -10,8 +10,7 @@ import {
   SelectValue,
 } from "@/app/_components/ui/select";
 import { Trash2, Plus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Exame, ResultadoExame } from "@/app/_components/types";
+import { ResultadoExame } from "@/app/_components/types";
 
 
 // app/exames/components/TabelaExames.tsx
@@ -69,9 +68,7 @@ export default function TabelaExames({
   onRemoveExame,
   onExameChange,
 }: TabelaExamesProps) {
-  const [examesSugeridos, setExamesSugeridos] = useState<Exame[]>([]);
-
-
+  
   return (
     <div className="overflow-x-auto rounded-lg border shadow-sm">
       <table className="w-full table-auto text-sm text-white">
@@ -85,32 +82,6 @@ export default function TabelaExames({
           </tr>
         </thead>
         <tbody>
-          {examesSugeridos.map((exame, index) => (
-            <tr key={`sugerido-${index}`} className="hover:bg-muted/50">
-              <td className="border p-2">
-                <Input value={exame.nome} readOnly />
-              </td>
-              <td className="border p-2">
-                <Input
-                  value={exame.resultados?.[0]?.valor || ""}
-                  onChange={(e) =>
-                    onExameChange(index, "valor", e.target.value)
-                  }
-                  placeholder="Novo valor"
-                />
-              </td>
-              <td className="border p-2">
-                <Input value={exame.unidades?.nome} readOnly />
-              </td>
-              <td className="border p-2">
-                <Input value={exame.resultados?.[0]?.referencia} readOnly />
-              </td>
-              <td className="border p-2 text-center">
-                <span className="text-muted">Sugestão</span>
-              </td>
-            </tr>
-          ))}
-
           {exames.map((exame, index) => (
             <tr key={`novo-${index}`} className="hover:bg-muted/50">
               <td className="border p-2">

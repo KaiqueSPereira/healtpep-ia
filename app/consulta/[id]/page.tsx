@@ -19,6 +19,7 @@ import { toast } from "@/app/_hooks/use-toast";
 import { useParams, useRouter } from "next/navigation";
 // Removida a importação de Footer
 import { Exame, Profissional, Unidade } from "@/app/_components/types"; // Importar tipos necessários
+import { Tratamento } from "@prisma/client";
 
 // Interface para a estrutura da Anotacao (se não puder importar de outro lugar)
 interface Anotacao {
@@ -39,11 +40,9 @@ interface ConsultaData {
     unidade: Unidade | null;
     profissional: Profissional | null;
     Anotacoes: Anotacao[]; // Array de Anotacoes
-    Exame: Exame[]; // Array de Exames (usando o tipo Exame do seu types.ts ou uma interface local)
-    // Incluir outras propriedades que a API retorna
-    tratamento?: any; // Tipar melhor se possível
+    Exame: Exame[];
+    tratamento: Tratamento | null; 
 }
-
 
 // Este componente é um Client Component
 const ConsultaPage = () => {

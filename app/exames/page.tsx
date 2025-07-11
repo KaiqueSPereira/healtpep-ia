@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback,useEffect, useState } from "react";
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import { toast } from "@/app/_hooks/use-toast";
@@ -11,47 +11,7 @@ import ExameTypeFilter from "./components/ExameTypeFilter";
 import { ExameGrid } from "./components/ExamesGrid";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
-
-type Resultado = {
-  nome: string;
-  valor: string;
-  unidade?: string;
-  referencia?: string;
-};
-
-type Profissional = {
-  nome: string;
-};
-
-type UnidadeSaude = {
-  nome: string;
-};
-
-type Tratamento = {
-    nome: string;
-};
-
-
-type ExameGraficos = { // Type for data from graphics API
-  id: string;
-  nome: string;
-  dataExame: string;
-  anotacao?: string;
-  nomeArquivo?: string;
-  resultados?: Resultado[];
-};
-
-type ExameCompleto = { // Type for data from full exams API
-    id: string;
-    nome: string;
-    dataExame: string;
-    anotacao?: string;
-    nomeArquivo?: string;
-    profissional?: Profissional;
-    unidades?: UnidadeSaude;
-    resultados?: Resultado[];
-    tratamento?: Tratamento;
-};
+import { ChartData, ExameCompleto, ExameGraficos } from "../_components/types";
 
 
 export default function ExamesPage() {
@@ -64,7 +24,7 @@ export default function ExamesPage() {
   const [selectedExameTypes, setSelectedExameTypes] = useState<string[]>([]);
   const [selectedResultNames, setSelectedResultNames] = useState<string[]>([]);
   const [currentView, setCurrentView] = useState<'list' | 'charts'>('charts');
-  const [chartData, setChartData] = useState<any>(null);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
@@ -182,16 +142,18 @@ export default function ExamesPage() {
       .sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
 
-    const chartDatasets = Object.entries(processedData).map(([resultName, data], index) => ({
-      label: resultName,
-      data: allDates.map(date => {
-        const dataIndex = data.dates.indexOf(date);
-        return dataIndex > -1 ? data.values[dataIndex] : null;
-      }),
-      borderColor: `hsl(${index * 50}, 70%, 50%)`,
-      tension: 0.1,
-      spanGaps: true,
-    }));
+      const chartDatasets = Object.entries(processedData).map(([resultName, data], index) => ({
+        label: resultName,
+        data: allDates.map(date => {
+          const dataIndex = data.dates.indexOf(date);
+          return dataIndex > -1 ? data.values[dataIndex] : 0; 
+        }) as number[], // Afirme o tipo como number[]
+        borderColor: `hsl(${index * 50}, 70%, 50%)`,
+        backgroundColor: `hsl(${index * 50}, 70%, 70%, 0.2)`,
+        tension: 0.1,
+        spanGaps: true,
+      }));
+  
 
 
     setChartData({
@@ -200,6 +162,14 @@ export default function ExamesPage() {
     });
 
   }, [filteredExames, selectedResultNames, currentView]); // Depend on currentView
+
+  const handleSelectTypes = useCallback((selectedTypes: string[]) => {
+    setSelectedExameTypes(selectedTypes);
+  }, [setSelectedExameTypes]);
+
+  const handleSelectResultsForChart = useCallback((selectedResults: string[]) => {
+    setSelectedResultNames(selectedResults);
+  }, [setSelectedResultNames]);
 
   const handleDeleteClick = (examId: string) => {
     setExamToDelete(examId);
@@ -243,7 +213,6 @@ export default function ExamesPage() {
           </div>
 
 
-          {/* Filters Area (only in charts view) */}
           {currentView === 'charts' && (
             <div className="flex flex-wrap gap-4 items-center mb-6">
                {/* Date Filter Inputs */}
@@ -258,12 +227,10 @@ export default function ExamesPage() {
                   </div>
                 </div>
 
-                {/* Exame Type Filter and Result Selector Button */}
-                {/* Pass examesGraficosData to ExameTypeFilter as it needs results */}
                 <ExameTypeFilter
-                    exames={examesGraficosData}
-                    onSelectTypes={setSelectedExameTypes}
-                    onSelectResultsForChart={setSelectedResultNames}
+                   exames={examesGraficosData}
+                    onSelectTypes={handleSelectTypes} // Use a callback envolvida
+                     onSelectResultsForChart={handleSelectResultsForChart} // Use a callback envolvida
                 />
 
             </div>

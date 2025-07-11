@@ -31,19 +31,16 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
   const [selectedFilterTypes, setSelectedFilterTypes] = useState<string[]>([]);
   const [selectedChartResults, setSelectedChartResults] = useState<string[]>([]);
 
-  // Extract unique result names (types) from all exams
   const allResultNames = Array.from(new Set(exames.flatMap(exame =>
     exame.resultados?.map(resultado => resultado.nome) || []
   ))).sort();
 
-  // Initialize selected types/results and immediately call callbacks
   useEffect(() => {
       setSelectedFilterTypes(allResultNames);
       setSelectedChartResults(allResultNames);
-      // Call the callbacks immediately after initialization
       onSelectTypes(allResultNames);
       onSelectResultsForChart(allResultNames);
-  }, [exames]); // Dependency on exames
+  }, [exames, allResultNames, onSelectTypes, onSelectResultsForChart]);
 
 
   const handleCheckboxChange = (type: string, isChecked: boolean) => {

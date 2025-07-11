@@ -8,7 +8,7 @@ import { encrypt, encryptString, safeDecrypt } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
 
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   console.log("--- Início do GET em /api/exames ---");
 
   const session = await getServerSession(authOptions);

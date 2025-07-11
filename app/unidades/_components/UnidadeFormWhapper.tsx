@@ -1,6 +1,5 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
-import Footer from "@/app/_components/footer";
 import Header from "@/app/_components/header";
 import {
   Form,
@@ -269,7 +268,6 @@ export function UnidadeFormWrapper() {
             </form>
           </Form>
         </div>
-        <Footer />
       </div>
     );
     }

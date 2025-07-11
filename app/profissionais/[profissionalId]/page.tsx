@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Loader2, ChevronRight, ChevronLeft, Edit, Trash2 } from "lucide-react";
+import { Loader2, ChevronRight, ChevronLeft, Edit} from "lucide-react";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import {
@@ -10,15 +10,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/app/_components/ui/card";
 import AgendamentoItem from "@/app/consulta/components/agendamentosItem";
 import Link from "next/link";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogTrigger,
-} from "@/app/_components/ui/alert-dialog";
 import TratamentoSelectorMultiple from "@/app/tratamentos/_Components/TratamentoSelectorMultiple";
 
 
@@ -39,7 +33,7 @@ const ProfissionalDetalhesPage = () => {
   const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+ 
 
   useEffect(() => {
     const fetchData = async () => {
@@ -63,7 +57,7 @@ const ProfissionalDetalhesPage = () => {
     if (profissionalId) fetchData();
   }, [profissionalId]);
 
-   const handleDeleteProfissional = async () => { /* ... (código da função DELETE) ... */ };
+   
    const handleExameClick = (exameId: string) => { router.push(`/exames/${exameId}`); };
    const handleConsultaClick = (consultaId: string) => { router.push(`/consulta/${consultaId}`); };
    const handleTratamentosChange = (updatedTratamentos: Tratamento[]) => {

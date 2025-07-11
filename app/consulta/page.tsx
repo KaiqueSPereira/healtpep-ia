@@ -63,48 +63,56 @@ interface ConsultaspageProps {
     tipo?: Consultatype;
   };
 }
+interface SearchCondition {
+  motivo?: { contains: string; mode: "insensitive" };
+  tipodeexame?: { contains: string; mode: "insensitive" };
+  profissional?: { nome: { contains: string; mode: "insensitive" } };
+  unidade?: { nome: { contains: string; mode: "insensitive" } };
+  queixas?: { contains: string; mode: "insensitive" };
+  // Adicione outras possíveis condições aqui se houver
+}
+interface ConsultaWhereClause {
+  profissionalId?: string;
+  tipo?: Consultatype;
+  AND?: SearchCondition[];
+  OR?: SearchCondition[];
+  data?: { equals: Date };
+  // Adicione outras propriedades que whereClause possa receber
+}
 
 const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const search = searchParams.search?.trim() || "";
   const profissionalId = searchParams.profissionalId;
   const tipo = searchParams.tipo;
 
-  const whereClause = {}; // Removido ': any'
+  const whereClause: ConsultaWhereClause = {};
 
   if (profissionalId) {
-    // @ts-ignore
     whereClause.profissionalId = profissionalId;
   }
-
-
    if (tipo && Object.values(Consultatype).includes(tipo)) {
-    // @ts-ignore
      whereClause.tipo = tipo;
    }
 
-  if (search) {
-      const searchConditions = [
-          { motivo: { contains: search, mode: "insensitive" } },
-          { tipodeexame: { contains: search, mode: "insensitive" } },
-          {
-            profissional: { nome: { contains: search, mode: "insensitive" } },
-          },
-          { unidade: { nome: { contains: search, mode: "insensitive" } } },
-          { queixas: { contains: search, mode: "insensitive" } },
-      ].filter(Boolean);
-
-      if (Object.keys(whereClause).length > 0) {
-          // @ts-ignore
-          whereClause.AND = searchConditions;
-      } else {
-           // @ts-ignore
-          whereClause.OR = searchConditions;
-      }
-  }
-
+   if (search) {
+    const searchConditions: SearchCondition[] = [
+        { motivo: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
+        { tipodeexame: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
+        {
+          profissional: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } },
+        },
+        { unidade: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } },
+        },
+        { queixas: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
+    ].filter(Boolean);
+    if (Object.keys(whereClause).length > 0) {
+        whereClause.AND = searchConditions;
+    } else {
+        whereClause.OR = searchConditions;
+    }
+}
    const parsedDate = parseDate(search);
    if (parsedDate && Object.keys(whereClause).length === 0) {
-        // @ts-ignore
  whereClause.data = { equals: parsedDate };
    }
 

@@ -2,7 +2,7 @@ import { authOptions } from "@/app/_lib/auth";
 import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { encrypt, decrypt, encryptString, safeDecrypt } from "@/app/_lib/crypto";
+import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
 
 // 📌 GET - Buscar consultas ou tipos de consulta
 export async function GET(req: Request) {
@@ -118,9 +118,8 @@ export async function POST(req: Request) {
       },
     });
 
-    // Removido o bloco que criava a anotação separada para queixas
 
-    return NextResponse.json(novaConsulta, { status: 201 });
+  return NextResponse.json(novaConsulta, { status: 201 });
   } catch (error) {
     console.error("Erro ao criar consulta:", error);
     return NextResponse.json(
@@ -129,119 +128,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-// Exemplo de como buscar uma consulta específica e descriptografar (GET_BY_ID)
-export async function GET_BY_ID(req: Request) {
-    try {
-        const { searchParams } = new URL(req.url);
-        const consultaId = searchParams.get("id");
-
-        if (!consultaId) {
-            return NextResponse.json({ error: "ID da consulta obrigatório" }, { status: 400 });
-        }
-
-        const consulta = await db.consultas.findUnique({
-            where: { id: consultaId },
-            include: {
-                usuario: { select: { name: true, email: true } },
-                profissional: { select: { id: true, nome: true, especialidade: true } },
-                unidade: { select: { id: true, nome: true } },
-                Anotacoes: true, 
-                Tratamento: true,
-            },
-        });
-
-        if (!consulta) {
-            return NextResponse.json({ error: "Consulta não encontrada" }, { status: 404 });
-        }
-
-        const decryptedConsulta = {
-            ...consulta,
-            motivo: consulta.motivo ? decrypt(Buffer.from(consulta.motivo, 'hex')).toString() : null,
-             // Acessando a relação usando 'Anotaçoes' (com 'ç') no objeto retornado
-             Anotacoes: consulta.Anotacoes.map((anotacao: { anotacao: string, id: string, consultaId: string, createdAt: Date, updatedAt: Date }) => ({
-                ...anotacao,
-                anotacao: decrypt(Buffer.from(anotacao.anotacao, 'hex')).toString(),
-            })),
-            tipodeexame: consulta.tipodeexame ? decrypt(Buffer.from(consulta.tipodeexame, 'hex')).toString() : null,
-        };
-
-        return NextResponse.json(decryptedConsulta);
-    } catch (error) {
-        console.error("Erro ao buscar consulta por ID:", error);
-        return NextResponse.json({ error: "Erro ao buscar consulta" }, { status: 500 });
-    }
-}
-
-
-// Exemplo de como adicionar uma nova anotação a uma consulta existente (POST_ANOTACAO)
-export async function POST_ANOTACAO(req: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-          return NextResponse.json(
-            { error: "Usuário não autenticado" },
-            { status: 401 },
-          );
-        }
-
-        const body = await req.json();
-        const { consultaId, anotacao } = body;
-
-        if (!consultaId || !anotacao) {
-            return NextResponse.json({ error: "ID da consulta e anotação são obrigatórios" }, { status: 400 });
-        }
-
-        const encryptedAnotacao = encrypt(Buffer.from(anotacao)).toString("hex");
-
-        // Usando 'db.anotaçoes' (camelCase) para acessar o modelo Anotaçoes
-        const novaAnotacao = await db.anotacoes.create({
-            data: {
-                consultaId: consultaId,
-                anotacao: encryptedAnotacao,
-            },
-        });
-
-        return NextResponse.json(novaAnotacao, { status: 201 });
-    } catch (error) {
-        console.error("Erro ao adicionar anotação:", error);
-        return NextResponse.json({ error: "Erro ao adicionar anotação" }, { status : 500 });
-    }
-}
-
-// Exemplo de como adicionar um tratamento a uma consulta existente (POST_TRATAMENTO)
-export async function POST_TRATAMENTO(req: Request) {
-    try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-          return NextResponse.json(
-            { error: "Usuário não autenticado" },
-            { status: 401 },
-          );
-        }
-
-        const body = await req.json();
-        const { consultaId, tratamentoId } = body;
-
-        if (!consultaId || !tratamentoId) {
-            return NextResponse.json({ error: "ID da consulta e ID do tratamento são obrigatórios" }, { status: 400 });
-        }
-
-        await db.consultas.update({
-            where: { id: consultaId },
-            data: {
-                Tratamento: {
-                    connect: { id: tratamentoId },
-                },
-            },
-        });
-
-        return NextResponse.json({ message: "Tratamento associado com sucesso" });
-    } catch (error) {
-        console.error("Erro ao associar tratamento:", error);
-        return NextResponse.json({ error: "Erro ao associar tratamento" }, { status: 500 });
-    }
-}
-
-// ... (código para DELETE e PUT se existirem)

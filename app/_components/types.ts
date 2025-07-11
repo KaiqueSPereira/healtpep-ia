@@ -104,6 +104,7 @@ export type Exame = {
   dataExame: string;
   anotacao?: string;
   nomeArquivo?: string;
+  tipo?: string;
   resultados?: ResultadoExame[];
  // Defina a estrutura conforme necessário
   profissional?: {
@@ -145,4 +146,45 @@ export type ExameCompleto = {
   tratamento?: Tratamento;
   consulta?: Consulta;
   tipo?: string;
+};
+export interface ExameLineChartProps {
+  data: {
+    labels: string[]; // Datas dos exames
+    datasets: {
+      label: string; // Nome do resultado (ex: "Glicose")
+      data: number[]; // Valores do resultado - AQUI ESTÁ O CONFLITO
+      borderColor: string;
+      backgroundColor: string;
+    }[];
+  };
+  title: string; // Título do gráfico
+}
+
+
+export type ChartData = {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    borderColor: string;
+    tension: number;
+    spanGaps: boolean;
+    backgroundColor: string;
+  }[];
+}
+
+export type Resultado = {
+  nome: string;
+  valor: string;
+  unidade?: string;
+  referencia?: string;
+};
+
+export type ExameGraficos = { 
+  id: string;
+  nome: string;
+  dataExame: string;
+  anotacao?: string;
+  nomeArquivo?: string;
+  resultados?: Resultado[];
 };

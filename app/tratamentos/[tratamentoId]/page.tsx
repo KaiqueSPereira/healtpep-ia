@@ -17,7 +17,6 @@ import Header from "@/app/_components/header";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import { Profissional } from "@/app/_components/types";
-import { title } from "process";
 
 type TratamentoForm = {
   nome: string;

@@ -1,19 +1,14 @@
 // app/exames/components/ExamDetailsForm.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-
 import { Label } from "../../_components/ui/label";
 import { Input } from "../../_components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../../_components/ui/select";
-
 import MenuUnidades from "../../unidades/_components/menuunidades";
 import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
-
 import { Consulta, Profissional, Unidade, Tratamento } from "../../_components/types";
-import { toast } from "../../_hooks/use-toast";
+
 
 
 // Define the props for this component
@@ -55,24 +50,6 @@ export function ExamDetailsForm({
 
     console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); 
     console.log("Value passed to MenuProfissionais (selectedProfissional):", selectedProfissional);
-
-     const { data: session } = useSession();
-     const userId = session?.user?.id;
-
-
-     // Fetch professionals based on selected unit - this logic can stay here
-      useEffect(() => {
-        if (!selectedUnidade?.id) {
-          setProfissionais([]);
-          return;
-        }
-        fetch(`/api/unidadesaude?id=${selectedUnidade.id}`)
-          .then((r) => r.json())
-           .then((d) => setProfissionais(d.profissionais || []))
-           .catch(() =>
-            toast({ title: "Erro ao buscar profissionais", variant: "destructive", duration: 5000 }),
-           );
-      }, [selectedUnidade]); // Dependency array
 
 
     return (

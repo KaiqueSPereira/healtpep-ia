@@ -5,11 +5,12 @@ import { Loader2 } from "lucide-react";
 import { ExameFormWrapper } from "../../components/ExameFormWrapper";
 import { useParams } from "next/navigation";
 import { toast } from "@/app/_hooks/use-toast";
+import { ExameCompleto } from "@/app/_components/types";
 
 export default function EditExamePage() {
   const params = useParams();
   const examId = params.id as string;
-  const [existingExamData, setExistingExamData] = useState<any>(null);
+  const [existingExamData, setExistingExamData] = useState<ExameCompleto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

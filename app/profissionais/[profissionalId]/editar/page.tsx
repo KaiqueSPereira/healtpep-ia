@@ -25,16 +25,6 @@ interface Profissional {
   unidades?: UnidadeSaude[];
 }
 
-// Interface para a estrutura da resposta do PATCH (se o PATCH retornar o profissional atualizado com unidades)
-// Se o PATCH retornar apenas sucesso ou uma estrutura diferente, ajuste esta interface
-interface PatchProfissionalResponse {
-    id: string; // Exemplo de campos que o PATCH pode retornar
-    nome: string;
-    especialidade: string;
-    NumClasse: string;
-    unidades?: UnidadeSaude[]; // Se o PATCH retornar as unidades atualizadas
-}
-
 
 const EditarProfissionalPage = () => {
   const { profissionalId } = useParams<{ profissionalId: string }>();
@@ -99,15 +89,6 @@ const EditarProfissionalPage = () => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Erro ao salvar alterações do profissional");
       }
-
-      // Opcional: Se o backend retorna o profissional atualizado (com unidades, se o PATCH incluir), atualizar o estado local
-      // Ajuste a interface PatchProfissionalResponse conforme a resposta real do seu PATCH endpoint principal.
-      // Se o PATCH endpoint principal NÃO retornar as unidades atualizadas, você pode precisar refazer o GET
-      // ou confiar que o onUnidadesChange do componente UnidadeSelectorMultiple já atualizou as unidades no estado local.
-      const updatedProfData: PatchProfissionalResponse = await res.json();
-      // Se a resposta do PATCH inclui unidades, você pode atualizá-las aqui:
-      // setProfissional(prev => prev ? {...prev, ...updatedProfData, unidades: updatedProfData.unidades} : null);
-      // Se o PATCH não retorna unidades, e o onUnidadesChange já atualiza, talvez não precise fazer nada aqui com a resposta
 
       alert("Profissional atualizado com sucesso!");
        // Redirecionar de volta para a página de detalhes após salvar
