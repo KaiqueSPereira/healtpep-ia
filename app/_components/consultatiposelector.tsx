@@ -28,9 +28,7 @@ const ConsultaTipoSelector: React.FC<ConsultaTipoSelectorProps> = ({
         setConsultaTipos(tipos);
       } catch (error) {
         console.error("Erro ao buscar tipos de consulta:", error);
-        toast("Erro ao carregar tipos de consulta.", "destructive", {
-          title: "Erro ao carregar tipos de consulta.",
-        });
+        toast({title: "Erro ao carregar tipos de consulta.", variant: "destructive", duration: 5000});
       } finally {
         setLoading(false);
       }

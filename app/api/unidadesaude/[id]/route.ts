@@ -1,7 +1,7 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 
-// Método POST (mantido para a rota sem ID)
+// Método POST (mantido para a rota sem ID) - Note: Este POST aqui é incomum. A criação geralmente seria em /unidadesaude/route.ts
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
         tipo,
         telefone,
         endereco: {
-          connect: { id: enderecoId }, 
+          connect: { id: enderecoId },
         },
       },
     });
@@ -107,8 +107,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 }
 
-// Método DELETE
-export async function DELETE( { params }: { params: { id: string } }) {
+// Método DELETE - Corrigido para rotas dinâmicas
+export async function DELETE(request: Request, { params }: { params: { id: string } }) { // Adicionado request: Request
   const { id } = params; // Get ID from URL parameters
 
   if (!id) {
@@ -129,3 +129,9 @@ export async function DELETE( { params }: { params: { id: string } }) {
     );
   }
 }
+
+// Adicionar método GET para buscar uma unidade específica por ID
+// export async function GET(request: Request, { params }: { params: { id: string } }) {
+//   const { id } = params;
+//   // ... lógica para buscar a unidade
+// }

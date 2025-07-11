@@ -45,11 +45,11 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
   }
 };
 
-// Método POST
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const nome = body.nome; 
+    const nome = body.nome;
     const telefone = body.telefone;
     const { tipo, enderecoId } = body;
 
@@ -112,30 +112,6 @@ export async function POST(req: Request) {
     console.error("Erro ao cadastrar a unidade:", error);
     return NextResponse.json(
       { error: "Falha ao cadastrar a unidade" },
-      { status: 500 },
-    );
-  }
-}
-
-// Método DELETE
-export async function DELETE(req: Request) {
-  const url = new URL(req.url);
-  const unidadeId = url.searchParams.get("id");
-
-  if (!unidadeId) {
-    return NextResponse.json(
-      { error: "O campo 'id' é obrigatório para deletar uma unidade" },
-      { status: 400 },
-    );
-  }
-
-  try {
-    await db.unidadeDeSaude.delete({ where: { id: unidadeId } });
-    return NextResponse.json({ message: "Unidade deletada com sucesso!" });
-  } catch (error) {
-    console.error("Erro ao deletar a unidade:", error);
-    return NextResponse.json(
-      { error: "Falha ao deletar a unidade" },
       { status: 500 },
     );
   }
