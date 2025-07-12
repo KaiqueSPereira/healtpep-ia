@@ -1,6 +1,5 @@
 
 import Providers from "./_components/providers";
-import { Card, CardContent } from "./_components/ui/card";
 import "./globals.css";
 
 export const metadata = {
