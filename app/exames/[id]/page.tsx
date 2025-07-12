@@ -70,9 +70,8 @@ export default function ExameDetalhePage() {
          }
 
 
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("Erro durante o fetch:", err);
-        setError(err.message || "Ocorreu um erro ao carregar os dados.");
       } finally {
         setLoading(false);
       }
