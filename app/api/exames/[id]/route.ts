@@ -74,7 +74,7 @@ export async function GET(
        // Certifique-se de que as propriedades de relacionamento (consulta, tratamento, etc.)
        // correspondem à estrutura que você espera no frontend, potencialmente selecionando
        // mais campos no `select` do Prisma se necessário.
-      consulta: exame.consultaId || null,
+      consulta: exame.consulta || null, // Incluir o objeto completo da consulta
       tratamento: exame.tratamento || null,
       profissional: exame.profissional || null,
       unidades: exame.unidades || null,

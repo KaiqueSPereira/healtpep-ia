@@ -66,6 +66,9 @@ export type Consulta = {
   id: string;
   data: string;
   profissional?: Profissional | null;
+  tipo: ConsultaType;
+  tipodeexame?: string;
+  queixas?: string;
   unidade?: Unidade | null;
 };
 export interface TabelaExamesProps {
@@ -118,7 +121,7 @@ export type Exame = {
   consulta?: {
     id: string;
     data: string;
-    tipo: string;
+    tipo: ConsultaType;
     queixas?: string;
     profissional?: {
       nome: string;
