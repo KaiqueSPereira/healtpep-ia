@@ -117,6 +117,10 @@ export default function ExamesPage() {
       return;
     }
 
+    console.log("Generating chart data...");
+    console.log("filteredExames:", filteredExames);
+    console.log("selectedResultNames:", selectedResultNames);
+
     const processedData: { [resultName: string]: { dates: string[], values: number[] } } = {};
 
     // Ensure filteredExames has the correct type structure for charts
@@ -136,6 +140,8 @@ export default function ExamesPage() {
         }
       });
     });
+
+    console.log("processedData:", processedData);
 
     const allDates = Object.values(processedData).flatMap(data => data.dates)
       .filter((value, index, self) => self.indexOf(value) === index)
