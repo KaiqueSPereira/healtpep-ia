@@ -6,6 +6,9 @@ export const metadata = {
 
   title: "Health Pep",
   description: "Seu prontuario medico pessoal",
+  icons: {
+    icon: "/iconprontuario.png",
+  },
 };
 
 export default function RootLayout({
