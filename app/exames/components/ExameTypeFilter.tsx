@@ -1,5 +1,5 @@
 // app/exames/components/ExameTypeFilter.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/app/_components/ui/button";
 import {
   Popover,
@@ -10,6 +10,7 @@ import { Checkbox } from "@/app/_components/ui/checkbox";
 import { Label } from "@/app/_components/ui/label";
 import { Separator } from "@/app/_components/ui/separator";
 import { ScrollArea } from "@/app/_components/ui/scroll-area";
+import { Input } from "@/app/_components/ui/input"; // Importe o componente Input
 
 
 interface Resultado {
@@ -30,26 +31,61 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
   const [isOpen, setIsOpen] = useState(false);
   const [selectedFilterTypes, setSelectedFilterTypes] = useState<string[]>([]);
   const [selectedChartResults, setSelectedChartResults] = useState<string[]>([]);
+  const [searchTerm, setSearchTerm] = useState(''); // Estado para o termo de busca
 
-  const allResultNames = Array.from(new Set(exames.flatMap(exame =>
-    exame.resultados?.map(resultado => resultado.nome) || []
-  ))).sort();
+  // Use useMemo para memorizar a lista completa de nomes de resultados
+  const allResultNames = useMemo(() => {
+    return Array.from(new Set(exames.flatMap(exame =>
+      exame.resultados?.map(resultado => resultado.nome) || []
+    ))).sort();
+  }, [exames]); // A dependência é apenas 'exames'
 
+  // Use useMemo para filtrar os nomes de resultados com base no termo de busca
+  const filteredResultNames = useMemo(() => {
+    if (!searchTerm) {
+      return allResultNames;
+    }
+    return allResultNames.filter(name =>
+      name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [allResultNames, searchTerm]); // Depende de allResultNames e searchTerm
+
+
+  // useEffect para inicializar os estados locais e chamar as props de callback
   useEffect(() => {
-      setSelectedFilterTypes(allResultNames);
-      setSelectedChartResults(allResultNames);
-      onSelectTypes(allResultNames);
-      onSelectResultsForChart(allResultNames);
-  }, [exames, allResultNames, onSelectTypes, onSelectResultsForChart]);
-
+      // Verifique se allResultNames não está vazio antes de inicializar
+      if (allResultNames.length > 0) {
+          // Compare com o estado atual antes de atualizar para evitar loops desnecessários
+          // Esta verificação pode ser menos crucial agora com useMemo para allResultNames
+          // Mas podemos mantê-la para segurança.
+          if (JSON.stringify(selectedFilterTypes) !== JSON.stringify(allResultNames)) {
+              setSelectedFilterTypes(allResultNames);
+          }
+          if (JSON.stringify(selectedChartResults) !== JSON.stringify(allResultNames)) {
+              setSelectedChartResults(allResultNames);
+          }
+           // Chame as props de callback inicial com todos os nomes de resultados
+          onSelectTypes(allResultNames);
+          onSelectResultsForChart(allResultNames);
+      } else {
+           // Limpa os estados se não houver nomes de resultados
+           if (selectedFilterTypes.length > 0) setSelectedFilterTypes([]);
+           if (selectedChartResults.length > 0) setSelectedChartResults([]);
+           // Chame as props de callback com arrays vazios
+           onSelectTypes([]);
+           onSelectResultsForChart([]);
+      }
+       // Limpar o termo de busca quando a lista de exames mudar
+       setSearchTerm('');
+  }, [allResultNames, onSelectTypes, onSelectResultsForChart]); // Depende de allResultNames e das funções de callback
 
   const handleCheckboxChange = (type: string, isChecked: boolean) => {
     if (isChecked) {
       setSelectedFilterTypes([...selectedFilterTypes, type]);
-      setSelectedChartResults([...selectedChartResults, type]);
+      setSelectedChartResults([...selectedChartResults, type]); // Mantenha em sync por enquanto
     } else {
       setSelectedFilterTypes(selectedFilterTypes.filter(selectedType => selectedType !== type));
-      setSelectedChartResults(selectedChartResults.filter(selectedResult => selectedResult !== type));
+      setSelectedChartResults(selectedChartResults.filter(selectedResult => selectedResult !== type)); // Mantenha em sync por enquanto
     }
   };
 
@@ -72,14 +108,17 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
     setSelectedChartResults(allResultNames);
   };
 
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+  };
+
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        {/* Keeping simplified button content for now */}
         <Button variant="outline">Filtrar</Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64 p-4">
+      <PopoverContent className="w-80 p-4">
         <div className="grid gap-4">
           <div className="space-y-2">
             <h4 className="font-medium leading-none">Tipos de Exame e Resultados para Gráfico</h4>
@@ -88,9 +127,17 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
             </p>
           </div>
           <Separator />
+           {/* Campo de busca */}
+          <Input
+            placeholder="Buscar exame..."
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="mb-2"
+          />
           <ScrollArea className="h-40 pr-4">
              <div className="grid gap-2">
-                {allResultNames.map(type => (
+                {/* Renderize a lista filtrada */}
+                {filteredResultNames.map(type => (
                   <div key={type} className="flex items-center space-x-2">
                      <Checkbox
                         id={`checkbox-${type}`}
@@ -102,11 +149,16 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
                      </Label>
                   </div>
                 ))}
+                {/* Mensagem se nenhum resultado for encontrado na busca */}
+                 {filteredResultNames.length === 0 && searchTerm !== '' && (
+                     <p className="text-sm text-muted-foreground text-center">Nenhum resultado encontrado.</p>
+                 )}
              </div>
           </ScrollArea>
            <Separator />
            <div className="flex justify-between">
               <Button variant="outline" size="sm" onClick={handleClearFilter}>Limpar</Button>
+               {/* O botão "Selecionar Todos" agora selecionará todos os resultados _completos_, não apenas os filtrados pela busca */}
                <Button variant="outline" size="sm" onClick={handleSelectAll}>Selecionar Todos</Button>
               <Button size="sm" onClick={handleApplyFilter}>Aplicar</Button>
            </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback,useEffect, useState } from "react";
+import { useCallback,useEffect, useState, useMemo } from "react"; // Importe useMemo
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import { toast } from "@/app/_hooks/use-toast";
@@ -18,7 +18,7 @@ export default function ExamesPage() {
   const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]); // State for graphics API data
   const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]); // State for full exams API data
   const [exames, setExames] = useState<Array<ExameGraficos | ExameCompleto>>([]); // State for raw data based on currentView
-  const [filteredExames, setFilteredExames] = useState<Array<ExameGraficos | ExameCompleto>>([]); // State for filtered data
+  // const [filteredExames, setFilteredExames] = useState<Array<ExameGraficos | ExameCompleto>>([]); // Remova este estado, usaremos useMemo
 
   const [loading, setLoading] = useState(true);
   const [selectedExameTypes, setSelectedExameTypes] = useState<string[]>([]);
@@ -81,8 +81,8 @@ export default function ExamesPage() {
     }
   }, [currentView, examesGraficosData, examesListaData]); // Dependencies on currentView and cached data
 
-  // Filter exams based on selectedExameTypes and date range
-  useEffect(() => {
+  // Filter exams based on selectedExameTypes and date range using useMemo
+  const filteredExames = useMemo(() => {
     let filtered = exames; // Start with the current raw data
 
     // Filter by exam types (only apply filter when in charts view)
@@ -105,8 +105,8 @@ export default function ExamesPage() {
       });
     }
 
-    setFilteredExames(filtered);
-  }, [exames, selectedExameTypes, startDate, endDate, currentView]);
+    return filtered;
+  }, [exames, selectedExameTypes, startDate, endDate, currentView]); // Depend on states that affect filtering
 
 
   // Generate chart data based on filteredExames and selectedResultNames
@@ -146,14 +146,13 @@ export default function ExamesPage() {
         label: resultName,
         data: allDates.map(date => {
           const dataIndex = data.dates.indexOf(date);
-          return dataIndex > -1 ? data.values[dataIndex] : 0; 
+          return dataIndex > -1 ? data.values[dataIndex] : 0;
         }) as number[], // Afirme o tipo como number[]
         borderColor: `hsl(${index * 50}, 70%, 50%)`,
         backgroundColor: `hsl(${index * 50}, 70%, 70%, 0.2)`,
         tension: 0.1,
         spanGaps: true,
       }));
-  
 
 
     setChartData({
@@ -161,7 +160,7 @@ export default function ExamesPage() {
       datasets: chartDatasets,
     });
 
-  }, [filteredExames, selectedResultNames, currentView]); // Depend on currentView
+  }, [filteredExames, selectedResultNames, currentView]); // Depend on currentView and states that affect chart data
 
   const handleSelectTypes = useCallback((selectedTypes: string[]) => {
     setSelectedExameTypes(selectedTypes);
@@ -263,8 +262,8 @@ export default function ExamesPage() {
               {currentView === 'charts' ? (
                 <>
                   {/* Chart Area */}
-                  {chartData && chartData.datasets.length > 0 ? (
-                     <div className="w-full h-120">
+                  {chartData && chartData.datasets.length > 0 && selectedResultNames.length > 0 ? (
+                     <div className="w-full h-80 md:h-120"> {/* Mantive a sugestão anterior para a altura */}
                        <ExameLineChart data={chartData} title="Evolução dos Resultados" />
                      </div>
                   ) : (
