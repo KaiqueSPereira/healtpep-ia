@@ -83,7 +83,7 @@ export default function TabelaExames({
         </thead>
         <tbody>
           {exames.map((exame, index) => (
-            <tr key={`novo-${index}`} className="hover:bg-muted/50">
+            <tr key={exame.id} className="hover:bg-muted/50">
               <td className="border p-2">
                 <Input
                   value={exame.nome}

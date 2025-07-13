@@ -14,7 +14,11 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
         where: { id },
         include: {
           endereco: true,
-          profissionais: true,
+          profissionais: {
+            include: {
+              unidades: true,
+            },
+          },
         },
       });
 

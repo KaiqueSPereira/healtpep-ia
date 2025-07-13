@@ -11,28 +11,16 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
 import Link from "next/link";
-import { ChevronDown, ChevronLeft } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/app/_components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/app/_components/ui/command";
-import { Profissional, Unidade } from "@/app/_components/types";
+import { ChevronLeft } from "lucide-react"; // ChevronDown não é mais necessário
+import { Profissional } from "@/app/_components/types"; // Unidade e tipos relacionados a ela não são mais necessários aqui
 import { toast } from "@/app/_hooks/use-toast";
 import { useForm } from "react-hook-form";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
+// Removido Unidade | null de FormData
 interface FormData {
   profissional: Profissional;
-  unidade: Unidade | null;
+  // unidade: Unidade | null; // Removido
 }
 
 export function ProfissionalFormWrapper() {
@@ -40,27 +28,30 @@ export function ProfissionalFormWrapper() {
   const router = useRouter();
   const profissionalid = searchParams.get("profissionalid");
 
+  // Removido default value para unidade
   const form = useForm<FormData>({
     defaultValues: {
       profissional: { nome: "", especialidade: "", NumClasse: "" },
-      unidade: null,
+      // unidade: null, // Removido
     },
   });
 
-  const [unidades, setUnidades] = useState<Unidade[]>([]);
-  const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
-  const [popoverOpen, setPopoverOpen] = useState(false);
+  // Removidos estados e lógica relacionados à unidade única
+  // const [unidades, setUnidades] = useState<Unidade[]>([]);
+  // const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
+  // const [popoverOpen, setPopoverOpen] = useState(false);
 
   const fetchProfissionalById = async (profissionalid: string) => {
     try {
       const response = await fetch(`/api/profissional/${profissionalid}`);
       if (!response.ok) throw new Error("Erro ao buscar dados do profissional");
 
-      const data: { profissional: Profissional; unidade: Unidade } =
+      // Ajustar tipagem da resposta se a API não retornar mais a unidade única neste endpoint
+      const data: { profissional: Profissional /* unidade?: Unidade */ } = // Removido unidade?
         await response.json();
       form.setValue("profissional", data.profissional);
-      form.setValue("unidade", data.unidade);
-      setSelectedUnidade(data.unidade);
+      // form.setValue("unidade", data.unidade); // Removido
+      // setSelectedUnidade(data.unidade); // Removido
     } catch (error) {
       console.error("Erro ao buscar profissional:", error);
         toast({title: "Erro ao buscar profissional.",variant: "destructive", duration: 5000});
@@ -71,22 +62,12 @@ export function ProfissionalFormWrapper() {
     if (profissionalid) {
       fetchProfissionalById(profissionalid);
     }
-    fetchUnidades();
+    // fetchUnidades(); // Removido
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profissionalid]);
 
-  const fetchUnidades = async () => {
-    try {
-      const response = await fetch("/api/unidadesaude");
-      if (!response.ok) throw new Error("Erro ao buscar unidades");
-
-      const data: Unidade[] = await response.json();
-      setUnidades(data);
-    } catch (error) {
-      console.error("Erro ao buscar unidades:", error);
-      toast({title:"Erro ao buscar unidades.", variant: "destructive", duration: 5000});
-    }
-  };
+  // Removida função fetchUnidades
+  // const fetchUnidades = async () => { /* ... */ };
 
   const createProfissional = async (data: FormData) => {
     try {
@@ -99,18 +80,22 @@ export function ProfissionalFormWrapper() {
           nome: data.profissional.nome,
           especialidade: data.profissional.especialidade,
           NumClasse: data.profissional.NumClasse,
-          unidadeId: selectedUnidade?.id,
+          // unidadeId: selectedUnidade?.id, // Removido
         }),
       });
 
       if (response.ok) {
-        router.push("/profissionais");
+        // Redirecionar para a página de edição do novo profissional
+        const newProfessional = await response.json(); // Assumindo que a API retorna o profissional criado com ID
+        router.push(`/profissionais/${newProfessional.id}/editar`);
       } else {
         const errorDetails = await response.json();
         console.error("Erro ao criar profissional:", errorDetails);
+        toast({title: "Erro ao criar profissional.", variant: "destructive", duration: 5000});
       }
     } catch (error) {
       console.error("Erro ao criar profissional:", error);
+      toast({title: "Erro ao criar profissional.", variant: "destructive", duration: 5000});
     }
   };
 
@@ -122,26 +107,28 @@ export function ProfissionalFormWrapper() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          profissional: data.profissional,
-          unidadeId: selectedUnidade?.id,
+          // Enviando apenas os dados do profissional, unidades são gerenciadas pelo outro componente/API
+          nome: data.profissional.nome,
+          especialidade: data.profissional.especialidade,
+          NumClasse: data.profissional.NumClasse,
+          // unidadeId: selectedUnidade?.id, // Removido
         }),
       });
       if (!response.ok) throw new Error("Erro ao atualizar profissional");
 
-      router.push("/");
+       toast({title: "Profissional atualizado com sucesso."});
+      // Redirecionar para a página de detalhes do profissional ou outra página
+      router.push(`/profissionais/${profissionalid}`);
+
     } catch (error) {
       console.error("Erro ao atualizar profissional:", error);
+      toast({title: "Erro ao atualizar profissional.", variant: "destructive", duration: 5000});
     }
   };
 
   const handleSubmit = async (data: FormData) => {
-    if (!selectedUnidade) {
-      form.setError("unidade", {
-        type: "manual",
-        message: "Selecione uma unidade antes de salvar.",
-      });
-      return;
-    }
+    // Removida validação de unidade única
+    // if (!selectedUnidade) { /* ... */ }
 
     try {
       if (profissionalid) {
@@ -151,6 +138,7 @@ export function ProfissionalFormWrapper() {
       }
     } catch (error) {
       console.error("Erro ao salvar profissional:", error);
+       toast({title: "Erro ao salvar profissional.", variant: "destructive", duration: 5000});
     }
   };
 
@@ -164,7 +152,8 @@ export function ProfissionalFormWrapper() {
           className="left-5 top-6"
           asChild
         >
-          <Link href="/">
+          {/* Ajustar o Link para voltar para a lista de profissionais */}
+          <Link href="/profissionais">
             <ChevronLeft />
           </Link>
         </Button>
@@ -220,56 +209,10 @@ export function ProfissionalFormWrapper() {
               )}
             />
 
-            <h2 className="mt-6 text-xl font-semibold">Unidade de Saúde</h2>
-            <FormField
-              control={form.control}
-              name="unidade"
-              render={() => (
-                <FormItem>
-                  <label>Escolher Unidade Existente</label>
-                  <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={popoverOpen}
-                        className="w-full justify-between"
-                      >
-                        {selectedUnidade
-                          ? selectedUnidade.nome
-                          : "Selecione uma Unidade..."}
-                        <ChevronDown className="ml-2 h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar Unidade..." />
-                        <CommandList>
-                          <CommandEmpty>
-                            Nenhuma unidade encontrada.
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {unidades.map((unidade) => (
-                              <CommandItem
-                                key={unidade.id}
-                                onSelect={() => {
-                                  setSelectedUnidade(unidade);
-                                  form.setValue("unidade", unidade);
-                                  setPopoverOpen(false);
-                                }}
-                              >
-                                {unidade.nome} - {unidade.tipo}
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* A lógica de múltiplas unidades será adicionada na página de edição */}
+            {/* <h2 className="mt-6 text-xl font-semibold">Unidade de Saúde</h2> */}
+            {/* Removido o FormField de unidade única */}
+
 
             <Button type="submit" className="mt-6 justify-center">
               Salvar

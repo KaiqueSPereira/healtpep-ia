@@ -264,7 +264,7 @@ export default function ExamesPage() {
                 <>
                   {/* Chart Area */}
                   {chartData && chartData.datasets.length > 0 ? (
-                     <div className="w-full h-96">
+                     <div className="w-full h-120">
                        <ExameLineChart data={chartData} title="Evolução dos Resultados" />
                      </div>
                   ) : (

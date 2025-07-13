@@ -40,7 +40,7 @@ const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
   useEffect(() => {
     if (unidadeId) {
       setFilteredProfissionais(
-        profissionais.filter((p) => p.unidades.some((u) => u.id === unidadeId)),
+        profissionais.filter((p) => p.unidades && Array.isArray(p.unidades) && p.unidades.some((u) => u.id === unidadeId)),
       );
     } else {
       setFilteredProfissionais(profissionais); // Sem unidadeId, exibe todos os profissionais
