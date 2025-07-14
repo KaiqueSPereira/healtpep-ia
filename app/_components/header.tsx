@@ -13,7 +13,7 @@ const Header = () => {
   const { theme, setTheme } = useTheme();
 
   return (
-    <Card>
+    <Card className="border-none">
       <CardContent className="flex flex-row items-center justify-between p-4">
         <Link href="/">
           <Image src="/iconprontuario.png" alt="icon" width={80} height={80} />

@@ -210,7 +210,8 @@ export default function ExamesPage() {
       <Header />
       <div className="flex flex-1">
         {/* Main Content */}
-        <main className="flex-1 space-y-6 p-4 md:p-6">
+        {/* Keep the original padding for main */}
+        <main className={`flex-1 space-y-6 p-4 md:p-6`}>
           {/* Title and ViewSwitcher */}
           <div className="flex flex-col md:flex-row md:justify-between md:items-center">
             <h1 className="text-2xl font-bold mb-2 md:mb-0">Meus Exames</h1>
@@ -219,26 +220,38 @@ export default function ExamesPage() {
 
 
           {currentView === 'charts' && (
-            <div className="flex flex-wrap gap-4 items-center mb-6">
-               {/* Date Filter Inputs */}
-                <div className="flex gap-4 items-center">
-                  <div>
-                    <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Data Inicial</label>
-                    <Input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 block w-full" />
+            <> {/* Add Fragment here */}
+              <div className="flex flex-wrap gap-4 items-center mb-6">
+                 {/* Date Filter Inputs */}
+                  <div className="flex gap-4 items-center">
+                    <div>
+                      <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Data Inicial</label>
+                      <Input type="date" id="startDate" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 block w-full" />
+                    </div>
+                    <div>
+                      <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Data Final</label>
+                      <Input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 block w-full" />
+                    </div>
                   </div>
-                  <div>
-                    <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Data Final</label>
-                    <Input type="date" id="endDate" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-1 block w-full" />
-                  </div>
-                </div>
 
-                <ExameTypeFilter
-                   exames={examesGraficosData}
-                    onSelectTypes={handleSelectTypes} // Use a callback envolvida
-                     onSelectResultsForChart={handleSelectResultsForChart} // Use a callback envolvida
-                />
+                  <ExameTypeFilter
+                     exames={examesGraficosData}
+                      onSelectTypes={handleSelectTypes} // Use a callback envolvida
+                       onSelectResultsForChart={handleSelectResultsForChart} // Use a callback envolvida
+                  />
+              </div>
 
-            </div>
+              {/* Chart Area with negative margins */}
+              {chartData && chartData.datasets.length > 0 && selectedResultNames.length > 0 ? (
+                 <div className="w-full h-80 md:h-120 -mx-4 md:-mx-6"> {/* Added negative horizontal margins */}
+                   <ExameLineChart data={chartData} title="Evolução dos Resultados" />
+                 </div>
+              ) : (
+                  <div className="w-full h-96 flex items-center justify-center text-gray-500">
+                       {selectedResultNames.length === 0 ? "Selecione resultados para visualizar o gráfico." : "Nenhum dado de exame encontrado para os filtros selecionados."}
+                   </div>
+              )}
+            </> // Close Fragment here
           )}
 
           {/* Filters Area (only in list view) */}
@@ -265,21 +278,8 @@ export default function ExamesPage() {
             </div>
           ) : (
             <>
-              {currentView === 'charts' ? (
-                <>
-                  {/* Chart Area */}
-                  {chartData && chartData.datasets.length > 0 && selectedResultNames.length > 0 ? (
-                     <div className="w-full h-80 md:h-120"> {/* Mantive a sugestão anterior para a altura */}
-                       <ExameLineChart data={chartData} title="Evolução dos Resultados" />
-                     </div>
-                  ) : (
-                      <div className="w-full h-96 flex items-center justify-center text-gray-500">
-                           {selectedResultNames.length === 0 ? "Selecione resultados para visualizar o gráfico." : "Nenhum dado de exame encontrado para os filtros selecionados."}
-                       </div>
-                  )}
-
-                </>
-              ) : (
+              {/* No need for a separate conditional render for chart here */}
+              {currentView === 'list' && (
                 // Display the list of exams using ExameGrid
                  <div className="w-full">
                     {/* Ensure filteredExames has the correct type structure for the list */}

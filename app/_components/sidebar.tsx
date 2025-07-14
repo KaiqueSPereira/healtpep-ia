@@ -28,15 +28,18 @@ const Sidebarbotton = () => {
 
       <div className="items-centerborder-solid flex justify-between gap-3 border-b py-5">
         {data?.user ? (
-          <div className="flex items-center gap-3">
-            <Avatar>
-              <AvatarImage src={data?.user?.image ?? ""} />
-            </Avatar>
-            <div className="ml-3 flex flex-col">
-              <p className="font-bold">{data?.user?.name}</p>
-              <p className="text-sm text-gray-400">{data?.user?.email}</p>
+          // Adicionamos o Link aqui
+          <Link href={`/users/${data?.user?.id}`}>
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarImage src={data?.user?.image ?? ""} />
+              </Avatar>
+              <div className="ml-3 flex flex-col">
+                <p className="font-bold">{data?.user?.name}</p>
+                <p className="text-sm text-gray-400">{data?.user?.email}</p>
+              </div>
             </div>
-          </div>
+          </Link> // Fechamos o Link
         ) : (
           <>
             <h2 className="font-bold">Olá, faça o seu login</h2>

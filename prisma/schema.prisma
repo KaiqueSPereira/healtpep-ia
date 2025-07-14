@@ -14,6 +14,9 @@ model User {
   emailVerified DateTime?
   image         String?
   CNS           BigInt?         @unique
+  tipoSanguineo String? // Novo campo para tipo sanguíneo
+  sexo          String? // Novo campo para sexo
+  dataNascimento DateTime? // Novo campo para data de nascimento
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   accounts      Account[]
@@ -23,6 +26,17 @@ model User {
   sessions      Session[]
   tratamentos   Tratamento[]
   exames        Exame[]
+  historicoPeso PesoHistorico[] // Nova relação com o histórico de peso
+}
+
+model PesoHistorico {
+  id        String   @id @default(uuid())
+  peso      Float // Peso registrado (pode ser Float para permitir casas decimais)
+  data      DateTime @default(now()) // Data da medição
+  userId    String
+  usuario   User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Account {
