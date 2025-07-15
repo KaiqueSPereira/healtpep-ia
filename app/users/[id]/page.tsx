@@ -13,15 +13,20 @@ import { useToast } from "@/app/_hooks/use-toast"; // Importando o hook useToast
 
 interface UserData { // Updated interface
   id: string;
-  name?: string | null; // Pode ser null
+  name: string | null;
   email: string;
-  CNS?: bigint | null; // Pode ser null
-  tipoSanguineo?: string | null; // Pode ser null
-  sexo?: string | null; // Pode ser null
-  dataNascimento?: string | null; // Pode ser null
-  image?: string | null; // Adicionado campo image
+  image: string | null;
+  // O campo dadosSaude é opcional caso o usuário ainda não tenha um registro na nova tabela
+  dadosSaude?: {
+    id: string;
+    userId: string;
+    CNS: string | null;
+    tipoSanguineo: string | null;
+    sexo: string | null;
+    dataNascimento: string | null;
+    altura: string | null;
+  } | null;
 }
-
 export default function UserProfilePage() {
   // Tipando o retorno de useParams para garantir que 'id' seja string | string[]
   const params = useParams();
@@ -154,20 +159,26 @@ export default function UserProfilePage() {
               </div>
               <div>
                 <Label htmlFor="tipoSanguineo">Tipo Sanguíneo:</Label>
-                {/* Usa userData.tipoSanguineo diretamente */}
-                <p id="tipoSanguineo" className="text-sm">{userData.tipoSanguineo || "Não informado"}</p>
+                {/* Acessa tipoSanguineo dentro de dadosSaude */}
+                <p id="tipoSanguineo" className="text-sm">
+                  {userData.dadosSaude?.tipoSanguineo || "Não informado"}
+                </p>
 
                 <Label htmlFor="sexo">Sexo:</Label>
-                 {/* Usa userData.sexo diretamente */}
-                <p id="sexo" className="text-sm">{userData.sexo || "Não informado"}</p>
+                {/* Acessa sexo dentro de dadosSaude */}
+                <p id="sexo" className="text-sm">
+                  {userData.dadosSaude?.sexo || "Não informado"}
+                </p>
 
                 <Label htmlFor="dataNascimento">Data de Nascimento:</Label>
-                {/* Usa userData.dataNascimento diretamente */}
-                <p id="dataNascimento" className="text-sm">{formatarData(userData.dataNascimento)}</p>
+                {/* Acessa dataNascimento dentro de dadosSaude */}
+                <p id="dataNascimento" className="text-sm">
+                  {formatarData(userData.dadosSaude?.dataNascimento)}
+                </p>
 
                 <Label htmlFor="cns">CNS:</Label>
-                 {/* Usa userData.CNS diretamente */}
-                <p id="cns" className="text-sm">{userData.CNS ? userData.CNS.toString() : "Não informado"}</p>
+                {/* Acessa CNS dentro de dadosSaude */}
+                <p id="cns" className="text-sm">{userData.dadosSaude?.CNS || "Não informado"}</p>
               </div>
             </CardContent>
           </Card>

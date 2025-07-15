@@ -74,7 +74,7 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
            // Chame as props de callback com arrays vazios
            onSelectTypes([]);
            onSelectResultsForChart([]);
-      }
+ }
        // Limpar o termo de busca quando a lista de exames mudar
        setSearchTerm('');
   }, [allResultNames, onSelectTypes, onSelectResultsForChart]); // Depende de allResultNames e das funções de callback

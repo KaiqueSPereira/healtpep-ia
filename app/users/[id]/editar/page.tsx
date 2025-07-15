@@ -1,48 +1,59 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import Header from '@/app/_components/header'; // Importe o Header
+import { useParams, useRouter } from 'next/navigation';
+import Header from '@/app/_components/header';
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { Label } from "@/app/_components/ui/label";
-import { useRouter } from 'next/navigation'; // Importe o hook useRouter
 import { Button } from "@/app/_components/ui/button";
-import { Input } from "@/app/_components/ui/input"; // Importe o Input para outros campos
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/app/_components/ui/select"; // Importe os componentes Select
-import { Loader2 } from 'lucide-react'; // Importe o ícone de carregamento
-// Importe o hook useToast aqui depois
+import { Input } from "@/app/_components/ui/input";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/app/_components/ui/select";
+import { Loader2 } from 'lucide-react';
+import { useToast } from "@/app/_hooks/use-toast"; // Importe o hook useToast
 
+interface DadosSaudeData {
+  id?: string;
+  userId: string;
+  CNS?: string | null; // Tratando como string no frontend
+  tipoSanguineo?: string | null;
+  sexo?: string | null;
+  dataNascimento?: string | null; // Armazenaremos como string no formato YYYY-MM-DD
+  altura?: string | null; // Tratando como string no frontend
+  createdAt?: string;
+  updatedAt?: string;
+}
 
-interface UserData { // Interface para os dados do usuário
+interface UserData {
   id: string;
-  name?: string | null; // Pode ser null
+  name?: string | null;
   email: string;
-  CNS?: bigint | null; // Pode ser null
-  tipoSanguineo?: string | null; // Pode ser null
-  sexo?: string | null; // Pode ser null
-  dataNascimento?: string | null; // Pode ser null
   image?: string | null;
-  // Adicione outros campos conforme necessário (historicoPeso, etc.)
+  dadosSaude?: DadosSaudeData | null; // Dados de saúde aninhados
 }
 
 export default function UserEditPage() {
   const params = useParams();
-  const id = params.id as string; // Assumindo que o ID na rota é sempre string
+  const id = params.id as string;
 
   const [formData, setFormData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const router = useRouter(); // Chame o hook useRouter
-
+  const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
-     if (typeof id !== 'string' || !id) {
-        setLoading(false);
-        setError("ID do usuário não fornecido ou inválido.");
-        // Disparar toast aqui depois
-        return;
-      }
+    if (typeof id !== 'string' || !id) {
+      setLoading(false);
+      const errorMessage = "ID do usuário não fornecido ou inválido.";
+      setError(errorMessage);
+      toast({
+        variant: "destructive",
+        title: "Erro de rota",
+        description: errorMessage,
+      });
+      return;
+    }
 
     const fetchUserData = async () => {
       try {
@@ -51,17 +62,25 @@ export default function UserEditPage() {
           const errorData = await response.json();
           const errorMessage = `Erro ao carregar dados: ${errorData.message || response.statusText}`;
           setError(errorMessage);
-          // Disparar toast de erro aqui depois
+          toast({
+            variant: "destructive",
+            title: "Erro ao carregar",
+            description: errorMessage,
+          });
           setLoading(false);
           return;
         }
         const data: UserData = await response.json();
-        // Converter CNS para string aqui depois
+        // Certifique-se de que dadosSaude está presente na resposta, mesmo que null
         setFormData(data);
       } catch (err) {
         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados do usuário.";
         setError(errorMessage);
-        // Disparar toast aqui depois
+        toast({
+          variant: "destructive",
+          title: "Erro na busca",
+          description: errorMessage,
+        });
         console.error(err);
       } finally {
         setLoading(false);
@@ -69,86 +88,129 @@ export default function UserEditPage() {
     };
 
     fetchUserData();
-  }, [id]);
+  }, [id, toast]);
 
-
-   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value } = e.target; // Simplificado, a conversão de tipo será tratada no handleSubmit
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { id, value } = e.target;
 
     setFormData(prevData => {
       if (!prevData) return null;
-      return {
-        ...prevData,
-        [id]: value,
+
+      if (id === 'name' || id === 'email') {
+        return prevData;
+      }
+
+      const newData = { ...prevData };
+
+      // Inicializa dadosSaude se não existir
+      if (!newData.dadosSaude) {
+        newData.dadosSaude = { userId: newData.id };
+      }
+
+      // Atualiza o campo dentro de dadosSaude
+      newData.dadosSaude = {
+        ...newData.dadosSaude,
+        [id]: value === '' ? null : value, // Trata valor vazio como null
       };
+
+      return newData; // Retorna a cópia modificada
     });
   };
 
-
-  // Função para lidar com a mudança nos Selects
-  const handleSelectChange = (id: keyof UserData, value: string) => {
+  const handleSelectChange = (id: keyof DadosSaudeData, value: string) => {
     setFormData(prevData => {
       if (!prevData) return null;
+
+      if (!prevData.dadosSaude) {
+        prevData.dadosSaude = { userId: prevData.id };
+      }
+
       return {
         ...prevData,
-        [id]: value === '' ? null : value,
+        dadosSaude: {
+          ...prevData.dadosSaude,
+          [id]: value === '' ? null : value, // Trata seleção vazia como null
+        },
       };
     });
   };
-
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("handleSubmit called");
+
     if (!formData || isSaving) return;
 
     setIsSaving(true);
 
-    // Converter CNS para BigInt aqui antes de enviar
-
     try {
+      // Crie um payload contendo apenas os dados de saude editáveis
+      const payloadToSend = {
+          dadosSaude: formData.dadosSaude ? {
+             CNS: formData.dadosSaude.CNS || null,
+             tipoSanguineo: formData.dadosSaude.tipoSanguineo || null,
+             sexo: formData.dadosSaude.sexo || null,
+             dataNascimento: formData.dadosSaude.dataNascimento || null, // Já está no formato YYYY-MM-DD
+             altura: formData.dadosSaude.altura || null,
+          } : null, // Se não houver dadosSaude, pode enviar null ou um objeto vazio dependendo do backend
+      };
+
+
       const response = await fetch(`/api/users/${formData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData), // Enviando formData (CNS será convertido para string antes)
+        body: JSON.stringify(payloadToSend), // Envia o payload ajustado
       });
 
       if (!response.ok) {
         const errorData = await response.json();
         const errorMessage = `Erro ao salvar: ${errorData.message || response.statusText}`;
-        // Disparar toast de erro aqui depois
+        toast({
+          variant: "destructive",
+          title: "Erro ao salvar",
+          description: errorMessage,
+        });
         console.error("Erro ao salvar dados:", errorData);
       } else {
         const successMessage = "Dados salvos com sucesso!";
-        // Disparar toast de sucesso aqui depois
+        toast({
+          variant: "default",
+          title: "Sucesso!",
+          description: successMessage,
+        });
         console.log(successMessage);
-        // Opcional: redirecionar
+        router.push(`/users/${formData.id}`); // Redireciona após sucesso
       }
     } catch (err) {
       const errorMessage = "Ocorreu um erro inesperado ao salvar os dados.";
-      // Disparar toast aqui depois
+      toast({
+        variant: "destructive",
+        title: "Erro inesperado",
+        description: errorMessage,
+      });
       console.error(err);
     } finally {
       setIsSaving(false);
     }
   };
 
-
   // Função auxiliar para formatar a data de nascimento para o input[date]
   const formatarDataParaInput = (data: string | null | undefined) => {
     if (!data) return '';
     try {
       const date = new Date(data);
+       // Verifica se a data é válida
        if (isNaN(date.getTime())) {
            return '';
        }
+      // Formata para o formato YYYY-MM-DD esperado pelo input type="date"
       return date.toISOString().split('T')[0];
     } catch (e) {
       return '';
     }
   };
-
 
   if (loading) {
     return (
@@ -165,9 +227,8 @@ export default function UserEditPage() {
     return (
       <>
         <Header />
-        {/* O erro será exibido via toast */}
-         <div className="container mx-auto p-4">
-           {/* Conteúdo opcional */}
+        <div className="container mx-auto p-4">
+          {/* O erro será exibido via toast */}
         </div>
       </>
     );
@@ -200,11 +261,12 @@ export default function UserEditPage() {
                   type="text"
                   value={formData.name || ''}
                   onChange={handleChange}
+                  readOnly
                 />
               </div>
 
               {/* Campo Email */}
-               <div>
+              <div>
                 <Label htmlFor="email">Email:</Label>
                 <Input
                   id="email"
@@ -212,29 +274,63 @@ export default function UserEditPage() {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  readOnly
                 />
               </div>
 
-               {/* Campo Data de Nascimento */}
+              {/* Campo Data de Nascimento com input type="date" */}
               <div>
                 <Label htmlFor="dataNascimento">Data de Nascimento:</Label>
                 <Input
                   id="dataNascimento"
-                  type="date"
-                   value={formatarDataParaInput(formData.dataNascimento)}
+                  type="date" // Mantido type="date"
+                  value={formData.dadosSaude?.dataNascimento ? formatarDataParaInput(formData.dadosSaude.dataNascimento) : ''}
                   onChange={handleChange}
                 />
               </div>
 
+               {/* Campos Altura e Sexo na mesma linha */}
+              <div className="flex gap-4">
+                 {/* Campo Altura */}
+                <div className="flex-1">
+                  <Label htmlFor="altura">Altura (cm):</Label>
+                  <Input
+                    id="altura"
+                    type="number"
+                    step="0.01"
+                    value={formData.dadosSaude?.altura || ''}
+                    onChange={handleChange}
+                    placeholder="Digite a altura"
+                  />
+                </div>
 
-              {/* Campos Sexo, Tipo Sanguíneo e CNS alinhados */}
+                 {/* Campo Sexo como Select */}
+                <div className="flex-1">
+                  <Label htmlFor="sexo">Sexo:</Label>
+                  <Select
+                    onValueChange={(value) => handleSelectChange('sexo', value)}
+                    value={formData.dadosSaude?.sexo || ''}
+                  >
+                    <SelectTrigger id="sexo">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Masculino">Masculino</SelectItem>
+                      <SelectItem value="Feminino">Feminino</SelectItem>
+                      <SelectItem value="Outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Campos Tipo Sanguíneo e CNS na linha de baixo */}
               <div className="flex gap-4">
                 {/* Campo Tipo Sanguíneo como Select */}
                 <div className="flex-1">
                   <Label htmlFor="tipoSanguineo">Tipo Sanguíneo:</Label>
                   <Select
                     onValueChange={(value) => handleSelectChange('tipoSanguineo', value)}
-                    value={formData.tipoSanguineo || ''}
+                    value={formData.dadosSaude?.tipoSanguineo || ''}
                   >
                     <SelectTrigger id="tipoSanguineo">
                       <SelectValue placeholder="Selecione" />
@@ -252,36 +348,18 @@ export default function UserEditPage() {
                   </Select>
                 </div>
 
-                {/* Campo Sexo como Select */}
-                <div className="flex-1">
-                  <Label htmlFor="sexo">Sexo:</Label>
-                  <Select
-                    onValueChange={(value) => handleSelectChange('sexo', value)}
-                    value={formData.sexo || ''}
-                  >
-                    <SelectTrigger id="sexo">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Masculino">Masculino</SelectItem>
-                      <SelectItem value="Feminino">Feminino</SelectItem>
-                      <SelectItem value="Outro">Outro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Campo CNS como Input */}
                 <div className="flex-1">
                   <Label htmlFor="CNS">CNS:</Label>
                   <Input
                     id="CNS"
-                    type="number"
-                     value={formData.CNS ? formData.CNS.toString() : ''}
+                    type="text" // Mantido como text
+                    value={formData.dadosSaude?.CNS || ''}
                     onChange={handleChange}
+                    placeholder="Digite o CNS"
                   />
                 </div>
               </div>
-
 
               {/* Botão Salvar */}
               <Button type="submit" disabled={isSaving}>
