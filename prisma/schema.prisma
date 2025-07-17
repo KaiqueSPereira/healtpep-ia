@@ -28,12 +28,12 @@ model User {
 
 model DadosSaude {
   id             String    @id @default(uuid())
-  userId         String    @unique // Garante a relação um-para-one com User
-  CNS            String?   // Campo para CNS criptografado
-  tipoSanguineo  String?   // Campo para Tipo Sanguíneo criptografado
-  sexo           String?   // Campo para Sexo criptografado
-  dataNascimento String?   // Campo para Data de Nascimento criptografada
-  altura         String?   // Campo para Altura criptografada
+  userId         String    @unique
+  CNS            String?   
+  tipoSanguineo  String?   
+  sexo           String?   
+  dataNascimento String?   
+  altura         String?   
    usuario   User     @relation(fields: [userId], references: [id])
 }
 

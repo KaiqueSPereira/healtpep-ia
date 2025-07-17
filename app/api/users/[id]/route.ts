@@ -122,7 +122,7 @@ export async function PUT(
 
    
     return NextResponse.json(userResponse);
-  } catch (error) {
+  } catch {
     return NextResponse.json({ message: "Erro ao atualizar usuário" }, { status: 500 });
   }
 }

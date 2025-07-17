@@ -1,3 +1,4 @@
+// app/users/[id]/page.tsx
 "use client";
 
 import { useEffect, useState } from 'react';
@@ -10,6 +11,7 @@ import { Button } from "@/app/_components/ui/button"; // Importando o componente
 import { Loader2 } from 'lucide-react'; // Importando o ícone de carregamento
 import Link from "next/link"; // Importando o componente Link
 import { useToast } from "@/app/_hooks/use-toast"; // Importando o hook useToast
+import PesoHistoryChart from '@/app/users/_components/PesoHistoryChart'; // Importa o componente PesoHistoryChart
 
 interface UserData { // Updated interface
   id: string;
@@ -24,68 +26,37 @@ interface UserData { // Updated interface
     tipoSanguineo: string | null;
     sexo: string | null;
     dataNascimento: string | null;
-    altura: string | null;
+    altura: number | null; // Altura agora como number após descriptografia na API
   } | null;
 }
-export default function UserProfilePage() {
-  // Tipando o retorno de useParams para garantir que 'id' seja string | string[]
-  const params = useParams();
-  const id = params.id as string; // Assumindo que o ID na rota é sempre string
 
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast(); // Chame o hook useToast
+// ... função calcularIdade existente ...
+const calcularIdade = (dataNascimento: string | null | undefined): number | null => {
+  if (!dataNascimento) return null;
 
+  try {
+    const today = new Date();
+    const birthDate = new Date(dataNascimento); // Tenta parsear a string da data (espera formato YYYY-MM-DD)
 
-  useEffect(() => {
-    // Verifica se o ID é uma string e não está vazio antes de buscar
-    if (typeof id !== 'string' || !id) {
-      setLoading(false);
-      const errorMessage = "ID do usuário não fornecido ou inválido.";
-      setError(errorMessage);
-       toast({ // Dispara toast para erro de ID
-         variant: "destructive",
-         title: "Erro de rota",
-         description: errorMessage,
-       });
-      return;
+    // Verifica se a data de nascimento é válida
+    if (isNaN(birthDate.getTime())) {
+      return null;
     }
 
-    const fetchUserData = async () => {
-      try {
-        const response = await fetch(`/api/users/${id}`);
-        if (!response.ok) {
-          const errorData = await response.json();
-           const errorMessage = `Erro ao carregar dados: ${response.statusText}`;
-           setError(errorMessage); // Define o estado de erro
-           toast({ // Dispara toast de erro de carregamento da API
-             variant: "destructive",
-             title: "Erro ao carregar",
-             description: errorMessage,
-           });
-          setLoading(false);
-          return;
-        }
-        const data: UserData = await response.json();
-        setUserData(data);
-      } catch (err) {
-         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados do usuário.";
-         setError(errorMessage); // Define o estado de erro
-         toast({ // Dispara toast em caso de exceção
-            variant: "destructive",
-            title: "Erro na busca",
-            description: errorMessage,
-          });
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    fetchUserData();
-  }, [id, toast]); // Adicione toast como dependencia do useEffect
+    // Ajusta a idade se o aniversário ainda não ocorreu este ano
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
 
+    return age;
+  } catch (e) {
+    console.error("Erro ao calcular idade:", e);
+    return null;
+  }
+};
 
   // Função auxiliar para formatar a data de nascimento
   const formatarData = (data: string | null | undefined) => {
@@ -107,28 +78,81 @@ export default function UserProfilePage() {
       const ano = dateObj.getUTCFullYear();
 
       return `${dia}/${mes}/${ano}`;
-    } catch (e) {
+    } catch {
       return "Data inválida";
     }
   };
 
-  return (
-    <> {/* Use Fragment para incluir o Header antes do conteúdo */}
-      <Header /> {/* Header is always rendered */}
 
-      {/* Main content area with padding */}
+export default function UserProfilePage() {
+  const params = useParams();
+  const id = params.id as string;
+
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+
+  useEffect(() => {
+    if (typeof id !== 'string' || !id) {
+      setLoading(false);
+      const errorMessage = "ID do usuário não fornecido ou inválido.";
+      setError(errorMessage);
+       toast({
+         variant: "destructive",
+         title: "Erro de rota",
+         description: errorMessage,
+       });
+      return;
+    }
+
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch(`/api/users/${id}`);
+        if (!response.ok) {
+           const errorMessage = `Erro ao carregar dados: ${response.statusText}`;
+           setError(errorMessage);
+           toast({
+             variant: "destructive",
+             title: "Erro ao carregar",
+             description: errorMessage,
+           });
+          setLoading(false);
+          return;
+        }
+        const data: UserData = await response.json();
+        setUserData(data);
+
+      } catch (err) {
+         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados do usuário.";
+         setError(errorMessage);
+         toast({
+            variant: "destructive",
+            title: "Erro na busca",
+            description: errorMessage,
+          });
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [id, toast]);
+
+
+  return (
+    <>
+      <Header />
       <div className="container mx-auto p-4">
         {loading ? (
-          // Display loading spinner when loading
           <div className="flex justify-center items-center h-screen">
             <Loader2 className="h-10 w-10 animate-spin" />
           </div>
         ) : error ? (
-          // Display error message if there's an error (agora via toast)
-          // Podemos retornar null ou um placeholder vazio aqui
-          null
+           null
         ) : !userData ? (
-          // Display "No data" message if no user data is found
           <p>Nenhum dado de usuário encontrado.</p>
         ) : (
           // Display user data when userData is available
@@ -136,50 +160,68 @@ export default function UserProfilePage() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Perfil do Usuário</CardTitle>
-                {/* Link para a página de edição - usa userData.id diretamente */}
                 <Link href={`/users/${userData.id}/editar`} passHref>
                   <Button variant="outline" size="sm">Editar</Button>
                 </Link>
               </div>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="name">Nome:</Label>
-                  <p id="name" className="text-sm">{userData.name || "Não informado"}</p>
-                  <Label htmlFor="email">Email:</Label>
-                  <p id="email" className="text-sm">{userData.email}</p>
+              {/* Nova estrutura para Nome, Data de Nascimento e Idade na mesma linha, e Email abaixo */}
+              <div className="flex items-start justify-between">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="name" className="text-lg font-semibold">Nome:</Label>
+                    <p id="name" className="text-lg text-gray-900 dark:text-gray-100">
+                      {userData.name || "Não informado"}
+                      {userData.dadosSaude?.dataNascimento && ` (${calcularIdade(userData.dadosSaude.dataNascimento)} anos)`}
+                    </p>
+                  </div>
+                  <div>
+                    <Label htmlFor="email" className="text-sm">Email:</Label>
+                    <p id="email" className="text-sm text-gray-500 dark:text-gray-300">{userData.email}</p>
+                  </div>
                 </div>
-                {/* Avatar alinhado à direita - usa userData.image diretamente */}
                 {userData.image && (
                   <Avatar className="h-24 w-24">
                     <AvatarImage src={userData.image} alt={userData.name || "User Image"} />
                   </Avatar>
                 )}
               </div>
+
+              {/* Restante dos campos de dados de saúde */}
               <div>
                 <Label htmlFor="tipoSanguineo">Tipo Sanguíneo:</Label>
-                {/* Acessa tipoSanguineo dentro de dadosSaude */}
-                <p id="tipoSanguineo" className="text-sm">
+                <p id="tipoSanguineo" className="text-sm text-gray-700 dark:text-gray-300">
                   {userData.dadosSaude?.tipoSanguineo || "Não informado"}
                 </p>
-
+              </div>
+              <div>
                 <Label htmlFor="sexo">Sexo:</Label>
-                {/* Acessa sexo dentro de dadosSaude */}
-                <p id="sexo" className="text-sm">
+                <p id="sexo" className="text-sm text-gray-700 dark:text-gray-300">
                   {userData.dadosSaude?.sexo || "Não informado"}
                 </p>
-
+              </div>
+              <div>
                 <Label htmlFor="dataNascimento">Data de Nascimento:</Label>
-                {/* Acessa dataNascimento dentro de dadosSaude */}
-                <p id="dataNascimento" className="text-sm">
+                <p id="dataNascimento" className="text-sm text-gray-700 dark:text-gray-300">
                   {formatarData(userData.dadosSaude?.dataNascimento)}
                 </p>
-
-                <Label htmlFor="cns">CNS:</Label>
-                {/* Acessa CNS dentro de dadosSaude */}
-                <p id="cns" className="text-sm">{userData.dadosSaude?.CNS || "Não informado"}</p>
               </div>
+              <div>
+                <Label htmlFor="cns">CNS:</Label>
+                <p id="cns" className="text-sm text-gray-700 dark:text-gray-300">{userData.dadosSaude?.CNS || "Não informado"}</p>
+              </div>
+
+              {/* === ADICIONANDO O COMPONENTE PESOHISTORYCHART === */}
+              {/* Verifique se userData existe antes de passar as props */}
+              {userData && (
+                <PesoHistoryChart
+                  userId={userData.id}
+                  // Passe a altura do usuário (assumindo que já é um número em metros da API)
+                  userHeight={userData.dadosSaude?.altura || null}
+                />
+              )}
+
             </CardContent>
           </Card>
         )}

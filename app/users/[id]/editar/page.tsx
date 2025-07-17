@@ -207,7 +207,7 @@ export default function UserEditPage() {
        }
       // Formata para o formato YYYY-MM-DD esperado pelo input type="date"
       return date.toISOString().split('T')[0];
-    } catch (e) {
+    } catch {
       return '';
     }
   };
