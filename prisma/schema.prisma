@@ -24,6 +24,7 @@ model User {
   exames        Exame[]
   dadosSaude    DadosSaude?
   historicoPeso PesoHistorico[] 
+  profissionais Profissional[]
 }
 
 model DadosSaude {
@@ -152,7 +153,9 @@ model Profissional {
   consultas     Consultas[]
   tratamentos   Tratamento[]     @relation("ProfissionalTratamentos")
   unidades      UnidadeDeSaude[] @relation("ProfissionalUnidades")
-  exames        Exame[]
+  exames        Exame[]  
+  userId         String?      
+  usuario      User?              @relation(fields: [userId], references: [id]) 
 }
 
 model Tratamento {

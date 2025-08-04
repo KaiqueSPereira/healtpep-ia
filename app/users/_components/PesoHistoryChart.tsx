@@ -9,8 +9,8 @@ import { Input } from '@/app/_components/ui/input';
 import { Button } from '@/app/_components/ui/button';
 import { Loader2 } from 'lucide-react';
 // Importa componentes necessários diretamente da Chart.js e react-chartjs-2
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ChartOptions } from 'chart.js'; // Importado ChartOptions
-import { Line } from 'react-chartjs-2'; // Importa o componente Line
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Line } from 'react-chartjs-2';
 
 // Registra os componentes necessários do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
@@ -28,31 +28,6 @@ interface PesoRegistro {
 interface PesoHistoryChartProps {
   userId: string;
   userHeight: number | null; // Altura do usuário em metros
-}
-
-// ... funções auxiliares calcularIMC, formatarDataGrafico, determinarFaixaIMC existentes ...
-const calcularIMC = (peso: number, altura: number): string | null => {
-  if (altura <= 0 || peso <= 0) return null;
-  const imc = peso / (altura * altura);
-  return imc.toFixed(2);
-};
-
-const formatarDataGrafico = (dataString: string): string => {
-  try {
-    const date = new Date(dataString);
-    return date.toLocaleDateString();
-  } catch {
-    return dataString;
-  }
-};
-
-const determinarFaixaIMC = (imc: number): string => {
-  if (imc < 18.5) return 'Abaixo do peso';
-  if (imc >= 18.5 && imc < 25) return 'Peso normal';
-  if (imc >= 25 && imc < 30) return 'Sobrepeso';
-  if (imc >= 30 && imc < 35) return 'Obesidade Grau 1';
-  if (imc >= 35 && imc < 40) return 'Obesidade Grau 2';
-  return 'Obesidade Grau 3 (Mórbida)';
 };
 
 
@@ -66,7 +41,14 @@ export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChar
 
   const { toast } = useToast();
 
-  // ... função fetchHistoricoPeso existente ...
+  const formatarDataGrafico = (dataString: string): string => {
+    try {
+      const date = new Date(dataString);
+      return date.toLocaleDateString();
+    } catch {
+      return dataString;
+    }
+  };
   const fetchHistoricoPeso = useCallback(async () => { // Envolvido com useCallback
     if (!userId) return;
     setLoading(true);
@@ -158,33 +140,8 @@ export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChar
   const datas = historicoPeso.map(registro => formatarDataGrafico(registro.data));
   const pesos = historicoPeso.map(registro => parseFloat(registro.peso)).filter(peso => !isNaN(peso));
 
-  const imcs = historicoPeso
-    .map(registro => {
-      const pesoNumerico = parseFloat(registro.peso);
-      return userHeight !== null && !isNaN(pesoNumerico) ? parseFloat(calcularIMC(pesoNumerico, userHeight) || 'NaN') : NaN;
-    })
-    .filter(imc => !isNaN(imc));
-
-  // === Calcular suggestedMin e suggestedMax para o eixo Y do peso ===
   const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
-  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 140; // Default max if no data
-
-  // Adiciona uma margem (ex: 5% da variação total)
-  const margem = (maxPeso - minPeso) * 0.05; // 5% de margem
-
-  const suggestedMinPeso = minPeso - margem;
-  // Garante que suggestedMin não seja negativo
-  const finalSuggestedMinPesoCalculated = suggestedMinPeso < 0 ? 0 : suggestedMinPeso;
-
-
-  // === Obter o último registro de peso e calcular o IMC e faixa correspondente ===
-  const ultimoRegistro = historicoPeso.length > 0 ? historicoPeso[historicoPeso.length - 1] : null;
-  const ultimoIMCCalculado = ultimoRegistro && userHeight !== null
-    ? calcularIMC(parseFloat(ultimoRegistro.peso), userHeight)
-    : null;
-  const faixaIMCUltimoRegistro = ultimoIMCCalculado !== null
-    ? determinarFaixaIMC(parseFloat(ultimoIMCCalculado))
-    : null;
+  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 140;
 
 
   const dadosGraficoChartJS = {
@@ -197,27 +154,15 @@ export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChar
         backgroundColor: 'rgba(136, 132, 216, 0.5)',
         tension: 0.1,
       },
-       ...(userHeight !== null && imcs.length > 0 ? [{
-           label: 'IMC',
-           data: imcs,
-           borderColor: 'rgb(130, 202, 157)',
-           backgroundColor: 'rgba(130, 202, 157, 0.5)',
-           tension: 0.1,
-           // yAxisID: 'y1', // Pode precisar de eixo Y separado dependendo dos valores de peso e IMC
-       }] : []),
     ],
   };
 
     // Opções do gráfico (adaptadas do seu ExameLineChart)
-    const chartOptions: ChartOptions<'line'> = { // Tipagem corrigida
+    const chartOptions = {
       responsive: true,
       plugins: {
         legend: {
           position: 'top' as const, // Adicionado 'as const' para tipagem mais estrita
-        },
-        title: {
-          display: true,
-          text: 'Histórico de Peso e IMC',
         },
       },
       scales: {
@@ -232,23 +177,8 @@ export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChar
             display: true,
             text: 'Peso (kg)',
           },
-          suggestedMin: finalSuggestedMinPesoCalculated,
-          suggestedMax: maxPeso + margem,
-           // Se tiver linha de IMC com eixo Y separado:
-          // y1: {
-          //   type: 'linear' as const, // Use 'linear' type cast
-          //   display: true,
-          //   position: 'right' as const, // Use 'right' position cast
-          //   title: {
-          //     display: true,
-          //     text: 'IMC',
-          //   },
-          //   grid: {
-          //     drawOnChartArea: false, // Não desenha grid para este eixo sobre a área do gráfico
-          //   },
-          //   suggestedMin: ..., // Adicionar min/max para o eixo IMC se usar
-          //   suggestedMax: ...,
-          // },
+          suggestedMin: minPeso > 0 ? minPeso * 0.9 : 0, // 10% below min or 0
+          suggestedMax: maxPeso * 1.1, // 10% above max
         },
       },
     };
@@ -303,36 +233,12 @@ export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChar
         ) : (
           // Container para o gráfico e informações de IMC
           <div className="flex flex-col items-center w-full">
-            {/* === USANDO CHART.JS DIRETAMENTE === */}
-             <div className="w-full"> {/* Container para controlar o tamanho do gráfico */}
+            
+             <div className="w-full"> 
+               <h3 className="text-center text-lg font-semibold mb-4">Histórico de Peso</h3>
                <Line data={dadosGraficoChartJS} options={chartOptions} />
              </div>
-
-
-            {/* Informações de IMC (opcional) */}
-             {userHeight !== null && ultimoRegistro && (
-                <div className="mt-4 w-full">
-                    <h4 className="text-lg font-semibold">Último Registro:</h4>
-                    <p>Peso: {parseFloat(ultimoRegistro.peso).toFixed(2)} kg</p>
-                    {ultimoIMCCalculado !== null && (
-                        <>
-                            <p>IMC: {ultimoIMCCalculado}</p>
-                            <p>Faixa de IMC: {faixaIMCUltimoRegistro}</p>
-                        </>
-                    )}
-                    <h4 className="text-lg font-semibold mt-4">Faixas de IMC:</h4> {/* Mantido o título das faixas */}
-                    <ul className="text-sm text-gray-700">
-                       <li>Abaixo do peso: IMC &lt; 18.5</li>
-                       <li>Peso normal: IMC 18.5 - 24.9</li>
-                       <li>Sobrepeso: IMC 25 - 29.9</li>
-                       <li>Obesidade Grau 1: IMC 30 - 34.9</li>
-                       <li>Obesidade Grau 2: IMC 35 - 39.9</li>
-                       <li>Obesidade Grau 3 (Mórbida): IMC &ge; 40</li>
-                    </ul>
-                </div>
-             )}
-
-          </div>
+           </div>
         )}
       </CardContent>
     </Card>

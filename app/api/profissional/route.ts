@@ -1,7 +1,9 @@
 // app/api/profissional/route.ts
 import { db } from "@/app/_lib/prisma";
+import { getServerSession } from "next-auth"; // Importar getServerSession para obter a sessão
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { authOptions } from "@/app/_lib/auth"; // Importar suas opções de autenticação
 
 // Definição do schema para validação dos dados de criação
 const profissionalCreateSchema = z.object({
@@ -24,7 +26,7 @@ export async function GET(req: Request) {
         where: { id: profissionalId },
         // Incluir apenas as relações que esta rota de GET único (via query) precisa
         // Para a tela de DETALHES, usaremos a rota dinâmica /api/profissional/[id] que já tem mais includes
-        include: { unidades: true }, // Exemplo: incluir apenas unidades para esta rota se necessário
+        include: { unidades: true, usuario: true }, // Exemplo: incluir unidades e usuário
       });
 
       if (!profissional) {
@@ -44,10 +46,18 @@ export async function GET(req: Request) {
     }
   } else {
     // Lógica de listar todos os profissionais
+    // Obter a sessão do usuário logado
+    const session = await getServerSession(authOptions); // Usar authOptions para obter a sessão
+
+    // Verificar se o usuário está autenticado
+    if (!session || !session.user || !session.user.id) {
+ return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+    }
     try {
       const profissionais = await db.profissional.findMany({
+        where: { userId: session.user.id }, // Filtrar pelos profissionais do usuário logado
         // Incluir as relações que a listagem precisa (geralmente menos que os detalhes)
-        include: { unidades: true }, // Exemplo: incluir unidades para a lista
+        include: { unidades: true, usuario: true },
       });
       return NextResponse.json(profissionais);
     } catch (error) {
@@ -63,22 +73,36 @@ export async function GET(req: Request) {
 // Método POST (Criar um novo profissional)
 export async function POST(req: Request) {
   try {
+    // Obter a sessão do usuário logado
+    const session = await getServerSession(authOptions); // Usar authOptions para obter a sessão
+
+    // Verificar se o usuário está autenticado
+    if (!session || !session.user || !session.user.id) {
+      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+    }
+
     const body = await req.json();
-    // Validação dos dados de criação
+
+    // Validar os dados de criação (agora sem userId no schema, pois será obtido da sessão)
     const parsedData = profissionalCreateSchema.parse(body);
+
+    // Usar o ID do usuário logado obtido da sessão
+    const userId = session.user.id;
 
     const novoprofissional = await db.profissional.create({
       data: {
         nome: parsedData.nome,
         especialidade: parsedData.especialidade,
         NumClasse: parsedData.NumClasse,
+        userId: userId, // Adicionar o userId do usuário logado
         // Lógica para conectar a múltiplas unidades na criação
         unidades: {
           connect: parsedData.unidadeIds?.map(id => ({ id })) || [], // Conecta a unidades se IDs forem fornecidos
         },
       },
-      include: { // Opcional: Incluir unidades na resposta do POST
+      include: { // Incluir unidades e usuário na resposta do POST
         unidades: true,
+        usuario: true,
       }
     });
 

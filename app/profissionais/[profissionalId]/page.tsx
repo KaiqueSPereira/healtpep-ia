@@ -125,19 +125,6 @@ const ProfissionalDetalhesPage = () => {
                 </Card>
             )}
 
-            {tratamentos && tratamentos.length > 0 && (
-                 <Card className="border-none">
-                    <CardHeader> <CardTitle>Tratamentos Responsável</CardTitle> </CardHeader>
-                    <CardContent>
-                        <ul className="list-disc list-inside pl-4">
-                            {tratamentos.map(tratamento => (
-                                <li key={tratamento.id}>{tratamento.nome}</li>
-                            ))}
-                        </ul>
-                    </CardContent>
-                </Card>
-            )}
-
              {/* ADICIONADO: Card Gerenciar Tratamentos (com componente) */}
             <Card>
                  <CardHeader> <CardTitle>Gerenciar Tratamentos</CardTitle> </CardHeader>
