@@ -77,7 +77,7 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
  }
        // Limpar o termo de busca quando a lista de exames mudar
        setSearchTerm('');
-  }, [allResultNames, onSelectTypes, onSelectResultsForChart]); // Depende de allResultNames e das funções de callback
+  }, [allResultNames, onSelectTypes, onSelectResultsForChart, selectedFilterTypes, selectedChartResults]); // Depende de allResultNames, das funções de callback, e dos estados selecionados
 
   const handleCheckboxChange = (type: string, isChecked: boolean) => {
     if (isChecked) {

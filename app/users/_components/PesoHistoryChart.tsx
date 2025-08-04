@@ -31,7 +31,7 @@ interface PesoHistoryChartProps {
 };
 
 
-export default function PesoHistoryChart({ userId, userHeight }: PesoHistoryChartProps) {
+export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
   const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

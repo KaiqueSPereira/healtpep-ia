@@ -4,8 +4,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/app/_hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Loader2 } from 'lucide-react';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartOptions } from 'chart.js';
+import { Loader2 } from 'lucide-react'; // Importe TooltipItem do chart.js
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartOptions, TooltipItem } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2'; // Using Doughnut as a proxy for a gauge chart visualization
 
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -151,11 +151,9 @@ export default function IMCChart({ userId, userHeight }: IMCChartProps) {
       },
       tooltip: {
         callbacks: {
-          label: (tooltipItem: any) => {
-            const label = imcLabels[tooltipItem.dataIndex];
-            const value = dataGauge.datasets[0].data[tooltipItem.dataIndex];
-             // Custom tooltip logic if needed
-             return `${label}: ${value.toFixed(2)}`;
+          label: (tooltipItem: TooltipItem<'doughnut'>) => {
+            const label = imcLabels[tooltipItem.dataIndex];           
+             return `${label}: ${tooltipItem.parsed.toFixed(2)}`;
           }
         }
       }
