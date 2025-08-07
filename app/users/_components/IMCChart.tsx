@@ -4,9 +4,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/app/_hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Loader2 } from 'lucide-react'; // Importe TooltipItem do chart.js
+import { Loader2 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartOptions, TooltipItem } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2'; // Using Doughnut as a proxy for a gauge chart visualization
+import { Doughnut } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -21,12 +21,15 @@ interface PesoRegistro {
 
 interface IMCChartProps {
   userId: string;
-  userHeight: number | null; // Altura do usuário em metros
+  userHeight: number | null; // Altura do usuário em centímetros
+  historicoPeso: PesoRegistro[]; // Receber histórico de peso como prop do pai
+  loadingHistorico: boolean; // Receber estado de loading do pai
+  errorHistorico: string | null; // Receber estado de erro do pai
 }
 
-const calcularIMC = (peso: number, altura: number): string | null => {
-  if (altura <= 0 || peso <= 0) return null;
-  const imc = peso / (altura * altura);
+const calcularIMC = (peso: number, alturaEmMetros: number): string | null => {
+  if (alturaEmMetros <= 0 || peso <= 0) return null;
+  const imc = peso / (alturaEmMetros * alturaEmMetros);
   return imc.toFixed(2);
 };
 
@@ -39,52 +42,27 @@ const determinarFaixaIMC = (imc: number): string => {
   return 'Obesidade Grau 3 (Mórbida)';
 };
 
-export default function IMCChart({ userId, userHeight }: IMCChartProps) {
-  const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function IMCChart({ userId, userHeight, historicoPeso, loadingHistorico, errorHistorico }: IMCChartProps) {
   const [ultimoIMCCalculado, setUltimoIMCCalculado] = useState<string | null>(null);
   const [faixaIMCUltimoRegistro, setFaixaIMCUltimoRegistro] = useState<string | null>(null);
 
-  const { toast } = useToast();
-
-  const fetchHistoricoPeso = useCallback(async () => {
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/pesos/${userId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao buscar histórico de peso');
-      }
-      const data: PesoRegistro[] = await response.json();
-      setHistoricoPeso(data);
-    } catch (err: unknown) {
-      setError('Erro inesperado ao buscar histórico de peso');
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar o histórico de peso para calcular o IMC.",
-      });
-      console.error('Fetch histórico peso for IMC error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, toast]);
-
   useEffect(() => {
-    fetchHistoricoPeso();
-  }, [fetchHistoricoPeso]);
+    if (historicoPeso && historicoPeso.length > 0 && userHeight !== null) {
+      const historicoOrdenado = [...historicoPeso].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+      const ultimoRegistro = historicoOrdenado[historicoOrdenado.length - 1];
 
-  useEffect(() => {
-    if (historicoPeso.length > 0 && userHeight !== null) {
-      const ultimoRegistro = historicoPeso[historicoPeso.length - 1];
       const pesoNumerico = parseFloat(ultimoRegistro.peso);
+
       if (!isNaN(pesoNumerico)) {
-        const imc = calcularIMC(pesoNumerico, userHeight);
+        // Converter userHeight de centímetros para metros
+        const alturaEmMetros = userHeight / 100;
+        const imc = calcularIMC(pesoNumerico, alturaEmMetros);
+
         setUltimoIMCCalculado(imc);
+
         if (imc !== null) {
-          setFaixaIMCUltimoRegistro(determinarFaixaIMC(parseFloat(imc)));
+          const faixa = determinarFaixaIMC(parseFloat(imc));
+          setFaixaIMCUltimoRegistro(faixa);
         } else {
           setFaixaIMCUltimoRegistro(null);
         }
@@ -96,111 +74,96 @@ export default function IMCChart({ userId, userHeight }: IMCChartProps) {
       setUltimoIMCCalculado(null);
       setFaixaIMCUltimoRegistro(null);
     }
-  }, [historicoPeso, userHeight]);
+  }, [historicoPeso, userHeight]); // Depende de historicoPeso e userHeight
 
   // Data para o gráfico de IMC (usando Doughnut como gauge)
   const imcValue = ultimoIMCCalculado !== null ? parseFloat(ultimoIMCCalculado) : 0;
 
-  // Faixas de IMC e cores correspondentes (aproximadas para visualização em gauge)
-  // Abaixo: < 18.5 (ex: 0-18.5)
-  // Normal: 18.5 - 24.9 (ex: 18.5-25)
-  // Sobre: 25 - 29.9 (ex: 25-30)
-  // Obesidade 1: 30 - 34.9 (ex: 30-35)
-  // Obesidade 2: 35 - 39.9 (ex: 35-40)
-  // Obesidade 3: >= 40 (ex: 40-50+, usar um limite superior para o gráfico)
-  const imcRanges = [18.5, 25, 30, 35, 40, 50]; // Exemplo de limites para o gráfico
-  const imcLabels = ['Abaixo do peso', 'Peso normal', 'Sobrepeso', 'Obesidade Grau 1', 'Obesidade Grau 2', 'Obesidade Grau 3'];
-  const imcColors = ['#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#d35400', '#c0392b']; // Cores para cada faixa
+  // Faixas de IMC e cores correspondentes (para visualização em gauge)
+  const imcRanges = [18.5, 25, 30, 35, 40]; // Limites das faixas (aproximados para o gauge)
+  const imcLabels = ['Abaixo do peso', 'Peso normal', 'Sobrepeso', 'Obesidade Grau 1', 'Obesidade Grau 2', 'Obesidade Grau 3']; // Rótulos das faixas (com mais granularidade para exibição)
+  const imcColors = ['#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#d35400', '#c0392b']; // Cores para cada faixa (azul, verde, amarelo, laranja, laranja escuro, vermelho)
 
   const dataGauge = {
     labels: imcLabels,
     datasets: [
       {
         label: 'IMC',
-        data: [
-          imcRanges[0], // Abaixo do peso
-          imcRanges[1] - imcRanges[0], // Peso normal
-          imcRanges[2] - imcRanges[1], // Sobrepeso
-          imcRanges[3] - imcRanges[2], // Obesidade Grau 1
-          imcRanges[4] - imcRanges[3], // Obesidade Grau 2
-          imcRanges[5] - imcRanges[4], // Obesidade Grau 3 (usando 50 como limite superior)
-          Math.max(0, 50 - imcValue) // Espaço restante para simular o gauge completo
-        ],
-        backgroundColor: [
-          imcColors[0],
-          imcColors[1],
-          imcColors[2],
-          imcColors[3],
-          imcColors[4],
-          imcColors[5],
-          '#e0e0e0', // Cor para o espaço restante
-        ],
-        borderColor: '#ffffff',
-        borderWidth: 2,
+        data: [imcRanges[0], imcRanges[1] - imcRanges[0], imcRanges[2] - imcRanges[1], imcRanges[3] - imcRanges[2], imcRanges[4] - imcRanges[3], 50 - imcRanges[4]], // Use ranges for data points
+        backgroundColor: imcLabels.map((label, index) => {
+          // Make non-highlighted colors more opaque, highlighted color more vibrant
+          if (faixaIMCUltimoRegistro === label) {
+            return imcColors[index]; // Use original vibrant color for highlighted
+          }
+          // Add transparency to non-highlighted colors
+          return imcColors[index] + '80'; // '80' is a hex value for alpha (around 50% opacity)
+        }),
+        borderColor: imcLabels.map((label) => {
+          // Highlight the segment corresponding to the user's IMC category
+          if (faixaIMCUltimoRegistro === label) {
+            return '#ffffff'; // White border for highlighted segment
+          }
+          return 'transparent'; // No border for other segments
+        }),
+        borderWidth: 5, // Highlighted border width
+ // Add inner and outer radius for better gauge appearance
       },
     ],
   };
 
   const optionsGauge: ChartOptions<'doughnut'> = {
     responsive: true,
-    maintainAspectRatio: false, // Permite controlar o tamanho
+    maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: true,
-        position: 'bottom',
+        display: false, // Oculta a legenda
       },
       tooltip: {
+        enabled: true,
+        displayColors: false, // Hide color box in tooltip
+        position: 'nearest',
         callbacks: {
-          label: (tooltipItem: TooltipItem<'doughnut'>) => {
-            const label = imcLabels[tooltipItem.dataIndex];           
-             return `${label}: ${tooltipItem.parsed.toFixed(2)}`;
-          }
-        }
+          label: (tooltipItem: TooltipItem<'doughnut'>): string => {
+            // Exibe apenas o rótulo da faixa no tooltip
+            return imcLabels[tooltipItem.dataIndex];
+          },
+          title: () => '', // Remove o título do tooltip
+        },
       }
     },
-    rotation: 270, // Rotação para parecer um velocímetro
-    circumference: 180, // Apenas metade do círculo
-    cutout: '70%', // Tamanho do buraco central
+    rotation: 270, // Start at the bottom
+    circumference: 180, // Half a circle for the gauge effect
+    cutout: '80%', // Tamanho do buraco central
   };
+
 
   return (
     <Card className="border-none">
       <CardHeader>
-        <CardTitle>Gráfico de IMC</CardTitle>
+        <CardTitle>Índice de Massa Corporal (IMC)</CardTitle> {/* Título ajustado */}
       </CardHeader>
       <CardContent className="grid gap-4">
-        {loading ? (
+        {loadingHistorico ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
-        ) : error ? (
-          <p className="text-red-500">{error}</p>
+        ) : errorHistorico ? (
+          <p className="text-red-500">{errorHistorico}</p>
         ) : userHeight === null ? (
-          <p className="text-orange-500">Informe a altura do usuário para visualizar o gráfico de IMC.</p>
+          <p className="text-orange-500">Informe a altura do usuário (em centímetros) para visualizar o gráfico de IMC.</p>
         ) : historicoPeso.length === 0 ? (
            <p>Nenhum registro de peso encontrado para calcular o IMC.</p>
         ) : ultimoIMCCalculado === null ? (
            <p className="text-orange-500">Não foi possível calcular o IMC. Verifique os dados de peso e altura.</p>
         ) : (
           <div className="flex flex-col items-center w-full">
-             <div className="relative w-full max-w-md h-64 flex justify-center items-center"> {/* Container para o gráfico gauge */}
+             <div className="relative w-full max-w-md h-64 flex justify-center items-center">
                 <Doughnut data={dataGauge} options={optionsGauge} />
                 {/* Exibir o valor do IMC e a faixa no centro do gauge */}
                 <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/4 text-center">
                    <p className="text-2xl font-bold">{ultimoIMCCalculado}</p>
                    <p className="text-sm text-gray-600">{faixaIMCUltimoRegistro}</p>
                 </div>
-             </div>
-             <div className="mt-4 w-full">
-                 <h4 className="text-lg font-semibold">Faixas de IMC:</h4>
-                 <ul className="text-sm text-gray-700">
-                    <li>Abaixo do peso: IMC &lt; 18.5</li>
-                    <li>Peso normal: IMC 18.5 - 24.9</li>
-                    <li>Sobrepeso: IMC 25 - 29.9</li>
-                    <li>Obesidade Grau 1: IMC 30 - 34.9</li>
-                    <li>Obesidade Grau 2: IMC 35 - 39.9</li>
-                    <li>Obesidade Grau 3 (Mórbida): IMC &ge; 40</li>
-                 </ul>
              </div>
           </div>
         )}

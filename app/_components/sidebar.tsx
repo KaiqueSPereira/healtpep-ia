@@ -1,6 +1,7 @@
 "use client";
 import { Button } from "./ui/button";
 import {
+  BadgeInfo,
   CalendarIcon,
   ClipboardPlus,
   HomeIcon,
@@ -54,7 +55,7 @@ const Sidebarbotton = () => {
           </>
         )}
       </div>
-      <div className="boder-b flex flex-col gap-2 border-solid py-5">
+      <div className="flex flex-col gap-2 border-b border-solid py-5">
         <SheetClose asChild>
           <Button className="justify-startgap-2" variant="ghost" asChild>
             <Link href="/">
@@ -85,15 +86,28 @@ const Sidebarbotton = () => {
           </Link>
         </Button>
       </div>
-      <div className="flex flex-col gap-2 py-5">
-        <Button
-          className="justify-startgap-2"
-          variant="ghost"
-          onClick={handlelogoutclick}
-        >
-          <LogOutIcon size={18} /> Sair da Conta
-        </Button>
-      </div>
+      {/* Moved to bottom using flexbox on parent SheetContent */}
+      <div className="mt-auto paddin-top-4 flex flex-col gap-2 py-5 border-t border-solid">
+  <Button
+    className="flex items-center gap-2"
+    variant="ghost"
+    asChild
+  >
+    <Link href="/docs">
+      <BadgeInfo size={18} /> Sobre
+    </Link>
+  </Button>
+
+  <Button
+    className="flex items-center gap-2"
+    onClick={handlelogoutclick}
+    variant="ghost"
+  >
+    <LogOutIcon size={18} /> Sair da Conta
+  </Button>
+
+</div>
+
     </SheetContent>
   );
 };

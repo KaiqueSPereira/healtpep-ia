@@ -137,8 +137,14 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
 
 
   // Preparar dados para o gráfico no formato do Chart.js
-  const datas = historicoPeso.map(registro => formatarDataGrafico(registro.data));
-  const pesos = historicoPeso.map(registro => parseFloat(registro.peso)).filter(peso => !isNaN(peso));
+  // Sort the historicoPeso array by date before mapping
+  const sortedHistoricoPeso = [...historicoPeso].sort((a, b) => {
+    const dateA = new Date(a.data);
+    const dateB = new Date(b.data);
+    return dateA.getTime() - dateB.getTime();
+  });
+  const datas = sortedHistoricoPeso.map(registro => formatarDataGrafico(registro.data));
+  const pesos = sortedHistoricoPeso.map(registro => parseFloat(registro.peso)).filter(peso => !isNaN(peso));
 
   const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
   const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 140;

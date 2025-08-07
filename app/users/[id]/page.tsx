@@ -3,22 +3,22 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import Header from '@/app/_components/header'; // Importando o componente Header
+import Header from '@/app/_components/header';
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { Label } from "@/app/_components/ui/label";
 import { Avatar, AvatarImage } from "@/app/_components/ui/avatar";
-import { Button } from "@/app/_components/ui/button"; // Importando o componente Button
-import { Loader2 } from 'lucide-react'; // Importando o ícone de carregamento
-import Link from "next/link"; // Importando o componente Link
-import { useToast } from "@/app/_hooks/use-toast"; // Importando o hook useToast
-import PesoHistoryChart from '@/app/users/_components/PesoHistoryChart'; // Importa o componente PesoHistoryChart
+import { Button } from "@/app/_components/ui/button";
+import { Loader2 } from 'lucide-react';
+import Link from "next/link";
+import { useToast } from "@/app/_hooks/use-toast";
+import PesoHistoryChart from '@/app/users/_components/PesoHistoryChart';
+import IMCChart from '../_components/IMCChart'; // Importe o componente IMCChart
 
-interface UserData { // Updated interface
+interface UserData {
   id: string;
   name: string | null;
   email: string;
   image: string | null;
-  // O campo dadosSaude é opcional caso o usuário ainda não tenha um registro na nova tabela
   dadosSaude?: {
     id: string;
     userId: string;
@@ -26,19 +26,27 @@ interface UserData { // Updated interface
     tipoSanguineo: string | null;
     sexo: string | null;
     dataNascimento: string | null;
-    altura: number | null; // Altura agora como number após descriptografia na API
+    altura: number | null;
   } | null;
 }
 
-// ... função calcularIdade existente ...
+interface PesoRegistro {
+  id: string;
+  userId: string;
+  peso: string;
+  data: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+
 const calcularIdade = (dataNascimento: string | null | undefined): number | null => {
   if (!dataNascimento) return null;
 
   try {
     const today = new Date();
-    const birthDate = new Date(dataNascimento); // Tenta parsear a string da data (espera formato YYYY-MM-DD)
+    const birthDate = new Date(dataNascimento);
 
-    // Verifica se a data de nascimento é válida
     if (isNaN(birthDate.getTime())) {
       return null;
     }
@@ -46,7 +54,6 @@ const calcularIdade = (dataNascimento: string | null | undefined): number | null
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    // Ajusta a idade se o aniversário ainda não ocorreu este ano
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
       age--;
     }
@@ -58,30 +65,25 @@ const calcularIdade = (dataNascimento: string | null | undefined): number | null
   }
 };
 
-  // Função auxiliar para formatar a data de nascimento
-  const formatarData = (data: string | null | undefined) => {
-    if (!data) return "Não informado";
-    try {
-      // Parse a string da data (espera formato ISO 8601 ou similar do banco de dados)
-      // Usar split para evitar problemas de fuso horário com o constructor Date
-      const parts = data.split('-'); // Assumindo formato YYYY-MM-DD
-      const year = parseInt(parts[0], 10);
-      const month = parseInt(parts[1], 10);
-      const day = parseInt(parts[2], 10);
+const formatarData = (data: string | null | undefined) => {
+  if (!data) return "Não informado";
+  try {
+    const parts = data.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const day = parseInt(parts[2], 10);
 
-      // Criar um objeto Date em UTC a partir dos componentes
-      const dateObj = new Date(Date.UTC(year, month - 1, day)); // Meses em Date sao de 0-11
+    const dateObj = new Date(Date.UTC(year, month - 1, day));
 
-      // Extrai componentes da data (UTC para evitar problemas de fuso horário)
-      const dia = dateObj.getUTCDate().toString().padStart(2, '0');
-      const mes = (dateObj.getUTCMonth() + 1).toString().padStart(2, '0'); // Meses sao de 0 a 11
-      const ano = dateObj.getUTCFullYear();
+    const dia = dateObj.getUTCDate().toString().padStart(2, '0');
+    const mes = (dateObj.getUTCMonth() + 1).toString().padStart(2, '0');
+    const ano = dateObj.getUTCFullYear();
 
-      return `${dia}/${mes}/${ano}`;
-    } catch {
-      return "Data inválida";
-    }
-  };
+    return `${dia}/${mes}/${ano}`;
+  } catch {
+    return "Data inválida";
+  }
+};
 
 
 export default function UserProfilePage() {
@@ -91,6 +93,11 @@ export default function UserProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]); // Estado para histórico de peso
+  const [loadingHistorico, setLoadingHistorico] = useState(true); // Estado de loading para histórico de peso
+  const [errorHistorico, setErrorHistorico] = useState<string | null>(null); // Estado de erro para histórico de peso
+
+
   const { toast } = useToast();
 
 
@@ -107,25 +114,41 @@ export default function UserProfilePage() {
       return;
     }
 
-    const fetchUserData = async () => {
+    const fetchUserDataAndPeso = async () => { // Função única para buscar dados do usuário e peso
+      setLoading(true);
+      setLoadingHistorico(true);
       try {
-        const response = await fetch(`/api/users/${id}`);
-        if (!response.ok) {
-           const errorMessage = `Erro ao carregar dados: ${response.statusText}`;
+        // Busca dados do usuário
+        const userResponse = await fetch(`/api/users/${id}`);
+        if (!userResponse.ok) {
+           const errorMessage = `Erro ao carregar dados do usuário: ${userResponse.statusText}`;
            setError(errorMessage);
            toast({
              variant: "destructive",
              title: "Erro ao carregar",
              description: errorMessage,
            });
-          setLoading(false);
+           setLoading(false);
           return;
         }
-        const data: UserData = await response.json();
-        setUserData(data);
+        const userData: UserData = await userResponse.json();
+        setUserData(userData);
+        console.log("Dados do Usuário:", userData); // Log para verificar dados do usuário
+
+
+        // Busca histórico de peso
+        const pesoResponse = await fetch(`/api/pesos/${id}`);
+        if (!pesoResponse.ok) {
+          const errorData = await pesoResponse.json();
+          throw new Error(errorData.error || 'Erro ao buscar histórico de peso');
+        }
+        const pesoData: PesoRegistro[] = await pesoResponse.json();
+        setHistoricoPeso(pesoData);
+        console.log("Dados do Histórico de Peso:", pesoData); // Log para verificar dados do histórico de peso
+
 
       } catch (err) {
-         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados do usuário.";
+         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados.";
          setError(errorMessage);
          toast({
             variant: "destructive",
@@ -135,10 +158,11 @@ export default function UserProfilePage() {
         console.error(err);
       } finally {
         setLoading(false);
+        setLoadingHistorico(false);
       }
     };
 
-    fetchUserData();
+    fetchUserDataAndPeso(); // Chama a nova função de busca combinada
   }, [id, toast]);
 
 
@@ -151,11 +175,10 @@ export default function UserProfilePage() {
             <Loader2 className="h-10 w-10 animate-spin" />
           </div>
         ) : error ? (
-           null
+           <p className="text-red-500">{error}</p> // Exibe erro de dados do usuário
         ) : !userData ? (
           <p>Nenhum dado de usuário encontrado.</p>
         ) : (
-          // Display user data when userData is available
           <Card className="border-none">
             <CardHeader>
               <div className="flex justify-between items-center">
@@ -166,7 +189,6 @@ export default function UserProfilePage() {
               </div>
             </CardHeader>
             <CardContent className="grid gap-4">
-              {/* Nova estrutura para Nome, Data de Nascimento e Idade na mesma linha, e Email abaixo */}
               <div className="flex items-start justify-between">
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2">
@@ -188,7 +210,6 @@ export default function UserProfilePage() {
                 )}
               </div>
 
-              {/* Restante dos campos de dados de saúde */}
               <div>
                 <Label htmlFor="tipoSanguineo">Tipo Sanguíneo:</Label>
                 <p id="tipoSanguineo" className="text-sm text-gray-700 dark:text-gray-300">
@@ -212,15 +233,32 @@ export default function UserProfilePage() {
                 <p id="cns" className="text-sm text-gray-700 dark:text-gray-300">{userData.dadosSaude?.CNS || "Não informado"}</p>
               </div>
 
-              {/* === ADICIONANDO O COMPONENTE PESOHISTORYCHART === */}
-              {/* Verifique se userData existe antes de passar as props */}
-              {userData && (
-                <PesoHistoryChart
-                  userId={userData.id}
-                  // Passe a altura do usuário (assumindo que já é um número em metros da API)
-                  userHeight={userData.dadosSaude?.altura || null}
-                />
-              )}
+              {/* Container para os gráficos (lado a lado em telas maiores) */}
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Gráfico de Histórico de Peso */}
+                <div className="md:w-4/5">
+                   {userData && (
+                      <PesoHistoryChart
+                         userId={userData.id}
+                         userHeight={userData.dadosSaude?.altura || null} // Passa a altura para o gráfico de Peso
+                     />
+                   )}
+                </div>
+
+                {/* Gráfico de IMC */}
+                <div className="flex-1">
+                   {userData && userData.dadosSaude?.altura !== null && ( // Renderize apenas se userData e altura existirem
+                      <IMCChart
+                         userId={userData.id}
+                         userHeight={userData.dadosSaude?.altura || null} // Passa a altura (number | null)
+                         historicoPeso={historicoPeso} // Passa o histórico de peso buscado no pai
+                         loadingHistorico={loadingHistorico} // Passa o estado de loading
+                         errorHistorico={errorHistorico} // Passa o estado de erro
+                     />
+                   )}
+                </div>
+              </div>
+
 
             </CardContent>
           </Card>
