@@ -95,7 +95,7 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]); // Estado para histórico de peso
   const [loadingHistorico, setLoadingHistorico] = useState(true); // Estado de loading para histórico de peso
-  const [errorHistorico, setErrorHistorico] = useState<string | null>(null); // Estado de erro para histórico de peso
+  const [errorHistorico] = useState<string | null>(null); // Estado de erro para histórico de peso
 
 
   const { toast } = useToast();

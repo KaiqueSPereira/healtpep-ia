@@ -16,8 +16,9 @@ export default async function DocsPage() {
   return (
     <>
       <Header />
-      <DocsSidebar />
-      <div className="flex-1 container mx-auto px-4 py-8">
+      
+      <div className="flex flex-1 container mx-auto px-4 py-8">
+        <DocsSidebar />
         <div className="prose lg:prose-xl" dangerouslySetInnerHTML={{ __html: contentHtml }} />
       </div>
     </>

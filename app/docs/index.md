@@ -1,12 +1,10 @@
 # Documentação do Meu Site
 
-Bem-vindo à documentação oficial do nosso site!
+Bem-vindo à documentação oficial do Health Pep!
 
 Este espaço foi criado para ajudar você a entender e utilizar todas as funcionalidades da nossa plataforma. Aqui você encontrará guias, tutoriais e informações detalhadas para aproveitar ao máximo sua experiência.
 
-Navegue pelas seções ao lado (quando adicionarmos a navegação) para encontrar as informações que você precisa.
-
-Nosso site é um **prontuário médico pessoal**, desenhado para que você possa armazenar e gerenciar de forma centralizada todos os seus dados de consultas e exames. Com ele, você pode cadastrar e organizar informações sobre:
+Navegue pelas seções ao lado para encontrar as informações que você precisa.
 
 Este é um projeto pessoal e independente, criado com o objetivo de desenvolver minhas habilidades como programador. A ideia de criar este serviço surgiu a partir das dificuldades do dia a dia, onde a comunicação entre diferentes profissionais de saúde e o acesso ao histórico médico dos pacientes nem sempre são fluidos devido a diferentes sistemas de prontuário. Vi nessa situação uma oportunidade de criar um serviço onde o paciente pode centralizar todas as suas informações médicas relevantes e apresentá-las aos profissionais quando necessário.
 
@@ -22,18 +20,14 @@ Você também poderá filtrar suas consultas por profissional, tratamento ou uni
 
 Se tiver alguma dúvida ou precisar de ajuda, não hesite em nos contatar pelo e-mail: devkaiquekdsp@gmail.com.
 
-Navegue pelas seções ao lado (quando adicionarmos a navegação) para encontrar as informações que você precisa.
+Links uteis: 
 
-Se tiver alguma dúvida ou precisar de ajuda, não hesite em nos contatar pelo e-mail: devkaiquekdsp@gmail.com.
+Linkedin: [linkedin.com/in/kaiquedsp/](https://www.linkedin.com/in/kaiquedsp/)
 
-## Primeiros Passos
+Repositório do Projeto: [github.com/KaiqueSPereira/healtpep-ia](https://github.com/KaiqueSPereira/healtpep-ia)
 
-(Esta seção pode ser expandida para incluir informações sobre como se cadastrar, fazer login, etc.)
-
-## Funcionalidades Principais
-
-(Esta seção pode detalhar as principais funcionalidades do seu site)
+Navegue pelas seções ao lado para encontrar as informações que você precisa.
 
 ---
 
-*Última atualização: [Data atual]*
+*Última atualização: 07/08/2025*

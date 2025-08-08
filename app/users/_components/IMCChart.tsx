@@ -1,8 +1,7 @@
 // app/users/_components/IMCChart.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { useToast } from '@/app/_hooks/use-toast';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, ChartOptions, TooltipItem } from 'chart.js';
@@ -42,7 +41,7 @@ const determinarFaixaIMC = (imc: number): string => {
   return 'Obesidade Grau 3 (Mórbida)';
 };
 
-export default function IMCChart({ userId, userHeight, historicoPeso, loadingHistorico, errorHistorico }: IMCChartProps) {
+export default function IMCChart({ userHeight, historicoPeso, loadingHistorico, errorHistorico }: IMCChartProps) {
   const [ultimoIMCCalculado, setUltimoIMCCalculado] = useState<string | null>(null);
   const [faixaIMCUltimoRegistro, setFaixaIMCUltimoRegistro] = useState<string | null>(null);
 
@@ -76,8 +75,6 @@ export default function IMCChart({ userId, userHeight, historicoPeso, loadingHis
     }
   }, [historicoPeso, userHeight]); // Depende de historicoPeso e userHeight
 
-  // Data para o gráfico de IMC (usando Doughnut como gauge)
-  const imcValue = ultimoIMCCalculado !== null ? parseFloat(ultimoIMCCalculado) : 0;
 
   // Faixas de IMC e cores correspondentes (para visualização em gauge)
   const imcRanges = [18.5, 25, 30, 35, 40]; // Limites das faixas (aproximados para o gauge)
@@ -120,20 +117,20 @@ export default function IMCChart({ userId, userHeight, historicoPeso, loadingHis
       },
       tooltip: {
         enabled: true,
-        displayColors: false, // Hide color box in tooltip
+        displayColors: false, 
         position: 'nearest',
         callbacks: {
           label: (tooltipItem: TooltipItem<'doughnut'>): string => {
-            // Exibe apenas o rótulo da faixa no tooltip
+            
             return imcLabels[tooltipItem.dataIndex];
           },
-          title: () => '', // Remove o título do tooltip
+          title: () => '', 
         },
       }
     },
-    rotation: 270, // Start at the bottom
-    circumference: 180, // Half a circle for the gauge effect
-    cutout: '80%', // Tamanho do buraco central
+    rotation: 270, 
+    circumference: 180, 
+    cutout: '80%', 
   };
 
 
