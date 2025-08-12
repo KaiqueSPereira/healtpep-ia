@@ -8,6 +8,7 @@ interface Agendamento {
   data: Date;
   profissional?: { nome: string };
   unidade?: { nome: string };
+  tratamento?: { nome: string }; // Campo opcional para o tratamento
 }
 
 interface AgendamentoItemProps {
@@ -26,6 +27,7 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
     profissional,
     unidade,
     data,
+    tratamento,
   } = consultas;
 
   // Formata a data e hora
@@ -48,10 +50,13 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
   const profissionalNome =
     profissional?.nome || "Profissional não especificado";
   const unidadeNome = unidade?.nome || "Unidade não especificada";
+  const tratamentoNome = tratamento?.nome;
+
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px]  h-44">
+      <Card className="min-w-[280px] max-w-[320px] h-44">
+        {/* Removido overflow-hidden do CardContent */}
         <CardContent className="flex justify-between p-0">
           {/* Informações do agendamento */}
           <div className="flex flex-col gap-2 py-5 pl-5 pr-8">
@@ -60,12 +65,16 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
               {profissionalNome}
             </p>
             <p className="truncate text-sm ">{unidadeNome}</p>
+            {tratamentoNome && (
+                <p className="text-sm text-gray-600 dark:text-gray-300">Tratamento: {tratamentoNome}</p>
+            )}
             <Button variant="secondary" className="mt-2 w-20" asChild>
               <Link href={`/consulta/${consultas.id}`}>Detalhes</Link>
             </Button>
           </div>
-          {/* Data e hora do agendamento */}
-          <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5">
+          {/* Data e hora do agendamento com borda */}
+          {/* Garantindo que este div esteja bem contido */}
+          <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5 flex-shrink-0"> {/* Adicionado flex-shrink-0 */}
             <p className="text-sm capitalize ">{mes}</p>
             <p className="text-2xl font-bold ">{dia}</p>
             <p className="text-sm ">{horaFormatada}</p>

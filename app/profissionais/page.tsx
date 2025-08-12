@@ -1,23 +1,25 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react"; // Import useMemo
 import { Button } from "../_components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "../_components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogTrigger,
 } from "../_components/ui/dialog";
+import { Label } from "../_components/ui/label";
+import {
+  Select, // Import Select
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../_components/ui/select";
 import { Loader2 } from "lucide-react";
 import Header from "../_components/header";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 
 interface Profissional {
   id: string;
@@ -26,12 +28,13 @@ interface Profissional {
   NumClasse: string;
   unidades: { id: string; nome: string }[];
 }
+
 const ProfissionaisPage = () => {
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [filterSpecialty, setFilterSpecialty] = useState<string>(""); // State for filter
 
   useEffect(() => {
     const fetchProfissionais = async () => {
@@ -59,9 +62,24 @@ const ProfissionaisPage = () => {
     }
   };
 
-  const handleCardClick = (profissionalId: string) => {
-    router.push(`/profissionais/${profissionalId}`);
-  };
+  // Memoize filtered and sorted professionals for performance
+  const filteredAndSortedProfissionais = useMemo(() => {
+    let filtered = profissionais;
+    if (filterSpecialty && filterSpecialty !== "all") { // Check if filterSpecialty is not "all" or empty
+      filtered = profissionais.filter(
+        (profissional) => profissional.especialidade === filterSpecialty
+      );
+    }
+
+    return filtered.sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [profissionais, filterSpecialty]);
+
+  // Extract unique specialties for the filter dropdown
+  const uniqueSpecialties = useMemo(() => {
+    const specialties = profissionais.map(p => p.especialidade).filter(Boolean); // Get all specialties, remove empty
+    return Array.from(new Set(specialties)).sort(); // Get unique and sort
+  }, [profissionais]);
+
 
   return (
     <div>
@@ -74,73 +92,82 @@ const ProfissionaisPage = () => {
           </Button>
         </div>
 
+        {/* Filter Section */}
+        <div className="mb-6">
+            <Label htmlFor="specialtyFilter" className="mr-2">Filtrar por Especialidade:</Label>
+            <Select onValueChange={setFilterSpecialty} value={filterSpecialty}>
+                <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Todas as Especialidades" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">Todas as Especialidades</SelectItem> {/* Changed value to "all" */}
+                    {uniqueSpecialties.map(specialty => (
+                        <SelectItem key={specialty} value={specialty}>{specialty}</SelectItem>
+                    ))}
+                </SelectContent>
+            </Select>
+        </div>
+
+
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-8 w-8 animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {profissionais.map((profissional) => (
-              <Card
+          <ul className="space-y-4">
+            {filteredAndSortedProfissionais.map((profissional) => (
+              <li
                 key={profissional.id}
-                className="cursor-pointer transition-all hover:scale-105 hover:shadow-lg"
-                onClick={() => handleCardClick(profissional.id)}
+                className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
-                <CardHeader>
-                  <CardTitle className="text-red-600">
-                    {profissional.nome}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p>
-                    <strong>Especialidade:</strong> {profissional.especialidade}
-                  </p>
-                  <p>
-                    <strong>Número de Classe:</strong> {profissional.NumClasse}
-                  </p>
-                  <p>
-                    <strong>Unidade:</strong>{" "}
-                    {profissional.unidades?.[0]?.nome || "Desconhecida"}
-                  </p>
-                  <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                    <Dialog>
-                      <DialogTrigger asChild>
+                <div>
+                  <p className="font-semibold text-red-600">{profissional.nome}</p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">{profissional.especialidade}</p>
+                </div>
+                <div className="flex space-x-2">
+                  <Link href={`/profissionais/${profissional.id}/editar`} passHref>
+                    <Button variant="outline" size="sm">
+                      Editar
+                    </Button>
+                  </Link>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => setSelectedProfissional(profissional)}
+                      >
+                        Apagar
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <p>
+                        Tem certeza que deseja apagar{" "}
+                        {selectedProfissional?.nome}?
+                      </p>
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedProfissional(null)}
+                        >
+                          Cancelar
+                        </Button>
                         <Button
                           variant="destructive"
-                          onClick={() => setSelectedProfissional(profissional)}
+                          onClick={() =>
+                            selectedProfissional &&
+                            handleDelete(selectedProfissional.id)
+                          }
                         >
-                          Apagar
+                          Confirmar
                         </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <p>
-                          Tem certeza que deseja apagar{" "}
-                          {selectedProfissional?.nome}?
-                        </p>
-                        <DialogFooter>
-                          <Button
-                            variant="outline"
-                            onClick={() => setSelectedProfissional(null)}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            onClick={() =>
-                              selectedProfissional &&
-                              handleDelete(selectedProfissional.id)
-                            }
-                          >
-                            Confirmar
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </CardContent>
-              </Card>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </div>
     </div>

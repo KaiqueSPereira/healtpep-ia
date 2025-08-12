@@ -17,7 +17,7 @@ import BotaoEditarConsulta from "../components/buttoneditConsulta"; // Assumindo
 import { useState, useRef, useEffect } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import { useParams, useRouter } from "next/navigation";
-// Removida a importação de Footer
+
 import { Exame, Profissional, Unidade } from "@/app/_components/types"; // Importar tipos necessários
 import { Tratamento } from "@prisma/client";
 
@@ -28,14 +28,13 @@ interface Anotacao {
     consultaId: string;
     createdAt: Date;
     updatedAt: Date;
-    // Adicione outras propriedades se usadas
 }
 
 // Interface para a estrutura da Consulta (ajuste conforme a API retorna)
 interface ConsultaData {
     id: string;
     tipo: string;
-    data: string; // API retorna como string (ISO ou formatada)
+    data: string; 
     motivo: string | null;
     unidade: Unidade | null;
     profissional: Profissional | null;
@@ -195,9 +194,9 @@ const ConsultaPage = () => {
       }
 
       toast({ title: "Anotação deletada com sucesso!", variant: "default" }); // Changed from "success" to "default"
-      router.refresh(); // Revalida o cache para remover a anotação deletada
+      router.refresh(); 
 
-    } catch (err) { // Removido ': any'
+    } catch (err) { 
       console.error("Erro ao deletar a anotação:", err);
       toast({ title: `Erro ao deletar a anotação: ${(err as Error).message}`, variant: "destructive" }); // Acessar message de Error
     }
@@ -224,14 +223,13 @@ const ConsultaPage = () => {
       toast({ title: "Consulta deletada com sucesso!", variant: "default" });
       router.push("/consulta"); // Redirecionar para a página de listagem após a exclusão
 
-    } catch (err) { // Removido ': any'
+    } catch (err) { 
       console.error("Erro ao deletar a consulta:", err);
       toast({ title: `Erro ao deletar a consulta: ${(err as Error).message}`, variant: "destructive" }); // Acessar message de Error
       setDeleting(false); // Parar de indicar exclusão em caso de erro
       setShowConfirmDelete(false); // Ocultar a confirmação em caso de erro
     }
   };
-
 
   // Exibindo estados de carregamento inicial e erro ao buscar a consulta
   if (loading) {
@@ -263,10 +261,8 @@ const ConsultaPage = () => {
 
   return (
     <div>
-      {/* Header da página */}
       <Header />
 
-      {/* Botões de navegação e ação no topo */}
       <div className="relative w-full px-5 py-6">
         <Button
           size="icon"
@@ -278,20 +274,15 @@ const ConsultaPage = () => {
             <ChevronLeftIcon />
           </Link>
         </Button>
-        <div className="absolute right-5 top-6 flex gap-2"> {/* Adicionado flex e gap para os botões */}
-          {/* Botão Editar Consulta (assumindo que BotaoEditarConsulta existe) */}
-          {/* Certifique-se de que consulta.id está disponível antes de passar para o componente */}
+        <div className="absolute right-5 top-6 flex gap-2"> 
           {consulta?.id && <BotaoEditarConsulta consultaId={consulta.id} />}
 
-
-          {/* Botão Apagar Consulta (agora ao lado do editar) */}
-          <Button variant="destructive" onClick={handleConfirmDeleteClick} disabled={deleting}> {/* Desabilitar enquanto deletando */}
+          <Button variant="destructive" onClick={handleConfirmDeleteClick} disabled={deleting}>
                 Apagar
             </Button>
         </div>
       </div>
 
-      {/* Modal de confirmação de exclusão */}
       {showConfirmDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
               <Card className="w-96">
@@ -313,8 +304,7 @@ const ConsultaPage = () => {
 
       {/* Conteúdo principal da consulta */}
       <main className="container mx-auto px-5 py-6">
-        {/* Card de Detalhes da Consulta */}
-        {/* Verifique se consulta existe antes de acessar suas propriedades */}
+       
         {consulta && (
         <Card className="mb-6">
           <CardHeader>
@@ -358,7 +348,6 @@ const ConsultaPage = () => {
         )}
 
         {/* Seção de Exames Relacionados */}
-        {/* Use consulta.Exame directly as it's decrypted by the API */}
         {consulta?.Exame && consulta.Exame.length > 0 && ( // Verifique se consulta.Exame existe
           <Card className="mt-6">
             <CardHeader>
@@ -389,29 +378,7 @@ const ConsultaPage = () => {
           </Card>
         )}
 
-
-        {/* Seção para Adicionar Nova Anotação */}
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Adicionar Nova Anotação</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <Textarea
-              ref={novaAnotacaoRef}
-              placeholder="Digite sua anotação aqui..."
-              value={novaAnotacaoContent}
-              onChange={(e) => setNovaAnotacaoContent(e.target.value)}
-              rows={4}
-            />
-            {/* Desabilitar botão se estiver processando ou anotação vazia */}
-            <Button onClick={handleAddAnotacao} disabled={!novaAnotacaoContent.trim()}>
-              Adicionar Anotação
-            </Button>
-          </CardContent>
-        </Card>
-
         {/* Seção de Anotações Existentes */}
-        {/* Use consulta.Anotacoes directly as it's decrypted by the API */}
         {consulta?.Anotacoes && consulta.Anotacoes.length > 0 && ( // Verifique se consulta.Anotacoes existe
           <Card className="mt-6">
             <CardHeader>
@@ -464,6 +431,25 @@ const ConsultaPage = () => {
             </CardContent>
           </Card>
         )}
+        {/* Seção para Adicionar Nova Anotação */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Adicionar Nova Anotação</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <Textarea
+              ref={novaAnotacaoRef}
+              placeholder="Digite sua anotação aqui..."
+              value={novaAnotacaoContent}
+              onChange={(e) => setNovaAnotacaoContent(e.target.value)}
+              rows={4}
+            />
+            {/* Desabilitar botão se estiver processando ou anotação vazia */}
+            <Button onClick={handleAddAnotacao} disabled={!novaAnotacaoContent.trim()}>
+              Adicionar Anotação
+            </Button>
+          </CardContent>
+        </Card>
 
       </main>
     </div>
