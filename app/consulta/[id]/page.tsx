@@ -34,13 +34,13 @@ interface Anotacao {
 interface ConsultaData {
     id: string;
     tipo: string;
-    data: string; 
+    data: string;
     motivo: string | null;
     unidade: Unidade | null;
     profissional: Profissional | null;
     Anotacoes: Anotacao[]; // Array de Anotacoes
     Exame: Exame[];
-    tratamento: Tratamento | null; 
+    tratamento: Tratamento | null;
 }
 
 // Este componente é um Client Component
@@ -194,9 +194,9 @@ const ConsultaPage = () => {
       }
 
       toast({ title: "Anotação deletada com sucesso!", variant: "default" }); // Changed from "success" to "default"
-      router.refresh(); 
+      router.refresh();
 
-    } catch (err) { 
+    } catch (err) {
       console.error("Erro ao deletar a anotação:", err);
       toast({ title: `Erro ao deletar a anotação: ${(err as Error).message}`, variant: "destructive" }); // Acessar message de Error
     }
@@ -223,7 +223,7 @@ const ConsultaPage = () => {
       toast({ title: "Consulta deletada com sucesso!", variant: "default" });
       router.push("/consulta"); // Redirecionar para a página de listagem após a exclusão
 
-    } catch (err) { 
+    } catch (err) {
       console.error("Erro ao deletar a consulta:", err);
       toast({ title: `Erro ao deletar a consulta: ${(err as Error).message}`, variant: "destructive" }); // Acessar message de Error
       setDeleting(false); // Parar de indicar exclusão em caso de erro
@@ -274,7 +274,7 @@ const ConsultaPage = () => {
             <ChevronLeftIcon />
           </Link>
         </Button>
-        <div className="absolute right-5 top-6 flex gap-2"> 
+        <div className="absolute right-5 top-6 flex gap-2">
           {consulta?.id && <BotaoEditarConsulta consultaId={consulta.id} />}
 
           <Button variant="destructive" onClick={handleConfirmDeleteClick} disabled={deleting}>
@@ -288,7 +288,8 @@ const ConsultaPage = () => {
               <Card className="w-96">
                   <CardHeader>
                       <CardTitle>Confirmar Exclusão</CardTitle>
-                      <CardDescription>Tem certeza que deseja apagar esta consulta? Esta ação não pode ser desfeita.</CardDescription>
+                      {/* Ajuste na cor da descrição para melhor visibilidade no tema escuro */}
+                      <CardDescription className="text-gray-600 dark:text-gray-300">Tem certeza que deseja apagar esta consulta? Esta ação não pode ser desfeita.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex justify-end gap-4">
                       <Button variant="outline" onClick={() => setShowConfirmDelete(false)} disabled={deleting}> {/* Desabilitar enquanto deletando */}
@@ -304,12 +305,13 @@ const ConsultaPage = () => {
 
       {/* Conteúdo principal da consulta */}
       <main className="container mx-auto px-5 py-6">
-       
+
         {consulta && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-2xl font-bold">{consulta.tipo}</CardTitle>
-            <CardDescription className="flex items-center gap-2">
+            {/* Ajuste na cor da descrição da data/hora */}
+            <CardDescription className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
               <span>{new Date(consulta.data).toLocaleDateString("pt-BR")}</span>
               <span>ás</span>
               <span>{new Date(consulta.data).toLocaleTimeString("pt-BR")}</span>
@@ -318,21 +320,26 @@ const ConsultaPage = () => {
           <CardContent className="grid gap-4">
             <div className="flex items-center gap-2">
               <span className="font-semibold">Unidade:</span>
-              <span>{consulta.unidade?.nome || "Não informado"}</span>
+              {/* Ajuste na cor do nome da unidade */}
+              <span className="text-gray-700 dark:text-gray-300">{consulta.unidade?.nome || "Não informado"}</span>
               {consulta.unidade?.tipo && (
-                <span className="text-sm text-gray-500">({consulta.unidade.tipo})</span>
+                /* Ajuste na cor do tipo da unidade */
+                <span className="text-sm text-gray-500 dark:text-gray-400">({consulta.unidade.tipo})</span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <span className="font-semibold">Profissional:</span>
-              <span>{consulta.profissional?.nome || "Não informado"}</span>
+              {/* Ajuste na cor do nome do profissional */}
+              <span className="text-gray-700 dark:text-gray-300">{consulta.profissional?.nome || "Não informado"}</span>
               {consulta.profissional?.especialidade && (
-                <span className="text-sm text-gray-500">
+                /* Ajuste na cor da especialidade do profissional */
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   ({consulta.profissional.especialidade})
                 </span>
               )}
               {consulta.profissional?.NumClasse && (
-                <span className="text-sm text-gray-500">
+                /* Ajuste na cor do número de classe */
+                <span className="text-sm text-gray-500 dark:text-gray-400">
                   Nº Classe: {consulta.profissional.NumClasse}
                 </span>
               )}
@@ -340,7 +347,8 @@ const ConsultaPage = () => {
             {consulta.motivo && (
               <div className="flex items-center gap-2">
                 <span className="font-semibold">{consulta.tipo === "Exame" ? "Tipo de Exame:" : "Motivo:"}</span>
-                <span>{consulta.motivo}</span>
+                {/* Ajuste na cor do motivo */}
+                <span className="text-gray-700 dark:text-gray-300">{consulta.motivo}</span>
               </div>
             )}
           </CardContent>
@@ -362,13 +370,15 @@ const ConsultaPage = () => {
                         {/* Acesse as propriedades que você espera que estejam no objeto exame */}
                         <span className="font-semibold">{exame.tipo}</span> {/* Assumindo que 'tipo' existe no Exame */}
                          {/* Se a data do exame for dataExame, use-a */}
-                        <span className="text-sm text-gray-500">
+                        {/* Ajuste na cor da data do exame */}
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
                           {new Date(exame.dataExame).toLocaleDateString("pt-BR")} {/* Usando dataExame */}
                         </span>
                       </div>
                       {/* Se a propriedade 'resultado' estiver em Exame, mostre-a */}
                        {exame.anotacao && ( // Assumindo que 'resultado' existe no Exame ou na relação Resultados (que não está incluída aqui)
-                          <p className="text-gray-700 text-sm mt-1">Resultado: {exame.anotacao}</p>
+                           /* Ajuste na cor do resultado do exame */
+                          <p className="text-gray-700 dark:text-gray-300 text-sm mt-1">Resultado: {exame.anotacao}</p>
                       )}
                     </Link>
                   </li>
@@ -406,8 +416,10 @@ const ConsultaPage = () => {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-2 w-full">
-                        <p className="text-gray-700">{anotacao.anotacao}</p>
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        {/* Ajuste na cor do texto da anotação */}
+                        <p className="text-gray-700 dark:text-gray-300">{anotacao.anotacao}</p>
+                        {/* Ajuste na cor da data de criação/atualização da anotação */}
+                        <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
                           <span>
                             Criado em:{" "}
                             {new Date(anotacao.createdAt).toLocaleDateString("pt-BR")}{" "}
@@ -443,6 +455,9 @@ const ConsultaPage = () => {
               value={novaAnotacaoContent}
               onChange={(e) => setNovaAnotacaoContent(e.target.value)}
               rows={4}
+              // A cor do texto do Textarea geralmente é controlada pelo próprio componente ou estilos globais.
+              // Se precisar ajustar aqui, pode adicionar uma classe:
+              // className="text-gray-700 dark:text-gray-300"
             />
             {/* Desabilitar botão se estiver processando ou anotação vazia */}
             <Button onClick={handleAddAnotacao} disabled={!novaAnotacaoContent.trim()}>
