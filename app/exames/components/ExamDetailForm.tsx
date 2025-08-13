@@ -8,10 +8,12 @@ import MenuUnidades from "../../unidades/_components/menuunidades";
 import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
 import { Consulta, Profissional, Unidade, Tratamento } from "../../_components/types";
+import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { toast } from "@/app/_hooks/use-toast";
 
 
 
-// Define the props for this component
 interface ExamDetailsFormProps {
     consultas: Consulta[];
     selectedConsulta: Consulta | null;
@@ -47,6 +49,31 @@ export function ExamDetailsForm({
     tipo, onTipoChange,
     selectorsKey
 }: ExamDetailsFormProps) {
+    const { data: session } = useSession();
+    const [unidadesList, setUnidadesList] = useState<Unidade[]>([]);
+
+    useEffect(() => {
+        const fetchUnidades = async () => {
+            if (!session?.user?.id) return;
+
+            try {
+                const response = await fetch(`/api/unidadesaude?userId=${session.user.id}`);
+                if (!response.ok) {
+                    throw new Error("Erro ao buscar unidades");
+                }
+                const data = await response.json();
+                setUnidadesList(data || []);
+            } catch (error) {
+                console.error("Erro ao buscar unidades:", error);
+                toast({
+                    title: "Erro ao carregar unidades.",
+                    variant: "destructive",
+                    duration: 5000,
+                });
+            }
+        };
+        fetchUnidades();
+    }, [session?.user?.id]);
 
     console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); 
     console.log("Value passed to MenuProfissionais (selectedProfissional):", selectedProfissional);
@@ -100,9 +127,10 @@ export function ExamDetailsForm({
               <>
                 <div>
                   <Label>Unidade</Label>
-                  <MenuUnidades
-                     key={`unidade-selector-${selectorsKey}`}
-                    selectedUnidade={selectedUnidade}
+                  <MenuUnidades // Pass the fetched units list
+                    key={`unidade-selector-${selectorsKey}`}
+                    unidades={unidadesList}
+                    selectedUnidade={selectedUnidade} 
                     onUnidadeSelect={onUnidadeSelect}
                   />
                 </div>

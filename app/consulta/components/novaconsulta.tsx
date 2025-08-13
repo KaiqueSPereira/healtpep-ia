@@ -38,8 +38,8 @@ const NovaConsulta = () => {
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
 
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
-  const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
@@ -48,21 +48,50 @@ const NovaConsulta = () => {
     useState<Tratamento | null>(null);
   const form = useForm({ defaultValues: { queixas: "", tipoexame: "" } });
 
-  // Buscar profissionais da unidade selecionada
+  const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
+
+  // Buscar unidades do usuário logado
   useEffect(() => {
-    const fetchProfissionais = async () => {
-      if (!selectedUnidade?.id) {
-        setProfissionais([]);
+    const fetchUnidades = async () => {
+      if (!session?.user?.id) {
+        setUnidades([]);
         return;
       }
 
+      console.log("Fetching units for user:", session.user.id);
+
       try {
         const response = await fetch(
-          `/api/unidadesaude?id=${encodeURIComponent(selectedUnidade.id)}`,
+          `/api/unidadesaude?userId=${session.user.id}`
         );
-        if (!response.ok) throw new Error("Erro ao buscar os dados da unidade");
-        const unidade = await response.json();
-        setProfissionais(unidade.profissionais || []);
+        if (!response.ok) throw new Error("Erro ao buscar unidades");
+
+        const data = await response.json();
+        console.log("Units fetched:", data);
+        setUnidades(data || []);
+      } catch (error) {
+        console.error("Erro ao buscar unidades:", error);
+        toast({
+          title: "Erro ao carregar unidades.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+    };
+
+    fetchUnidades();
+  }, [session?.user?.id]);
+
+  // Buscar profissionais do usuário logado
+  useEffect(() => {
+    const fetchProfissionais = async () => {
+      if (!session?.user?.id) return;
+
+      try {
+        const response = await fetch(`/api/profissional?userId=${session.user.id}`);
+        if (!response.ok) throw new Error("Erro ao buscar profissionais");
+        const data = await response.json();
+        setProfissionais(data || []);
       } catch (error) {
         console.error("Erro ao buscar os profissionais:", error);
         toast({
@@ -74,7 +103,7 @@ const NovaConsulta = () => {
     };
 
     fetchProfissionais();
-  }, [selectedUnidade]);
+  }, [session?.user?.id]);
 
   // Buscar tratamentos do usuário logado
   useEffect(() => {
@@ -141,9 +170,9 @@ const NovaConsulta = () => {
       return;
     }
     if (
- ["Tratamento", "Retorno"].includes(selectedTipo) &&
+      ["Tratamento", "Retorno"].includes(selectedTipo) &&
       (
- !consultaData.tratamentoId ||
+        !consultaData.tratamentoId ||
  !consultaData.profissionalId ||
  !consultaData.unidadeId
       )
@@ -232,6 +261,7 @@ const NovaConsulta = () => {
 
           {selectedTipo && (
             <MenuUnidades
+              unidades={unidades}
               onUnidadeSelect={setSelectedUnidade}
               selectedUnidade={selectedUnidade}
             />

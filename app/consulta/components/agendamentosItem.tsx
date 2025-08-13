@@ -55,11 +55,11 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px] h-44">
-        {/* Removido overflow-hidden do CardContent */}
-        <CardContent className="flex justify-between p-0">
+      <Card className="min-w-[280px] max-w-[320px] h-48"> {/* Increased height slightly if needed */}
+        {/* Adicionado overflow-hidden ao CardContent */}
+        <CardContent className="flex p-0 overflow-hidden h-full"> {/* Added h-full to CardContent */}
           {/* Informações do agendamento */}
-          <div className="flex flex-col gap-2 py-5 pl-5 pr-8">
+          <div className="flex flex-col gap-2 py-5 pl-5 pr-4 flex-grow"> {/* Added flex-grow and adjusted padding */}
             <h3 className="text-lg font-bold ">{tipo}</h3>
             <p className="text-sm font-semibold ">
               {profissionalNome}
@@ -73,8 +73,10 @@ const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
             </Button>
           </div>
           {/* Data e hora do agendamento com borda */}
-          {/* Garantindo que este div esteja bem contido */}
-          <div className="flex flex-col items-center justify-between border-l-2 border-red-500 px-5 py-5 flex-shrink-0"> {/* Adicionado flex-shrink-0 */}
+          {/* Separador com a borda. Posicionado para ocupar 0 espaço flex, apenas a borda. */}
+ <div className="border-l-2 border-red-500 h-full flex-shrink-0"></div> {/* Added flex-shrink-0 */}
+          {/* Data e hora do agendamento. Usando w-24 para largura fixa. */}
+          <div className="flex flex-col items-center justify-between px-5 py-5 flex-shrink-0 w-24">
             <p className="text-sm capitalize ">{mes}</p>
             <p className="text-2xl font-bold ">{dia}</p>
             <p className="text-sm ">{horaFormatada}</p>

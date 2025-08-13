@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react"; // Removido useEffect
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -17,41 +17,28 @@ import {
   CommandList,
 } from "../../_components/ui/command";
 import { Unidade } from "../../_components/types";
+import { useRouter } from 'next/navigation'; // Importar useRouter
 
 interface MenuUnidadesProps {
-  onUnidadeSelect: (unidade: Unidade) => void; // FunĂ§ĂŁo para selecionar a unidade
+  onUnidadeSelect: (unidade: Unidade) => void; // Função para selecionar a unidade
   selectedUnidade: Unidade | null;
+  unidades: Unidade[]; // Adicionada a prop unidades
 }
 
-const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
-  const [unidades, setUnidades] = useState<Unidade[]>([]);
-  const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
+const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUnidade, unidades }) => { // Recebendo unidades como prop
   const [open, setOpen] = useState(false);
+  const router = useRouter(); // Inicializar useRouter
 
-  // Carregar as unidades da API
-  useEffect(() => {
-    const fetchUnidades = async () => {
-      try {
-        const res = await fetch("/api/unidadesaude");
-        if (!res.ok) {
-          throw new Error("Erro ao carregar as unidades");
-        }
-        const data: Unidade[] = await res.json();
-        setUnidades(data);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          console.error("Erro:", err.message);
-        } else {
-          console.error("Erro desconhecido:", err);
-        }
-      }
-    };
-    fetchUnidades();
-  }, []);
+  // Removido o useEffect que buscava unidades internamente
 
   const handleUnidadeSelect = (unidade: Unidade) => {
-    setSelectedUnidade(unidade);
+    // Não precisamos mais do estado selectedUnidade interno, pois ele é controlado pelo componente pai
     onUnidadeSelect(unidade); // Atualizar a unidade selecionada no componente pai
+    setOpen(false); // Fechar o popover após a seleção
+  };
+
+  const handleAddNewUnidade = () => {
+    router.push("/unidades/novo"); // Usando router.push para navegação
   };
 
   return (
@@ -77,8 +64,8 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
             <CommandList>
               <CommandEmpty>Nenhuma unidade encontrada.</CommandEmpty>
               <CommandGroup>
-                {unidades.length === 0 ? (
-                  <CommandItem disabled>Carregando unidades...</CommandItem>
+                {unidades.length === 0 ? ( // Usando a prop unidades
+                  <CommandItem disabled>Nenhuma unidade disponível</CommandItem>
                 ) : (
                   unidades.map((unidade) => (
                     <CommandItem
@@ -96,9 +83,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect }) => {
                 <CommandItem
                   key="add-new-unit"
                   value="add-new-unit"
-                  onSelect={() => {
-                    window.location.href = "/unidades/novo"; // Redireciona para a pÄ‚Ë‡gina de adicionar unidade
-                  }}
+                  onSelect={handleAddNewUnidade} // Usando a nova função de navegação
                 >
                   <Check className="mr-2 h-4 w-4 opacity-0" />
                   Adicionar Nova Unidade

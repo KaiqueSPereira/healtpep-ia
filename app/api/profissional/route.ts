@@ -1,9 +1,9 @@
 // app/api/profissional/route.ts
 import { db } from "@/app/_lib/prisma";
-import { getServerSession } from "next-auth"; // Importar getServerSession para obter a sessão
+import { getServerSession } from "next-auth"; 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authOptions } from "@/app/_lib/auth"; // Importar suas opções de autenticação
+import { authOptions } from "@/app/_lib/auth"; 
 
 // Definição do schema para validação dos dados de criação
 const profissionalCreateSchema = z.object({

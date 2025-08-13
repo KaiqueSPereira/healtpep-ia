@@ -1,10 +1,12 @@
 // Este arquivo é um Server Component por padrão no App Router.
 
 import { Consultatype, Consultas, Profissional } from "@prisma/client";
-import { db } from "../_lib/prisma";
+import { db } from "@/app/_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
-import Header from "../_components/header";
+import Header from "@/app/_components/header";
 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/_lib/auth";
 import ConsultaFilter from './components/ConsultaFilter';
 
 
@@ -67,8 +69,8 @@ interface SearchCondition {
   motivo?: { contains: string; mode: "insensitive" };
   tipodeexame?: { contains: string; mode: "insensitive" };
   profissional?: { nome: { contains: string; mode: "insensitive" } };
+ Anotacoes?: { some: { anotacao: { contains: string; mode: "insensitive" } } } | undefined;
   unidade?: { nome: { contains: string; mode: "insensitive" } };
-  queixas?: { contains: string; mode: "insensitive" };
   // Adicione outras possíveis condições aqui se houver
 }
 interface ConsultaWhereClause {
@@ -81,6 +83,15 @@ interface ConsultaWhereClause {
 }
 
 const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
+  const session = await getServerSession(authOptions);
+
+  if (!session || !session.user?.id) {
+    // Handle unauthorized access - you might want to redirect or show a message
+    return <div className="p-5">Usuário não autenticado.</div>;
+  }
+
+  const userId = session.user.id;
+
   const search = searchParams.search?.trim() || "";
   const profissionalId = searchParams.profissionalId;
   const tipo = searchParams.tipo;
@@ -95,33 +106,33 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
    }
 
    if (search) {
+ const parsedDate = parseDate(search);
+ if (parsedDate && Object.keys(whereClause).length === 0) {
+ whereClause.data = { equals: parsedDate };
+ } else if (!parsedDate) {
     const searchConditions: SearchCondition[] = [
         { motivo: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
         { tipodeexame: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
         {
           profissional: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } },
         },
-        { unidade: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } },
-        },
-        { queixas: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
-    ].filter(Boolean);
+ { Anotacoes: { some: { anotacao: { contains: search, mode: "insensitive" as const } } } as { some: { anotacao: { contains: string; mode: "insensitive" } } } | undefined },
+ { unidade: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } }, },
+ ].filter(Boolean);
     if (Object.keys(whereClause).length > 0) {
         whereClause.AND = searchConditions;
     } else {
         whereClause.OR = searchConditions;
     }
 }
-   const parsedDate = parseDate(search);
-   if (parsedDate && Object.keys(whereClause).length === 0) {
- whereClause.data = { equals: parsedDate };
-   }
-
+ }
 
   const consultas: Consultas[] = await db.consultas.findMany({
-    where: whereClause,
+    where: { ...whereClause, userId: userId }, // Filter by logged-in user ID
     include: {
       profissional: true,
       unidade: true,
+ // Anotacoes: true, // No need to include Anotacoes here to filter on them
       },
     orderBy: {
         data: 'desc',

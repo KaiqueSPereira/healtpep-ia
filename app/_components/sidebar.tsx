@@ -65,7 +65,9 @@ const Sidebarbotton = () => {
         </SheetClose>
         <Button className="justify-startgap-2" variant="ghost">
           <CalendarIcon size={18} />
-          Agendamentos
+          <Link href="/consulta" className="text-inherit no-underline">
+            Consultas
+          </Link>
         </Button>
         <Button className="flex items-center gap-2" variant="ghost">
           <Hospital size={18} />
