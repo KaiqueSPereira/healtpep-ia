@@ -47,7 +47,8 @@ const NovaConsulta = () => {
 
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [allProfissionais, setAllProfissionais] = useState<Profissional[]>([]); // Lista completa de profissionais
+  const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>([]); // Lista filtrada de profissionais
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
   const [tratamentos, setTratamentos] = useState<Tratamento[]>([]);
@@ -89,16 +90,16 @@ const NovaConsulta = () => {
     fetchUnidades();
   }, [session?.user?.id]);
 
-  // Buscar profissionais do usuário logado
+  // Buscar TODOS os profissionais do usuário logado
   useEffect(() => {
-    const fetchProfissionais = async () => {
+    const fetchAllProfissionais = async () => { // Renomeado aqui
       if (!session?.user?.id) return;
 
       try {
         const response = await fetch(`/api/profissional?userId=${session.user.id}`);
         if (!response.ok) throw new Error("Erro ao buscar profissionais");
-        const data = await response.json();
-        setProfissionais(data || []);
+        const data: Profissional[] = await response.json();
+        setAllProfissionais(data || []); // Armazena na lista completa
       } catch (error) {
         console.error("Erro ao buscar os profissionais:", error);
         toast({
@@ -109,8 +110,25 @@ const NovaConsulta = () => {
       }
     };
 
-    fetchProfissionais();
+    fetchAllProfissionais(); // Chamada com o novo nome
   }, [session?.user?.id]);
+
+  // Filtrar profissionais com base na unidade selecionada
+  useEffect(() => {
+    if (selectedUnidade) {
+      const profissionaisDaUnidade = allProfissionais.filter(profissional =>
+        // Verifica se o profissional tem alguma unidade cujo ID coincide com o da unidade selecionada
+        profissional.unidades.some(unidade => unidade.id === selectedUnidade.id)
+      );
+      setFilteredProfissionais(profissionaisDaUnidade);
+    } else {
+      // Se nenhuma unidade estiver selecionada, mostre todos os profissionais
+      setFilteredProfissionais(allProfissionais);
+    }
+     // Ao mudar a unidade selecionada, resetar o profissional selecionado
+     // Isso é feito no onUnidadeSelect agora
+     // setSelectedProfissional(null); // Removido daqui
+  }, [selectedUnidade, allProfissionais]); // Depende da unidade selecionada e da lista completa de profissionais
 
   // Buscar tratamentos do usuário logado
   useEffect(() => {
@@ -125,7 +143,8 @@ const NovaConsulta = () => {
 
         const data = await response.json();
         setTratamentos(data || []);
-      } catch (error) {
+
+      } catch (error) { // Adicionado o catch block que faltava
         console.error("Erro ao buscar tratamentos:", error);
         toast({
           title: "Erro ao carregar tratamentos.",
@@ -135,7 +154,7 @@ const NovaConsulta = () => {
       }
     };
 
-    fetchTratamentos();
+    fetchTratamentos(); // Chamada correta para buscar tratamentos
   }, [session?.user?.id]);
 
   // 📌 Função para salvar a consulta
@@ -234,7 +253,7 @@ const NovaConsulta = () => {
 
       console.log("Debug - selectedUnidade:", selectedUnidade);
       console.log("Debug - selectedUnidade?.id:", selectedUnidade?.id);
-      console.log("Debug - selectedProfissional:", selectedProfissional);
+      console.log("Debug - selectedProfissional:", selectedProfissional); // Mantido objeto completo para debug
       console.log("Debug - selectedProfissional?.id:", selectedProfissional?.id);
       console.log("Debug - tipoExameValue:", tipoExameValue);
 
@@ -271,7 +290,7 @@ const NovaConsulta = () => {
       if (selectedTratamento?.id) { // Tratamento é opcional para Exame no seu schema
         formData.append("tratamentoId", selectedTratamento.id);
       }
-      formData.append("nome", tipoExameValue); // Mapeia o tipo do select para 'nome' na API de exames
+      formData.append("nome", tipoExameValue); // Mapeia o tipo do select para \'nome\' na API de exames
       formData.append("anotacao", anotacaoExameValue || ""); // Adiciona a nova anotação
 
       // --- Envio para API de Exames ---
@@ -359,13 +378,16 @@ const NovaConsulta = () => {
           {selectedTipo && (
             <MenuUnidades
               unidades={unidades}
-              onUnidadeSelect={setSelectedUnidade}
+              onUnidadeSelect={(unidade) => {
+                setSelectedUnidade(unidade);
+                setSelectedProfissional(null); // Resetar profissional ao mudar a unidade
+              }}
               selectedUnidade={selectedUnidade}
             />
           )}
           {selectedTipo && (
             <MenuProfissionais
-              profissionais={profissionais}
+              profissionais={filteredProfissionais} // Usando a lista filtrada
               onProfissionalSelect={setSelectedProfissional}
               selectedProfissional={selectedProfissional}
             />
@@ -395,7 +417,7 @@ const NovaConsulta = () => {
                   <FormItem className="w-full">
                     <FormControl>
                       <Textarea
-                        placeholder="Oque te levou ao médico??"
+                        placeholder="Oque te levou ao médico???"
                         {...field}
                         className="mt-2 w-full"
                       />
