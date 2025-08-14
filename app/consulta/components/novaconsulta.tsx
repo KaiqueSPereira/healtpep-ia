@@ -40,7 +40,7 @@ import {
 } from "@/app/_components/ui/select";
 import { Label } from "@/app/_components/ui/label";
 
-const NovaConsulta = () => {
+const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
   const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
@@ -225,6 +225,7 @@ const NovaConsulta = () => {
             variant: "default",
             duration: 5000,
           });
+ onSaveSuccess?.(); // Chamar callback de sucesso
 
         } catch (error) {
           console.error("Erro geral ao salvar a consulta:", error);
@@ -318,6 +319,7 @@ const NovaConsulta = () => {
           variant: "default",
           duration: 5000,
         });
+ onSaveSuccess?.(); // Chamar callback de sucesso
 
       } catch (error) {
         console.error("Erro geral ao salvar o exame:", error);

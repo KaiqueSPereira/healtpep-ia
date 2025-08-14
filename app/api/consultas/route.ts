@@ -80,7 +80,7 @@ export async function GET(req: Request) {
         Anotacoes: true, // Assumindo que é Anotacoes e é uma lista
         Tratamento: true, // Assumindo que é Tratamento e é um objeto único ou null
       },
-      orderBy: { data: "asc" },
+      orderBy: { data: "desc" }, // Alterado para ordenar da mais recente para a mais antiga
       take: limit,
       skip: skip,
     });
