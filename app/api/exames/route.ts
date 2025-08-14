@@ -1,4 +1,4 @@
-// app/api/exames/route.ts - Função POST ajustada
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { randomUUID } from "crypto";
@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
 
     const profissionalId = formData.get("profissionalId")?.toString();
-    const unidadesId = formData.get("unidadeId")?.toString();
+    const unidadesId = formData.get("unidadesId")?.toString();
     const consultaId = formData.get("consultaId")?.toString() || null;
     const tratamentoId = formData.get("tratamentoId")?.toString() || null;
     const anotacao = formData.get("anotacao")?.toString() || ""; // Anotação agora vem do frontend
