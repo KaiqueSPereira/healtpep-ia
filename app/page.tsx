@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { redirect } from "next/navigation";
@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import ExameResultCard from "./_components/ExameResultCard";
 import TratamentoResultCard from "./_components/TratamentoResultCard";
 import ConsultaResultCard from "./_components/consultaResultCard";
+import ExamesList from "./exames/components/ExamesList";
 
 
 // Define interfaces for search results (adjust based on your API response structure)
@@ -214,18 +215,20 @@ const Home = () => {
           </div>
         ) : (
           // Display default components if no search results and no search term
-          <div className="mt-5 flex flex-col justify-between gap-5">
+          <>
             <div className="mt-5 flex flex-row items-center gap-5">
               <NovaConsulta />
               <Link href="/exames/novo">
                 <Button className="w-auto">Novo Exame</Button>
               </Link>
             </div>
-
             <div>
               <AgendamentosList userId={session.user.id} />
             </div>
-          </div>
+            <div>
+             <ExamesList userId={session.user.id} />
+             </div>
+          </>
         )}
       </div>
     </div>

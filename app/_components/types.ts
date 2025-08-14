@@ -104,20 +104,13 @@ export type ResultadoExame = {
 export type Exame = {
   id: string;
   nome: string;
-  dataExame: string;
+  dataExame: Date;
   anotacao?: string;
   nomeArquivo?: string;
   tipo?: string;
   resultados?: ResultadoExame[];
- // Defina a estrutura conforme necessário
-  profissional?: {
-    id: string;
-    nome: string;
-  };
-  unidades?: {
-    id: string;
-    nome: string;
-  };
+  profissional?: Profissional;
+  unidades?: Unidade;
   consulta?: {
     id: string;
     data: string;

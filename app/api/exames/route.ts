@@ -21,14 +21,54 @@ export async function GET() {
   }
 
   try {
+    // Use 'select' para incluir campos escalares e relacionais
     const exams = await prisma.exame.findMany({
       where: {
         userId: userId,
       },
-      include: {
-        resultados: true, // Include the related ResultadoExame records
-        profissional: true, // Include the related Profissional record
-        unidades: true, // Include the related UnidadeSaude record - Corrected from unidadeSaude
+      select: { // <-- Usando 'select'
+        id: true,
+        nome: true,         // Nome do arquivo (será descriptografado depois)
+        nomeArquivo: true,  // Nome único do arquivo (será descriptografado depois)
+        dataExame: true,    // Data do exame (Date)
+        anotacao: true,     // Anotação (será descriptografada depois)
+        tipo: true,         // <-- Campo escalar tipo (string)
+        userId: true,
+        createdAt: true,    // Se necessário
+        updatedAt: true,    // Se necessário
+
+        // Relações (usando select aninhado)
+        resultados: {
+          select: { // Selecione os campos dos resultados que você precisa
+            id: true,
+            nome: true,
+            valor: true,
+            unidade: true,
+            referencia: true,
+          }
+        },
+        profissional: {
+          select: { // Selecione os campos do profissional que você precisa
+            id: true,
+            nome: true,
+            especialidade: true,
+            NumClasse: true, // Se necessário no frontend
+          }
+        },
+        unidades: {
+           select: { // Selecione os campos da unidade que você precisa
+             id: true,
+             nome: true,
+             tipo: true, // Tipo da unidade, se necessário
+             telefone: true, // Telefone da unidade, se necessário
+             endereco: { // Endereço da unidade, se necessário
+                select: {
+                   nome: true, // Nome da rua/endereço
+                }
+             }
+           }
+        },
+        // Adicione outras relações aqui se precisar
       },
       orderBy: {
         dataExame: 'desc', // Order by date in descending order
@@ -37,36 +77,48 @@ export async function GET() {
 
     console.log(`Encontrados ${exams.length} exames para o usuário ${userId}.`);
 
+    // *** Descriptografia no backend (antes de enviar a resposta) ***
     const decryptedExams = exams.map((exame) => {
-      // Decrypt exam fields, handling potential nulls
+      // Descriptografar campos escalares que foram selecionados
       const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : null;
       const decryptedNomeArquivo = exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null;
       const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
+      // O campo 'tipo' não deve ser criptografado no POST, então não precisa descriptografar aqui.
 
+      // Descriptografar campos nos resultados, se selecionados e criptografados
+      const decryptedResultados = exame.resultados ? exame.resultados.map((resultado) => ({
+          ...resultado, // Inclui outros campos selecionados dos resultados
+          nome: resultado.nome ? safeDecrypt(resultado.nome) : null,
+          valor: resultado.valor ? safeDecrypt(resultado.valor) : null,
+          unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
+          referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
+          // other fields if needed
+      })) : undefined; // Use undefined se resultados não foi selecionado ou está vazio
+
+
+      // Retorna o objeto com campos descriptografados e relações incluídas
       return {
-        ...exame,
-        nome: decryptedNome,
-        nomeArquivo: decryptedNomeArquivo,
-        anotacao: decryptedAnotacao,
-        resultados: exame.resultados.map((resultado) => ({
-          ...resultado,
-          nome: resultado.nome ? safeDecrypt(resultado.nome) : null, // Handle null
-          valor: resultado.valor ? safeDecrypt(resultado.valor) : null, // Handle null
-          unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null, // Handle null
-          referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null, // Handle null
-        })),
+        ...exame, // Inclui todos os outros campos selecionados (id, dataExame, tipo, userId, createdAt, updatedAt)
+        nome: decryptedNome, // Nome do arquivo (descriptografado)
+        nomeArquivo: decryptedNomeArquivo, // Nome único do arquivo (descriptografado)
+        anotacao: decryptedAnotacao, // Anotação (descriptografada)
+        resultados: decryptedResultados, // Resultados (com campos descriptografados)
+        // profissional e unidades já vêm como objetos completos (se selecionados)
+        // tipo já vem como string (não deve ser criptografado)
       };
     });
 
-    console.log("Exames descriptografados para exibição.");
+
+    console.log("Exames processados para exibição.");
     console.log("--- Fim do GET em /api/exames ---");
-    return NextResponse.json(decryptedExams);
+    return NextResponse.json(decryptedExams); // Retorna a lista de exames processados
   } catch (error) {
     console.error("Erro ao buscar exames:", error);
-    console.log("--- Fim do GET em /api/exames com erro ---");
+    console.log("--- Fim do GET em /api/exames com erro ---\n", error); // Adicionado error no log
     return NextResponse.json({ error: "Erro ao buscar exames." }, { status: 500 });
   }
 }
+
 
 export async function POST(req: NextRequest) {
   console.log("--- Início do POST em /api/exames ---");
