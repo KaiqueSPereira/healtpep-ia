@@ -25,6 +25,7 @@ model User {
   dadosSaude    DadosSaude?
   historicoPeso PesoHistorico[] 
   profissionais Profissional[]
+  unidades      UnidadeDeSaude[]
 }
 
 model DadosSaude {
@@ -183,6 +184,8 @@ model UnidadeDeSaude {
   endereco      Endereco?      @relation(fields: [enderecoId], references: [id])
   profissionais Profissional[] @relation("ProfissionalUnidades")
   exames        Exame[]
+  userId        String? // Adicionado campo para o ID do usuário
+  usuario       User?          @relation(fields: [userId], references: [id])
 }
 
 enum Consultatype {

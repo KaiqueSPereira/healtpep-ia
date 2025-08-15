@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react"; // Removido useEffect
+import React, { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -17,28 +17,37 @@ import {
   CommandList,
 } from "../../_components/ui/command";
 import { Unidade } from "../../_components/types";
-import { useRouter } from 'next/navigation'; // Importar useRouter
+import { useRouter } from 'next/navigation';
+import { useSession } from "next-auth/react";
+
 
 interface MenuUnidadesProps {
-  onUnidadeSelect: (unidade: Unidade) => void; // Função para selecionar a unidade
+  onUnidadeSelect: (unidade: Unidade) => void;
   selectedUnidade: Unidade | null;
-  unidades: Unidade[]; // Adicionada a prop unidades
+  unidades: Unidade[];
 }
 
-const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUnidade, unidades }) => { // Recebendo unidades como prop
+const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUnidade, unidades }) => {
   const [open, setOpen] = useState(false);
-  const router = useRouter(); // Inicializar useRouter
+  const router = useRouter();
+  const { data: session } = useSession();
+    const currentUser = session?.user;
 
-  // Removido o useEffect que buscava unidades internamente
+
+  // Filter units based on currentUser.id
+  // Adicionado um check para garantir que currentUser e currentUser.id existem antes de filtrar
+  const filteredUnidades = currentUser?.id
+    ? unidades.filter(unidade => unidade.userId === currentUser.id)
+    : []; // Retorna um array vazio se o usuário não estiver logado
+
 
   const handleUnidadeSelect = (unidade: Unidade) => {
-    // Não precisamos mais do estado selectedUnidade interno, pois ele é controlado pelo componente pai
-    onUnidadeSelect(unidade); // Atualizar a unidade selecionada no componente pai
-    setOpen(false); // Fechar o popover após a seleção
+    onUnidadeSelect(unidade);
+    setOpen(false);
   };
 
   const handleAddNewUnidade = () => {
-    router.push("/unidades/novo"); // Usando router.push para navegação
+    router.push("/unidades/novo");
   };
 
   return (
@@ -64,10 +73,10 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUn
             <CommandList>
               <CommandEmpty>Nenhuma unidade encontrada.</CommandEmpty>
               <CommandGroup>
-                {unidades.length === 0 ? ( // Usando a prop unidades
-                  <CommandItem disabled>Nenhuma unidade disponível</CommandItem>
+                {filteredUnidades.length === 0 ? ( // Use filteredUnidades
+                  <CommandItem disabled>Nenhuma unidade disponível para este usuário</CommandItem>
                 ) : (
-                  unidades.map((unidade) => (
+                  filteredUnidades.map((unidade) => ( // Use filteredUnidades
                     <CommandItem
                       key={unidade.id}
                       value={unidade.id}
@@ -83,7 +92,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUn
                 <CommandItem
                   key="add-new-unit"
                   value="add-new-unit"
-                  onSelect={handleAddNewUnidade} // Usando a nova função de navegação
+                  onSelect={handleAddNewUnidade}
                 >
                   <Check className="mr-2 h-4 w-4 opacity-0" />
                   Adicionar Nova Unidade

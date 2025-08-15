@@ -49,6 +49,7 @@ export type Unidade = {
   nome: string;
   tipo: string;
   telefone?: string;
+  userId: string;
   endereco: {
     nome: string;
   };
