@@ -18,7 +18,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
 
   const {
     id, // Pegamos o ID para o link
-    nome = "Tipo de Exame não especificado",
     profissional,
     unidades, // Usamos 'unidades' conforme a API retorna a relação
     dataExame,
