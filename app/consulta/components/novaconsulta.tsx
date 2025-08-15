@@ -92,7 +92,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
 
   // Buscar TODOS os profissionais do usuário logado
   useEffect(() => {
-    const fetchAllProfissionais = async () => { // Renomeado aqui
+    const fetchAllProfissionais = async () => {
       if (!session?.user?.id) return;
 
       try {
@@ -144,7 +144,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         const data = await response.json();
         setTratamentos(data || []);
 
-      } catch (error) { // Adicionado o catch block que faltava
+      } catch (error) { 
         console.error("Erro ao buscar tratamentos:", error);
         toast({
           title: "Erro ao carregar tratamentos.",
@@ -154,7 +154,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       }
     };
 
-    fetchTratamentos(); // Chamada correta para buscar tratamentos
+    fetchTratamentos(); 
   }, [session?.user?.id]);
 
   // 📌 Função para salvar a consulta
@@ -261,7 +261,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
 
       const formData = new FormData();
       formData.append("dataExame", newDate.toISOString());
-      formData.append("tipo", "Exame"); // Tipo fixo como "Exame" para a API
+      formData.append("tipo", tipoExameValue); 
 
       // Verificações e adição ao FormData
       if (selectedUnidade?.id) {
@@ -273,7 +273,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
            variant: "destructive",
            duration: 5000,
          });
-         return; // Interrompe se a unidade for nula aqui
+         return; 
       }
 
       if (selectedProfissional?.id) {
@@ -348,11 +348,11 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     <div className="p-2 md:p-5">
       <Sheet>
         <SheetTrigger asChild>
-          <Button className="w-full md:w-auto">Nova Consulta</Button>
+          <Button className="w-full md:w-auto">Novo Agendamento</Button>
         </SheetTrigger>
         <SheetContent className="flex h-full w-full flex-col overflow-y-auto p-3 md:p-5">
           <SheetHeader>
-            <SheetTitle>Nova Consulta</SheetTitle>
+            <SheetTitle>Novo Agendamento</SheetTitle>
           </SheetHeader>
 
           <Calendar

@@ -12,6 +12,8 @@ import { ExameGrid } from "./components/ExamesGrid";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 import { ChartData, ExameCompleto, ExameGraficos } from "../_components/types";
+import Link from "next/link";
+import { Button } from "../_components/ui/button";
 
 
 export default function ExamesPage() {
@@ -209,13 +211,16 @@ export default function ExamesPage() {
     <div className="flex min-h-screen flex-col">
       <Header />
       <div className="flex flex-1">
-        {/* Main Content */}
-        {/* Keep the original padding for main */}
         <main className={`flex-1 space-y-6 p-4 md:p-6`}>
           {/* Title and ViewSwitcher */}
           <div className="flex flex-col md:flex-row md:justify-between md:items-center">
             <h1 className="text-2xl font-bold mb-2 md:mb-0">Meus Exames</h1>
+            <div className="flex items-center gap-4 md:gap-6">
+            <Link href="/exames/novo">
+                <Button className="w-auto">Novo Exame</Button>
+              </Link>
              <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
+            </div>
           </div>
 
 

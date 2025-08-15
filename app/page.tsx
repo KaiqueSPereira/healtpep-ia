@@ -7,8 +7,6 @@ import Header from "./_components/header";
 import Searchbar from "./_components/searchbar"; // Assuming this is the Search component
 import NovaConsulta from "./consulta/components/novaconsulta";
 import AgendamentosList from "./consulta/components/agendamentolist";
-import { Button } from "./_components/ui/button";
-import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import ExameResultCard from "./_components/ExameResultCard";
 import TratamentoResultCard from "./_components/TratamentoResultCard";
@@ -218,9 +216,6 @@ const Home = () => {
           <>
             <div className="mt-5 flex flex-row items-center gap-5">
               <NovaConsulta />
-              <Link href="/exames/novo">
-                <Button className="w-auto">Novo Exame</Button>
-              </Link>
             </div>
             <div>
               <AgendamentosList userId={session.user.id} />

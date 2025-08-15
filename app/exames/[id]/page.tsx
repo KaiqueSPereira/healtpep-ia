@@ -1,33 +1,36 @@
+// app/exames/[id]/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation"; // Import useRouter
 import { Exame } from "@/app/_components/types"; // Importe Exame da sua pasta de types
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
+import { Pencil } from "lucide-react"; // Importar o ícone de lápis
 
 // Interface para o resultado do exame (mantida, se estiver correta com o que a API retorna)
 interface ExameResultadoFrontend {
-    id: string; // Assumindo que o resultado tem um ID
-    nome: string;
-    valor: string;
-    unidade: string;
-    referencia?: string; // Usar a chave correta e pode ser opcional
-    exameId: string; // Adicionar o ID do exame
-    createdAt?: Date; // Adicionar timestamps se presentes
-    updatedAt?: Date;
+  id: string; // Assumindo que o resultado tem um ID
+  nome: string;
+  valor: string;
+  unidade: string;
+  referencia?: string; // Usar a chave correta e pode ser opcional
+  exameId: string; // Adicionar o ID do exame
+  createdAt?: Date; // Adicionar timestamps se presentes
+  updatedAt?: Date;
 }
 
 // Estender a interface Exame para incluir o array de resultados.
 // Não precisamos estender para a consulta se a interface Exame em types.ts já inclui a estrutura completa da consulta.
 interface ExameComResultados extends Exame {
-    resultados?: ExameResultadoFrontend[];
+  resultados?: ExameResultadoFrontend[];
 }
 
 
 export default function ExameDetalhePage() {
   const params = useParams();
   const id = params?.id as string;
+  const router = useRouter(); // Get the router instance
   const [exame, setExame] = useState<ExameComResultados | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null); // Para exibir erros
@@ -51,23 +54,23 @@ export default function ExameDetalhePage() {
 
         // Fetch the Data URL for the file
         const resArquivo = await fetch(`/api/exames/arquivo?id=${id}`);
-         // Verificar se a resposta do arquivo é OK antes de tentar ler o texto
+        // Verificar se a resposta do arquivo é OK antes de tentar ler o texto
         if (!resArquivo.ok) {
-             // Se for um erro 404 (não encontrado), não exibe erro, apenas não carrega o iframe
-             if(resArquivo.status === 404) {
-                 console.warn("Arquivo de exame não encontrado para o ID:", id);
-                 // Podemos definir algum estado para indicar que não há arquivo
-             } else {
-                 throw new Error(`Erro ao buscar arquivo do exame: ${resArquivo.statusText}`);
-             }
-         } else {
-             const dataUrl = await resArquivo.text(); // Get the response as text (the Data URL string)
-             // Find the iframe element and set its src
-             const iframe = document.querySelector('iframe[title="Arquivo do Exame"]');
-             if (iframe) {
-               iframe.setAttribute('src', dataUrl);
-             }
-         }
+          // Se for um erro 404 (não encontrado), não exibe erro, apenas não carrega o iframe
+          if (resArquivo.status === 404) {
+            console.warn("Arquivo de exame não encontrado para o ID:", id);
+            // Podemos definir algum estado para indicar que não há arquivo
+          } else {
+            throw new Error(`Erro ao buscar arquivo do exame: ${resArquivo.statusText}`);
+          }
+        } else {
+          const dataUrl = await resArquivo.text(); // Get the response as text (the Data URL string)
+          // Find the iframe element and set its src
+          const iframe = document.querySelector('iframe[title="Arquivo do Exame"]');
+          if (iframe) {
+            iframe.setAttribute('src', dataUrl);
+          }
+        }
 
 
       } catch (err: unknown) {
@@ -87,7 +90,7 @@ export default function ExameDetalhePage() {
   }
 
   if (error) {
-      return <p className="p-4 text-red-500">Erro: {error}</p>;
+    return <p className="p-4 text-red-500">Erro: {error}</p>;
   }
 
   if (!exame) {
@@ -96,18 +99,23 @@ export default function ExameDetalhePage() {
 
   // Função auxiliar para parsear e formatar a data
   const formatarDataConsulta = (dataString: string | undefined) => {
-      if (!dataString) return "Data não disponível";
-      try {
-          const date = new Date(dataString);
-           // Verificar se a data é válida
-          if (isNaN(date.getTime())) {
-              return "Data inválida";
-          }
-          return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-      } catch (e) {
-          console.error("Erro ao formatar data:", e);
-          return "Data inválida";
+    if (!dataString) return "Data não disponível";
+    try {
+      const date = new Date(dataString);
+      // Verificar se a data é válida
+      if (isNaN(date.getTime())) {
+        return "Data inválida";
       }
+      return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    } catch (e) {
+      console.error("Erro ao formatar data:", e);
+      return "Data inválida";
+    }
+  };
+
+  // Handler function for the edit button
+  const handleEditClick = () => {
+    router.push(`/exames/${id}/editar`);
   };
 
 
@@ -116,23 +124,32 @@ export default function ExameDetalhePage() {
       <Header />
       <main className="flex-1 px-4 py-6 md:px-10 lg:px-20">
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold">
-              Exame de {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString("pt-BR") : "Data não disponível"} {/* Adicionado verificação */}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {exame.unidades?.nome && `Unidade: ${exame.unidades.nome}`}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {exame.profissional?.nome &&
-                `Profissional: ${exame.profissional.nome}`}
-            </p>
-            {exame.anotacao && (
-              <p className="mt-2 text-sm italic text-muted-foreground">
-                Anotação: {exame.anotacao}
+          {/* Novo contêiner flex para o título e o botão de edição */}
+          <div className="flex items-center justify-between"> {/* Adicionado flexbox */}
+            <div> {/* Contêiner para o título e informações abaixo */}
+              <h1 className="text-2xl font-bold">
+                Exame de {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString("pt-BR") : "Data não disponível"} {/* Adicionado verificação */}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {exame.unidades?.nome && `Unidade: ${exame.unidades.nome}`}
               </p>
-            )}
+              <p className="text-sm text-muted-foreground">
+                {exame.profissional?.nome &&
+                  `Profissional: ${exame.profissional.nome}`}
+              </p>
+              {exame.anotacao && (
+                <p className="mt-2 text-sm italic text-muted-foreground">
+                  Anotação: {exame.anotacao}
+                </p>
+              )}
+            </div>
+            {/* Botão de Edição alinhado à direita */}
+            <Button variant="outline" size="sm" onClick={handleEditClick}> {/* Ajustado size="sm" para ser menor */}
+              <Pencil className="mr-1 h-4 w-4" /> {/* Adicionado ícone de lápis */}
+              Editar
+            </Button>
           </div>
+
 
           <div>
             <h2 className="mb-2 text-lg font-semibold">Resultados</h2>
@@ -172,7 +189,7 @@ export default function ExameDetalhePage() {
                             {item.valor}
                           </td>
                           <td className="border p-2">
-                             {item.unidade}
+                            {item.unidade}
                           </td>
                           <td className="border p-2">{item.referencia}</td>
                         </tr>
@@ -196,7 +213,7 @@ export default function ExameDetalhePage() {
                 className="h-[1600px] w-full rounded-md border"
                 title="Arquivo do Exame"
                 // Adicione um manipulador onError para depuração, se necessário
-                 onError={(e) => console.error("Erro ao carregar iframe:", e)}
+                onError={(e) => console.error("Erro ao carregar iframe:", e)}
               />
             </div>
           )}
@@ -219,21 +236,21 @@ export default function ExameDetalhePage() {
                   <strong>Queixas:</strong> {exame.consulta.queixas}
                 </p>
               )}
-               {/* Exibir profissional e unidade da consulta se existirem */}
-               {exame.consulta.profissional?.nome && (
-                   <p>
-                       <strong>Profissional da Consulta:</strong> {exame.consulta.profissional.nome}
-                   </p>
-               )}
-               {exame.consulta.unidade?.nome && (
-                   <p>
-                       <strong>Unidade da Consulta:</strong> {exame.consulta.unidade.nome}
-                   </p>
-               )}
+              {/* Exibir profissional e unidade da consulta se existirem */}
+              {exame.consulta.profissional?.nome && (
+                <p>
+                  <strong>Profissional da Consulta:</strong> {exame.consulta.profissional.nome}
+                </p>
+              )}
+              {exame.consulta.unidade?.nome && (
+                <p>
+                  <strong>Unidade da Consulta:</strong> {exame.consulta.unidade.nome}
+                </p>
+              )}
             </div>
           )}
 
-          <div>
+          <div> 
             <Button variant="destructive" onClick={() => history.back()}>
               Voltar
             </Button>
