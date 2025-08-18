@@ -183,5 +183,6 @@ export type ExameGraficos = {
   dataExame: string;
   anotacao?: string;
   nomeArquivo?: string;
+  tipo?: string;
   resultados?: Resultado[];
 };

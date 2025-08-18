@@ -7,6 +7,7 @@ import { Exame } from "@/app/_components/types"; // Importe Exame da sua pasta d
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Pencil } from "lucide-react"; // Importar o ícone de lápis
+import ExamFileDialog from "../components/ExameFileDialog";
 
 // Interface para o resultado do exame (mantida, se estiver correta com o que a API retorna)
 interface ExameResultadoFrontend {
@@ -83,6 +84,36 @@ export default function ExameDetalhePage() {
     fetchExameData();
 
   }, [id]);
+
+  useEffect(() => {
+    if (!id) {
+      setError("ID do exame não fornecido.");
+      setLoading(false);
+      return;
+    }
+
+    const fetchExameDetails = async () => {
+      try {
+        const resExame = await fetch(`/api/exames/${id}`);
+        if (!resExame.ok) {
+          throw new Error(`Erro ao buscar detalhes do exame: ${resExame.statusText}`);
+        }
+        const dataExame = await resExame.json();
+        setExame(dataExame?.exame);
+      } catch (err: unknown) {
+        console.error("Erro durante o fetch de detalhes do exame:", err);
+        setError("Erro ao carregar detalhes do exame."); // Adiciona um erro para detalhes do exame
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Chama a função para buscar os detalhes do exame
+    fetchExameDetails();
+
+    // A lógica de busca do arquivo foi movida para o componente ExamFileDialog
+
+  }, [id]); // As dependências agora incluem apenas o 'id'
 
 
   if (loading) {
@@ -207,14 +238,10 @@ export default function ExameDetalhePage() {
           {exame.nomeArquivo && (
             <div>
               <h2 className="mb-2 text-lg font-semibold">Arquivo Anexo</h2>
-              {/* O src será definido no useEffect após buscar a Data URL */}
-              <iframe
-                src="" // Inicia com src vazio
-                className="h-[1600px] w-full rounded-md border"
-                title="Arquivo do Exame"
-                // Adicione um manipulador onError para depuração, se necessário
-                onError={(e) => console.error("Erro ao carregar iframe:", e)}
-              />
+              {/* Condição para exibir o botão do Dialog apenas se houver nomeArquivo */}
+              {exame.nomeArquivo && (
+                 <ExamFileDialog examId={id} hasFile={!!exame.nomeArquivo} />
+              )}
             </div>
           )}
 
