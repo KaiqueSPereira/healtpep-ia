@@ -6,7 +6,9 @@ import { Card, CardContent } from "@/app/_components/ui/card";
 import { Button } from "@/app/_components/ui/button";
 import { Trash2, Pencil } from "lucide-react";
 import clsx from "clsx";
-import { useState, useEffect } from "react"; // Importe useState e useEffect
+import { useState, useEffect } from "react"; 
+import Image from 'next/image';
+
 
 type Resultado = {
   nome: string;
@@ -67,7 +69,7 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
                      console.error("Erro ao buscar prévia do arquivo:", res.statusText);
                      setPreviewErrors(prev => ({ ...prev, [id]: `Erro ao buscar arquivo: ${res.statusText}` }));
                  }
-             } catch (error: any) { // Use any ou unknown e verifique o tipo
+             } catch (error: unknown) { // Use any ou unknown e verifique o tipo
                  console.error("Erro no fetch da prévia:", error);
                   if (error instanceof Error) {
                      setPreviewErrors(prev => ({ ...prev, [id]: `Erro inesperado: ${error.message}` }));
@@ -208,23 +210,32 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
                              {/* Poderia adicionar um botão de fechar aqui para fechar clicando também */}
                              {/* <Button variant="ghost" size="sm" onClick={() => setHoveredExamId(null)}>X</Button> */}
                          </div>
-                          <div className="flex-1 flex items-center justify-center overflow-hidden"> {/* Container flexível para o conteúdo da prévia */}
-                             {filePreviews[exame.id] ? (
-                                 // Verifica a extensão para renderizar imagem ou iframe para PDF
-                                 exame.nomeArquivo.toLowerCase().endsWith('.pdf') ? (
-                                     <iframe src={filePreviews[exame.id]} className="w-full h-full border-0" title="Prévia do Exame"></iframe>
-                                 ) : (
-                                     // Assume que outros tipos são imagens. Pode precisar de mais verificações.
-                                     <img src={filePreviews[exame.id]} alt="Prévia do Exame" className="max-w-full max-h-full object-contain" />
-                                 )
-                             ) : previewErrors[exame.id] ? (
-                                  // Exibe mensagem de erro se houver
-                                 <div className="text-red-500 text-center">{previewErrors[exame.id]}</div>
-                             ) : (
-                                 // Exibe um indicador de carregamento ou mensagem enquanto busca a prévia
-                                 <div className="text-muted-foreground text-sm">Carregando prévia...</div>
-                             )}
-                          </div>
+                         <div className="flex-1 flex items-center justify-center overflow-hidden"> {/* Container flexível para o conteúdo da prévia */}
+             {filePreviews[exame.id] ? (
+                 exame.nomeArquivo.toLowerCase().endsWith('.pdf') ? (
+                     <iframe src={filePreviews[exame.id]} className="w-full h-full border-0" title="Prévia do Exame"></iframe>
+                 ) : (
+                     // Usar o componente Image do Next.js
+                     <div className="relative w-full h-full"> {/* Contêiner relativo para Image fill */}
+                         <Image
+                             src={filePreviews[exame.id]}
+                             alt="Prévia do Exame"
+                             fill // Faz a imagem preencher o contêiner pai
+                             className="object-contain" // Mantém a proporção e ajusta ao contêiner
+                             unoptimized // Pode ser necessário se a Data URL não puder ser otimizada pelo Next.js
+                         />
+                     </div>
+                 )
+
+             ) : previewErrors[exame.id] ? (
+                  // Exibe mensagem de erro se houver
+                 <div className="text-red-500 text-center">{previewErrors[exame.id]}</div>
+             ) : (
+                 // Exibe um indicador de carregamento ou mensagem enquanto busca a prévia
+                 <div className="text-muted-foreground text-sm">Carregando prévia...</div>
+             )}
+          </div>
+
                      </div>
                  </div>
              )}

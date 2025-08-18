@@ -73,7 +73,8 @@ export default function ExamesPage() {
     }
 
 
-  }, [currentView, examesGraficosData, examesListaData]); // Depende da view e dos dados carregados
+  }, [currentView, examesGraficosData, examesListaData, selectedExameTypes, selectedResultNames]); // Adicionadas dependências ausentes
+
 
 
   // === Handlers para seleção de filtros (simplificados) ===
