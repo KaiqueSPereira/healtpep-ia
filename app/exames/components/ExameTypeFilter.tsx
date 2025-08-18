@@ -64,16 +64,11 @@ const ExameTypeFilter: React.FC<ExameTypeFilterProps> = ({ exames, onSelectTypes
           if (JSON.stringify(selectedChartResults) !== JSON.stringify(allResultNames)) {
               setSelectedChartResults(allResultNames);
           }
-           // Chame as props de callback inicial com todos os nomes de resultados
-          onSelectTypes(allResultNames);
-          onSelectResultsForChart(allResultNames);
       } else {
            // Limpa os estados se não houver nomes de resultados
            if (selectedFilterTypes.length > 0) setSelectedFilterTypes([]);
            if (selectedChartResults.length > 0) setSelectedChartResults([]);
            // Chame as props de callback com arrays vazios
-           onSelectTypes([]);
-           onSelectResultsForChart([]);
  }
        // Limpar o termo de busca quando a lista de exames mudar
        setSearchTerm('');

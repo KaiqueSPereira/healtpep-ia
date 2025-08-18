@@ -40,7 +40,54 @@ export default function ExamesPage() {
   const [examToDelete, setExamToDelete] = useState<string | null>(null);
 
 
-  // Fetch data based on currentView
+  // === NOVO useEffect para inicializar os filtros com base nos dados carregados ===
+  useEffect(() => {
+    let allNames: string[] = [];
+    if (currentView === 'charts' && examesGraficosData.length > 0) {
+       // Extrai nomes de resultados para gráficos
+       allNames = Array.from(new Set(examesGraficosData.flatMap(exame =>
+          exame.resultados?.map(resultado => resultado.nome) || []
+        ))).sort();
+        // No modo gráfico, inicializa ambos selectedExameTypes e selectedResultNames com os nomes dos resultados
+        if (JSON.stringify(selectedExameTypes) !== JSON.stringify(allNames)) {
+            setSelectedExameTypes(allNames);
+        }
+        if (JSON.stringify(selectedResultNames) !== JSON.stringify(allNames)) {
+            setSelectedResultNames(allNames);
+        }
+    } else if (currentView === 'list' && examesListaData.length > 0) {
+       // Extrai tipos de exame para a lista
+        allNames = Array.from(new Set(examesListaData.map(exame => exame.tipo).filter((tipo): tipo is string => tipo !== undefined))).sort();
+        // No modo lista, inicializa apenas selectedExameTypes com os tipos de exame
+        if (JSON.stringify(selectedExameTypes) !== JSON.stringify(allNames)) {
+             setSelectedExameTypes(allNames);
+         }
+        // No modo lista, talvez você queira garantir que selectedResultNames esteja vazio ao mudar de view
+        if (selectedResultNames.length > 0) {
+             setSelectedResultNames([]);
+        }
+    } else if (examesGraficosData.length === 0 && examesListaData.length === 0) {
+        // Se não há dados em nenhuma view, limpa os filtros
+        if (selectedExameTypes.length > 0) setSelectedExameTypes([]);
+        if (selectedResultNames.length > 0) setSelectedResultNames([]);
+    }
+
+
+  }, [currentView, examesGraficosData, examesListaData]); // Depende da view e dos dados carregados
+
+
+  // === Handlers para seleção de filtros (simplificados) ===
+  const handleSelectTypes = useCallback((selectedTypes: string[]) => {
+    setSelectedExameTypes(selectedTypes);
+    // Remova a lógica condicional baseada em currentView aqui
+  }, []); // Remova as dependências desnecessárias (a menos que você precise de selectedResultNames aqui por algum motivo)
+
+  const handleSelectResultsForChart = useCallback((selectedResults: string[]) => {
+    setSelectedResultNames(selectedResults);
+  }, []); // Sem dependências
+
+
+  // === useEffect ORIGINAL para buscar dados ===
   useEffect(() => {
     setLoading(true);
     if (currentView === 'charts') {
@@ -60,7 +107,8 @@ export default function ExamesPage() {
           // Assume que a API de gráficos retorna dados que podem ser asseridos como ExameGraficos[]
           // E que a propriedade 'tipo' está presente aqui (após modificação manual da interface)
           setExamesGraficosData(data as ExameGraficos[]);
-          setExames(data as ExameGraficos[]); // Update raw data state
+          // Não defina 'exames' aqui. O novo useEffect se encarregará de sincronizar 'exames' com os dados corretos
+          // setExames(data as ExameGraficos[]); // REMOVA ESTA LINHA
         })
         .catch((error) => {
            console.error("Error fetching graphics exams:", error);
@@ -83,7 +131,8 @@ export default function ExamesPage() {
            }
            // Assume que a API completa retorna dados que podem ser asseridos como ExameCompleto[]
           setExamesListaData(data as ExameCompleto[]);
-          setExames(data as ExameCompleto[]); // Update raw data state
+          // Não defina 'exames' aqui. O novo useEffect se encarregará de sincronizar 'exames' com os dados corretos
+          // setExames(data as ExameCompleto[]); // REMOVA ESTA LINHA
          })
         .catch((error) => {
             console.error("Error fetching full exams:", error);
@@ -93,7 +142,18 @@ export default function ExamesPage() {
     }
   }, [currentView, examesGraficosData, examesListaData]); // Dependencies on currentView and cached data
 
-  // Filter exams based on selectedExameTypes and date range using useMemo
+
+  // === useEffect para SINCRONIZAR 'exames' com os dados corretos quando eles mudam ===
+  useEffect(() => {
+      if (currentView === 'charts') {
+          setExames(examesGraficosData);
+      } else { // currentView === 'list'
+          setExames(examesListaData);
+      }
+  }, [currentView, examesGraficosData, examesListaData]); // Depende da view e dos dados das APIs
+
+
+  // === useMemo ORIGINAL para filtrar exames ===
   const filteredExames = useMemo(() => {
     let filtered = exames; // Start with the current raw data
 
@@ -137,10 +197,11 @@ export default function ExamesPage() {
   }, [exames, selectedExameTypes, startDate, endDate, currentView]); // Depend on states that affect filtering
 
 
-  // Generate chart data based on filteredExames, selectedResultNames, and selectedChartType
+  // === useEffect ORIGINAL para gerar dados de gráfico ===
   useEffect(() => {
     // Only generate chart data in charts view and if there's filtered data and selected results AND a chart type is selected
-    if (currentView === 'list' || !filteredExames.length || selectedResultNames.length === 0 || selectedChartType === null) {
+    // Removido a verificação !filteredExames.length para permitir que o gráfico limpe se os filtros removerem todos os dados
+    if (currentView === 'list' || selectedResultNames.length === 0 || selectedChartType === null) {
       setChartDataUrina(null);
       setChartDataSangue(null);
       return;
@@ -220,23 +281,8 @@ export default function ExamesPage() {
 
   }, [filteredExames, selectedResultNames, currentView, selectedChartType]); // Depend on currentView and states that affect chart data
 
-  const handleSelectTypes = useCallback((selectedTypes: string[]) => {
-    setSelectedExameTypes(selectedTypes);
-    // Quando o tipo de exame muda no filtro de lista, redefinir resultados selecionados no modo gráfico
-    // (Essa lógica pode precisar de ajuste dependendo de como o ExameTypeFilter é usado em cada modo)
-    if (currentView === 'list') {
-         setSelectedResultNames([]); // Limpar resultados selecionados na lista (se aplicável)
-         // Se você usa selectedExameTypes para filtrar a lista, essa lógica está correta
-    } else { // currentView === 'charts'
-         // Se o ExameTypeFilter no modo gráfico é para selecionar TIPOS e não RESULTADOS,
-         // esta callback precisaria ser ajustada. Assumimos que ele seleciona RESULTADOS no modo gráfico.
-    }
-  }, [currentView, setSelectedResultNames]); // Adicionado dependências para lidar com a lógica condicional
 
-  const handleSelectResultsForChart = useCallback((selectedResults: string[]) => {
-    setSelectedResultNames(selectedResults);
-  }, []); // Sem dependências, pois opera no estado selectedResultNames
-
+  // === Handlers para exclusão ===
   const handleDeleteClick = (examId: string) => {
     setExamToDelete(examId);
     setIsConfirmDeleteDialogOpen(true);
@@ -256,7 +302,8 @@ export default function ExamesPage() {
         setExamesGraficosData(prev => prev.filter(exame => exame.id !== examToDelete));
         setExamesListaData(prev => prev.filter(exame => exame.id !== examToDelete));
         // Força a atualização do estado 'exames' para que filteredExames seja recalculado
-        setExames(prev => prev.filter(exame => exame.id !== examToDelete));
+        // Esta linha pode ser removida se o novo useEffect de sincronização for suficiente
+        // setExames(prev => prev.filter(exame => exame.id !== examToDelete));
       } else {
         toast({ title: "Erro ao excluir exame", variant: "destructive", duration: 5000 });
       }
@@ -324,10 +371,13 @@ export default function ExamesPage() {
                         <ExameTypeFilter
                            // Passa os dados de gráfico para este filtro (para obter nomes de resultados)
                            exames={examesGraficosData}
-                            onSelectTypes={handleSelectTypes} // Pode ser usado para selecionar tipos de resultado se o filtro suportar
-                            onSelectResultsForChart={handleSelectResultsForChart}
-                            // selectedResultsForChart={selectedResultNames} // Removido, verifique ExameTypeFilterProps
-                            // selectedExameTypeForChart={selectedChartType} // Removido, verifique ExameTypeFilterProps
+                            onSelectTypes={handleSelectTypes} // Usa o callback simplificado
+                            onSelectResultsForChart={handleSelectResultsForChart} // Usa o callback simplificado
+                            // selectedResultsForChart e selectedExameTypeForChart não são mais props no filtro
+                            // porque o filtro gerencia seus próprios estados de seleção localmente.
+                            // Certifique-se de que ExameTypeFilterProps não espera mais essas props.
+                            // selectedResultsForChart={selectedResultNames} // REMOVA ESTA LINHA
+                            // selectedExameTypeForChart={selectedChartType} // REMOVA ESTA LINHA
                         />
                      )}
                  </>
@@ -338,9 +388,10 @@ export default function ExamesPage() {
                  {/* Filtro de Tipo de Exame para a Lista (apenas no modo lista) */}
                   <ExameTypeFilter
                      exames={examesListaData} // Usa dados da lista para este filtro
-                      onSelectTypes={handleSelectTypes} // Usa o mesmo callback para selecionar tipos
-                      onSelectResultsForChart={() => {}} // Não relevante para a lista
-                      // selectedResultsForChart={[]} // Removido, verifique ExameTypeFilterProps
+                      onSelectTypes={handleSelectTypes} // Usa o callback simplificado
+                      onSelectResultsForChart={() => {}} // Não relevante para a lista, use um no-op
+                      // selectedResultsForChart e selectedExameTypeForChart não são mais props no filtro
+                      // selectedResultsForChart={[]} // REMOVA ESTA LINHA
                   />
                 </>
               )}
@@ -448,6 +499,6 @@ export default function ExamesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div> // Fechamento da div flex min-h-screen flex-col
+    </div> 
   );
 }
