@@ -7,7 +7,7 @@ import { Exame } from "@/app/_components/types"; // Importe Exame da sua pasta d
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Pencil } from "lucide-react"; // Importar o ícone de lápis
-import ExamFileDialog from "../components/ExameFileDialog";
+import ExamFileDialog from "../components/ExamFileDialog";
 
 // Interface para o resultado do exame (mantida, se estiver correta com o que a API retorna)
 interface ExameResultadoFrontend {

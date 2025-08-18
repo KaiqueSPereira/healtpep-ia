@@ -42,9 +42,14 @@ export default function ExamFileDialog({ examId, hasFile }: ExamFileDialogProps)
               iframe.setAttribute('src', dataUrl);
             }
           }
-        } catch (err: any) { // Use 'any' ou um tipo mais específico se souber o tipo do erro
+        } catch (err: unknown) { // Alterado de 'any' para 'unknown'
           console.error("Erro durante o fetch do arquivo:", err);
-          setFileError(`Erro ao carregar o arquivo: ${err.message}`);
+          // Verifica o tipo antes de acessar 'message'
+          if (err instanceof Error) {
+            setFileError(`Erro ao carregar o arquivo: ${err.message}`);
+          } else {
+            setFileError("Ocorreu um erro desconhecido ao carregar o arquivo.");
+          }
         }
       }
     };
@@ -63,17 +68,20 @@ export default function ExamFileDialog({ examId, hasFile }: ExamFileDialogProps)
       <DialogTrigger asChild>
         <Button variant="outline">Visualizar Arquivo</Button>
       </DialogTrigger>
+      {/* Alterado para h-[95vh] para usar mais altura */}
       <DialogContent className="sm:max-w-[800px] h-[95vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Arquivo Anexo</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 flex flex-col"> {/* Use flex-col para organizar conteúdo e erro */}
+        {/* Use flex-col para organizar conteúdo e erro */}
+        <div className="flex-1 flex flex-col">
           {fileError ? (
             <div className="text-red-500 text-center mt-4">{fileError}</div>
           ) : (
              // Renderiza o iframe apenas se não houver erro
             <iframe
               src="" // Inicia com src vazio, será preenchido pelo useEffect
+              // h-full garante que ocupe a altura do container pai
               className="h-full w-full rounded-md border"
               title="Arquivo do Exame"
               // Manipulador de erro no iframe (opcional, o fetch já trata erros)

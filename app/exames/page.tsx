@@ -11,7 +11,7 @@ import ExameTypeFilter from "./components/ExameTypeFilter";
 import { ExameGrid } from "./components/ExamesGrid";
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
-import { ChartData, ExameCompleto, ExameGraficos, Resultado } from "../_components/types"; // Importe Resultado
+import { ChartData, ExameCompleto, ExameGraficos} from "../_components/types"; // Importe Resultado
 import Link from "next/link";
 import { Button } from "@/app/_components/ui/button"; // Importe Button
 
