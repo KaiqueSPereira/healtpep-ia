@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
 
     const profissionalId = formData.get("profissionalId")?.toString();
-    const unidadesId = formData.get("unidadesId")?.toString();
+    const unidadeId = formData.get("unidadeId")?.toString();
     const consultaId = formData.get("consultaId")?.toString() || null;
     const tratamentoId = formData.get("tratamentoId")?.toString() || null;
     const anotacao = formData.get("anotacao")?.toString() || ""; // Anotação agora vem do frontend
@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
 
     console.log("Dados extraídos do FormData:", {
       profissionalId,
-      unidadesId,
+      unidadeId,
       consultaId,
       tratamentoId,
       anotacao,
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     if (
       !userId ||
       !profissionalId ||
-      !unidadesId ||
+      !unidadeId ||
       !dataExame ||
       !tipo ||
       (!consultaId && !tratamentoId)
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
         anotacao: encryptString(anotacao), // Salvar a anotação que veio do frontend
         userId,
         profissionalId,
-        unidadesId,
+        unidadesId: unidadeId,
         consultaId,
         tratamentoId,
         tipo,

@@ -80,19 +80,16 @@ export default function ExamesPage() {
   // === Handlers para seleção de filtros (simplificados) ===
   const handleSelectTypes = useCallback((selectedTypes: string[]) => {
     setSelectedExameTypes(selectedTypes);
-    // Remova a lógica condicional baseada em currentView aqui
-  }, []); // Remova as dependências desnecessárias (a menos que você precise de selectedResultNames aqui por algum motivo)
-
+  }, []); 
   const handleSelectResultsForChart = useCallback((selectedResults: string[]) => {
     setSelectedResultNames(selectedResults);
-  }, []); // Sem dependências
-
+  }, []); 
 
   // === useEffect ORIGINAL para buscar dados ===
   useEffect(() => {
     setLoading(true);
     if (currentView === 'charts') {
-      if (examesGraficosData.length > 0) { // Use cached data if available
+      if (examesGraficosData.length > 0) { 
         setExames(examesGraficosData);
         setLoading(false);
         return;
