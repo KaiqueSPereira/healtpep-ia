@@ -81,8 +81,6 @@ export async function GET(req: Request) {
         Tratamento: true, // Assumindo que é Tratamento e é um objeto único ou null
       },
       orderBy: { data: "desc" }, // Alterado para ordenar da mais recente para a mais antiga
-      take: limit,
-      skip: skip,
     });
 
 

@@ -6,6 +6,7 @@ import { Input } from "../../_components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../../_components/ui/select";
 import MenuUnidades from "../../unidades/_components/menuunidades";
 import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
+import MenuConsultas from "@/app/consulta/components/menuconsultas";
 import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
 import { Consulta, Profissional, Unidade, Tratamento } from "../../_components/types";
 import { useSession } from "next-auth/react";
@@ -41,7 +42,7 @@ interface ExamDetailsFormProps {
 
 
 export function ExamDetailsForm({
-    consultas, selectedConsulta, onConsultaSelect,
+    selectedConsulta, onConsultaSelect,
     selectedUnidade, onUnidadeSelect,
     profissionais, selectedProfissional, onProfissionalSelect,
     tratamentos, selectedTratamento, onTratamentoSelect,
@@ -83,44 +84,24 @@ export function ExamDetailsForm({
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Move the JSX for the form fields here */}
             {/* Consultas Select */}
-             <div>
-                  <Label>Consulta</Label>
-                  <Select
-                    value={selectedConsulta?.id || "none"}
-                    onValueChange={(id) => {
-                      if (id === "none") {
-                        onConsultaSelect(null);
-                        onProfissionalSelect(null);
-                        onUnidadeSelect(null);
-                      } else {
-                        const consulta = consultas.find((c) => c.id === id);
-                        onConsultaSelect(consulta || null);
-                        onProfissionalSelect(consulta?.profissional || null);
-                        onUnidadeSelect(consulta?.unidade || null);
-                      }
+            <div>
+                <Label>Consulta</Label>
+                <MenuConsultas
+                    userId={session?.user?.id || ''} // Pass the user ID
+                    selectedConsulta={selectedConsulta}
+                    onConsultaSelect={(consulta) => {
+                        onConsultaSelect(consulta);
+                        // Also set professional and unit when a consulta is selected
+                        if (consulta) {
+                            onProfissionalSelect(consulta.profissional || null);
+                            onUnidadeSelect(consulta.unidade || null);
+                        } else {
+                            onProfissionalSelect(null);
+                            onUnidadeSelect(null);
+                        }
                     }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue>
-                        {selectedConsulta ? (
-        
-                        `${new Date(selectedConsulta.data).toLocaleDateString()} - ${selectedConsulta.profissional?.nome}`
-                          ) : (
-                            "Selecione uma consulta"
-                          )}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhuma</SelectItem>
-                      {consultas.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {new Date(c.data).toLocaleDateString()} -{" "}
-                          {c.profissional?.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-             </div>
+                />
+            </div>
 
              {/* Unidade Select (conditionally rendered) */}
             {!selectedConsulta && (
