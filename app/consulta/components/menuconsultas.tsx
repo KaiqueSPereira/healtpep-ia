@@ -128,7 +128,7 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
                   ))
                 }
                  {consultas.length > 0 && filteredConsultas.length === 0 && searchValue !== "" && (
-                    <CommandItem disabled>Nenhum resultado encontrado para "{searchValue}".</CommandItem>
+                    <CommandItem disabled>Nenhum resultado encontrado para &quot;{searchValue}&quot;.</CommandItem>
                  )}
               </CommandGroup>
             </CommandList>
