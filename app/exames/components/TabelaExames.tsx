@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/app/_components/ui/select";
 import { Trash2, Plus } from "lucide-react";
-import { ResultadoExame, Exame } from "@/app/_components/types"; // Importe Exame aqui
+import { ResultadoExame, Exame } from "@/app/_components/types";
 import { useState, useEffect } from "react";
 
 interface TabelaExamesProps {
@@ -68,8 +68,13 @@ export default function TabelaExames({
   onExameChange,
 }: TabelaExamesProps) {
   const [availableResults, setAvailableResults] = useState<ResultadoExame[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState<boolean[]>(exames.map(() => false));
   const [suggestions, setSuggestions] = useState<ResultadoExame[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+  useEffect(() => {
+    setShowSuggestions(exames.map(() => false));
+  }, [exames.length]);
+
 
   useEffect(() => {
     const fetchAvailableExams = async () => {
@@ -78,7 +83,6 @@ export default function TabelaExames({
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        // A API agora retorna um array de Exame[]
         const data: Exame[] = await response.json();
 
         const allResults: ResultadoExame[] = data.reduce((acc, exame) => {
@@ -100,40 +104,98 @@ export default function TabelaExames({
         setAvailableResults(uniqueResults);
       } catch (error) {
         console.error("Erro ao buscar exames disponíveis:", error);
-        setAvailableResults([]); // Garante que availableResults seja um array vazio em caso de erro
+        setAvailableResults([]);
       }
     };
 
     fetchAvailableExams();
   }, []);
 
-  const handleNameInputChange = (index: number, value: string) => {
-    onExameChange(index, "nome", value);
+  // Função de normalização
+  const normalizeExamName = (name: string): string => {
+    return name
+      .toLowerCase() // Converte para minúsculas
+      .trim() // Remove espaços em branco no início e fim
+      .replace(/\s+/g, ' '); // Substitui múltiplos espaços por um único espaço
+      // Adicione outras regras de normalização aqui, se necessário (ex: remover acentos)
+  };
 
-    if (value.length > 0) {
+  const handleNameInputChange = (index: number, value: string) => {
+    // Normaliza o valor antes de passá-lo para onExameChange
+    const normalizedValue = normalizeExamName(value);
+    onExameChange(index, "nome", normalizedValue);
+
+    if (normalizedValue.length > 0) {
       const filteredSuggestions = availableResults.filter(result =>
-        result.nome?.toLowerCase().includes(value.toLowerCase())
+        result.nome?.toLowerCase().includes(normalizedValue.toLowerCase())
       );
       setSuggestions(filteredSuggestions);
-      setShowSuggestions(true);
+      setShowSuggestions(prev => {
+        const newState = [...prev];
+        newState[index] = true;
+        return newState;
+      });
     } else {
       setSuggestions([]);
-      setShowSuggestions(false);
+       setShowSuggestions(prev => {
+        const newState = [...prev];
+        newState[index] = false;
+        return newState;
+      });
     }
   };
 
   const handleSuggestionClick = (index: number, suggestion: ResultadoExame) => {
-    onExameChange(index, "nome", suggestion.nome || "");
+    // Ao selecionar uma sugestão, use o nome normalizado da sugestão
+    const normalizedSuggestionName = normalizeExamName(suggestion.nome || "");
+    onExameChange(index, "nome", normalizedSuggestionName);
     onExameChange(index, "unidade", suggestion.unidade || "");
     onExameChange(index, "referencia", suggestion.referencia || "");
 
     setSuggestions([]);
-    setShowSuggestions(false);
+    setShowSuggestions(prev => {
+      const newState = [...prev];
+      newState[index] = false;
+      return newState;
+    });
   };
+
+  const handleInputFocus = (index: number, currentValue: string) => {
+      if (currentValue && currentValue.length > 0) {
+         const filteredSuggestions = availableResults.filter(result =>
+          // Filtra sugestões com base no valor normalizado
+          result.nome?.toLowerCase().includes(normalizeExamName(currentValue).toLowerCase())
+        );
+        setSuggestions(filteredSuggestions);
+        setShowSuggestions(prev => {
+          const newState = [...prev];
+          newState[index] = true;
+          return newState;
+        });
+      } else {
+         setSuggestions(availableResults);
+         setShowSuggestions(prev => {
+          const newState = [...prev];
+          newState[index] = true;
+          return newState;
+        });
+      }
+  }
+
+  const handleInputBlur = (index: number) => {
+    setTimeout(() => {
+       setShowSuggestions(prev => {
+        const newState = [...prev];
+        newState[index] = false;
+        return newState;
+      });
+    }, 200);
+  }
+
 
   return (
     <div className="overflow-x-auto rounded-lg border shadow-sm">
-      <table className="w-full table-auto text-sm text-white">
+      <table className="w-full table-auto text-sm">
         <thead className="bg-muted">
           <tr>
             <th className="border p-2 text-left">Nome</th>
@@ -145,35 +207,24 @@ export default function TabelaExames({
         </thead>
         <tbody>
           {exames.map((exame, index) => (
-            <tr key={exame.id || index} className="hover:bg-muted/50"> {/* Use index como fallback para key */}
+            <tr key={exame.id || index} className="hover:bg-muted/50">
               <td className="border p-2 relative">
                 <Input
-                  value={exame.nome || ""} // Garante que o valor não seja null/undefined
+                  value={exame.nome || ""}
                   onChange={(e) => handleNameInputChange(index, e.target.value)}
                   placeholder="Ex: Hemácias"
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
-                  onFocus={() => {
-                    if (exame.nome && exame.nome.length > 0) {
-                       const filteredSuggestions = availableResults.filter(result =>
-                        result.nome?.toLowerCase().includes(exame.nome!.toLowerCase())
-                      );
-                      setSuggestions(filteredSuggestions);
-                      setShowSuggestions(true);
-                    } else { // Se o input estiver vazio ao focar, mostre todas as sugestões únicas
-                       setSuggestions(availableResults);
-                       setShowSuggestions(true);
-                    }
-                  }}
+                  onBlur={() => handleInputBlur(index)}
+                  onFocus={() => handleInputFocus(index, exame.nome || "")}
                 />
-                {showSuggestions && suggestions.length > 0 && (
-                  <ul className="absolute z-10 bg-white border border-gray-200 w-full mt-1 rounded-md shadow-lg max-h-40 overflow-y-auto">
+                {showSuggestions[index] && suggestions.length > 0 && (
+                  <ul className="absolute z-10 bg-background border border-gray-200 w-full mt-1 rounded-md shadow-lg max-h-40 overflow-y-auto text-foreground">
                     {suggestions.map((suggestion, sugIndex) => (
                       <li
-                        key={suggestion.id || sugIndex} // Use o ID da sugestão ou sugIndex como fallback
-                        className="p-2 cursor-pointer hover:bg-gray-100 text-gray-800"
+                        key={suggestion.id || sugIndex}
+                        className="p-2 cursor-pointer hover:bg-gray-100"
                         onClick={() => handleSuggestionClick(index, suggestion)}
                       >
-                        {suggestion.nome}
+                        {normalizeExamName(suggestion.nome || "")} {/* Exibe o nome normalizado na sugestão */}
                       </li>
                     ))}
                   </ul>
@@ -181,7 +232,7 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Input
-                  value={exame.valor || ""} // Garante que o valor não seja null/undefined
+                  value={exame.valor || ""}
                   onChange={(e) =>
                     onExameChange(index, "valor", e.target.value)
                   }
@@ -190,7 +241,7 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Select
-                  value={exame.unidade || ""} // Garante que o valor não seja null/undefined
+                  value={exame.unidade || ""}
                   onValueChange={(value) =>
                     onExameChange(index, "unidade", value)
                   }
@@ -209,7 +260,7 @@ export default function TabelaExames({
                 {exame.unidade === "Outro" && (
                   <Input
                     placeholder="Digite a unidade"
-                    value={exame.outraUnidade || ""} // Garante que o valor não seja null/undefined
+                    value={exame.outraUnidade || ""}
                     onChange={(e) =>
                       onExameChange(index, "outraUnidade", e.target.value)
                     }
@@ -218,7 +269,7 @@ export default function TabelaExames({
               </td>
               <td className="border p-2">
                 <Input
-                  value={exame.referencia || ""} // Garante que o valor não seja null/undefined
+                  value={exame.referencia || ""}
                   onChange={(e) =>
                     onExameChange(index, "referencia", e.target.value)
                   }
