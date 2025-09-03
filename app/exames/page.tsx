@@ -27,12 +27,12 @@ export default function ExamesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedExameTypes, setSelectedExameTypes] = useState<string[]>([]); // Tipos de exame selecionados (Urina, Sangue, etc.)
   const [selectedResultNames, setSelectedResultNames] = useState<string[]>([]); // Nomes de resultados selecionados (Glicose, etc.)
-  const [currentView, setCurrentView] = useState<'list' | 'charts'>('charts');
+  const [currentView, setCurrentView] = useState<'list' | 'charts'>('list');
 
   // Novos estados para dados de gráficos separados por tipo de exame e tipo de gráfico selecionado
   const [chartDataUrina, setChartDataUrina] = useState<ChartData | null>(null);
   const [chartDataSangue, setChartDataSangue] = useState<ChartData | null>(null);
-  const [selectedChartType, setSelectedChartType] = useState<'Urina' | 'Sangue' | null>(null); // Estado para o tipo de gráfico selecionado
+  const [selectedChartType, setSelectedChartType] = useState<'Urina' | 'Sangue' >("Sangue"); // Estado para o tipo de gráfico selecionado
 
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");

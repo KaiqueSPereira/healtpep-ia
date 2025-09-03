@@ -7,11 +7,11 @@ import Header from "../_components/header";
 import Link from "next/link";
 import { Button } from "../_components/ui/button";
 import {
-  Dialog,
   DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogFooter,
+  Dialog,
 } from "../_components/ui/dialog";
 import { useToast } from "../_hooks/use-toast";
 

@@ -73,7 +73,7 @@ export default function TabelaExames({
 
   useEffect(() => {
     setShowSuggestions(exames.map(() => false));
-  }, [exames.length]);
+  }, [exames]);
 
 
   useEffect(() => {
