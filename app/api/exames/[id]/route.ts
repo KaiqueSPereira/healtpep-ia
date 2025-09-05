@@ -5,6 +5,7 @@ import { authOptions } from "@/app/_lib/auth";
 import { safeDecrypt, encryptString } from "@/app/_lib/crypto"; 
 import { Prisma } from "@prisma/client"; 
 
+
 interface ResultadoExameInput {
   id: string;
   nome: string;
@@ -43,6 +44,7 @@ export async function GET(
         nomeArquivo: true,
         dataExame: true,
         anotacao: true,
+        analiseIA: true,
         userId: true,
         profissionalId: true,
         consultaId: true,
@@ -56,7 +58,6 @@ export async function GET(
         resultados: true,
       },
     });
-    console.log("Raw exam data from DB:", exame);
 
     if (!exame) {
       return NextResponse.json(
@@ -70,11 +71,9 @@ export async function GET(
       nome: exame.nome ? safeDecrypt(exame.nome) : null,
       nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
       anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+      analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
       tipo: exame.tipo || null,
-       // Certifique-se de que as propriedades de relacionamento (consulta, tratamento, etc.)
-       // correspondem à estrutura que você espera no frontend, potencialmente selecionando
-       // mais campos no `select` do Prisma se necessário.
-      consulta: exame.consulta || null, // Incluir o objeto completo da consulta
+      consulta: exame.consulta || null,
       tratamento: exame.tratamento || null,
       profissional: exame.profissional || null,
       unidades: exame.unidades || null,
@@ -99,14 +98,10 @@ export async function PUT(
   req: NextRequest,
   context: { params: { id: string } },
 ) {
-  console.log("--- Início do PUT em /api/exames/[id] ---");
-  console.log("Content-Type da requisição:", req.headers.get("content-type"));
 
   const id = context.params.id;
 
    if (!id) {
-      console.log("ID do exame ausente na rota PUT.");
-      console.log("--- Fim do PUT em /api/exames/[id] ---");
       return NextResponse.json(
         { error: "ID do exame é obrigatório na URL" },
         { status: 400 },
@@ -116,8 +111,6 @@ export async function PUT(
   try {
     const data = await req.json();
     const { anotacao, dataExame, tratamentoId, tipo, resultados } = data;
-
-    console.log("Dados recebidos no PUT:", { id, anotacao, dataExame, tratamentoId, tipo, resultados });
 
     const transaction = await prisma.$transaction(async (prisma) => {
 
@@ -132,7 +125,6 @@ export async function PUT(
       if (!isNaN(parsedDate.getTime())) {
           updateData.dataExame = parsedDate;
       } else {
-          console.warn(`String de data inválida recebida para exame ${id}: "${dataExame}". Campo dataExame não será atualizado.`);
       }
  }
        if (tratamentoId !== undefined) {
@@ -147,8 +139,6 @@ export async function PUT(
         data: updateData,
       });
 
-      console.log("Exame principal atualizado:", exameAtualizado.id);
-
       // 2. Processar os resultados de exame (criar, atualizar, ou deletar)
       const receivedResultIds = new Set();
 
@@ -162,7 +152,6 @@ export async function PUT(
         for (const resultado of resultadosTyped) {
           try {
               if (existingResultIds.has(resultado.id)) {
-                  console.log("Attempting to update resultadoExame with ID:", resultado.id);
                   await prisma.resultadoExame.update({
                       where: { id: resultado.id },
                       data: {
@@ -172,10 +161,8 @@ export async function PUT(
                           referencia: encryptString(resultado.referencia || ""),
                       },
                    });
-                   console.log(`Resultado de exame existente atualizado: ${resultado.id}`);
                    receivedResultIds.add(resultado.id);
               } else {
-                   console.log("Attempting to create new resultadoExame");
                   const novoResultado = await prisma.resultadoExame.create({
                       data: {
                           exameId: id,
@@ -185,11 +172,9 @@ export async function PUT(
                           referencia: encryptString(resultado.referencia || ""),
                       },
                   });
-                   console.log(`Novo resultado de exame criado: ${novoResultado.id}`);
                    receivedResultIds.add(novoResultado.id);
               }
           } catch (error: unknown) {
-               console.error(`Erro ao processar resultado de exame:`, error);
                const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao processar resultado";
                throw new Error(`Erro ao processar resultado de exame: ${errorMessage}`);
           }
@@ -207,7 +192,6 @@ export async function PUT(
           .filter(dbId => !receivedResultIds.has(dbId));
 
       if (idsToDelete.length > 0) {
-          console.log("Attempting to delete results with IDs:", idsToDelete);
           try {
               await prisma.resultadoExame.deleteMany({
                   where: {
@@ -216,7 +200,6 @@ export async function PUT(
                       },
                   },
               });
-              console.log(`Deletados ${idsToDelete.length} resultados de exame.`);
           } catch (deleteError: unknown) {
                console.error("Erro ao deletar resultados de exame:", deleteError);
                 const errorMessage = deleteError instanceof Error ? deleteError.message : "Erro desconhecido ao deletar resultados";
@@ -230,18 +213,12 @@ export async function PUT(
 
     });
 
-
-    console.log("Exame e resultados processados com sucesso na transação.");
-    console.log("--- Fim do PUT em /api/exames/[id] ---");
     return NextResponse.json({
       message: "Exame e resultados atualizados com sucesso",
       exame: transaction,
     });
 
   } catch (error: unknown) {
-    console.error("Erro no handler PUT de exames:", error);
-    console.log("--- Fim do PUT em /api/exames/[id] com erro ---");
-
     const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao atualizar exame e resultados";
 
     return NextResponse.json(
@@ -265,7 +242,6 @@ export async function DELETE(
     await prisma.exame.delete({ where: { id } });
     return NextResponse.json({ message: "Exame deletado com sucesso" });
   } catch (error: unknown) {
-    console.error("Erro no handler DELETE de exames:", error);
      const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao deletar exame";
     return NextResponse.json(
       { error: `Erro ao deletar o exame: ${errorMessage}` },

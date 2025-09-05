@@ -203,6 +203,7 @@ model Exame {
   dataExame      DateTime
   arquivoExame   Bytes?
   anotacao       String?
+  analiseIA      String?
   userId         String
   profissionalId String?
   consultaId     String?
@@ -232,6 +233,3 @@ model ResultadoExame {
 
   exame        Exame   @relation(fields: [exameId], references: [id])
 }
-
-
-
