@@ -160,12 +160,12 @@ const UnidadeDetalhesPage = () => {
         <div className="container mx-auto p-4">
           <h1 className="text-2xl font-bold">Editar Unidade</h1>
           <div className="mt-4 space-y-2">
-            <label className="text-white">Nome:</label>
+            <label>Nome:</label>
             <input
               type="text"
               value={unidade.nome}
               onChange={(e) => setUnidade({ ...unidade, nome: e.target.value })}
-              className="w-full rounded border bg-black p-2 text-white"
+              className="w-full rounded border p-2 "
             />
             <label>Telefone:</label>
             <input
@@ -174,14 +174,14 @@ const UnidadeDetalhesPage = () => {
               onChange={(e) =>
                 setUnidade({ ...unidade, telefone: e.target.value })
               }
-              className="w-full rounded border bg-black p-2 text-white"
+              className="w-full rounded border p-2"
             />
             <label>Tipo:</label>
             <input
               type="text"
               value={unidade.tipo}
               onChange={(e) => setUnidade({ ...unidade, tipo: e.target.value })}
-              className="w-full rounded border bg-black p-2 text-white"
+              className="w-full rounded border p-2"
             />
             <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
             <Popover>
