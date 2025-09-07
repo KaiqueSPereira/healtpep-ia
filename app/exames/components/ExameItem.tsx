@@ -66,7 +66,7 @@ const ExameItem = ({ exame }: ExameItemProps) => {
             <p className="truncate text-sm ">{unidadeNome}</p>
             {/* Exibe a anotação se existir */}
             {anotacaoExame && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{anotacaoExame}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{anotacaoExame}</p>
             )}
             {/* Botão de detalhes */}
             {/* mt-auto para alinhar o botão na parte inferior */}

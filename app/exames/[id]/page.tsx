@@ -1,7 +1,7 @@
 // app/exames/[id]/page.tsx
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Exame } from "@/app/_components/types";
 import Header from "@/app/_components/header";
@@ -35,7 +35,7 @@ export default function ExameDetalhePage() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Função para iniciar o polling
-  const startPolling = () => {
+  const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
     }
@@ -66,10 +66,10 @@ export default function ExameDetalhePage() {
         }
       }
     }, 5000);
-  };
+  }, [id]);
 
   // Função para acionar a análise
-  const triggerAnalysis = async () => {
+  const triggerAnalysis = useCallback(async () => {
     if (!id || !session?.user?.id) return;
     try {
       console.log("Acionando análise de IA...");
@@ -83,7 +83,7 @@ export default function ExameDetalhePage() {
       console.error("Falha ao acionar a análise de IA:", err);
       setError("Não foi possível iniciar a análise de IA.");
     }
-  };
+  }, [id, session, startPolling]);
 
   // Efeito principal para buscar o exame e decidir a ação
   useEffect(() => {
@@ -106,8 +106,12 @@ export default function ExameDetalhePage() {
         if (examData && !examData.analiseIA) {
           triggerAnalysis();
         }
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+          if (err instanceof Error) {
+              setError(err.message);
+          } else {
+              setError("Ocorreu um erro inesperado.");
+          }
       } finally {
         setLoading(false);
       }
@@ -121,7 +125,7 @@ export default function ExameDetalhePage() {
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [id]);
+  }, [id, triggerAnalysis]);
 
   // Função para o botão de atualizar
   const handleRefreshAnalysis = () => {

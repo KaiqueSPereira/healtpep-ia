@@ -19,6 +19,7 @@ import {
   ResultadoExame,
   AnaliseApiResponse,
   ExameCompleto,
+  ApiExameResult,
 } from "../../_components/types";
 import { ConfirmarExameDialog } from "./ConfirmarExameDialog";
 import { ExamDetailsForm } from "./ExamDetailForm";
@@ -238,7 +239,7 @@ export function ExameFormWrapper({
 
       if (data.resultados?.length) {
         setExameResultados(
-          data.resultados.map((res: any) => ({
+          data.resultados.map((res: ApiExameResult) => ({
             ...res,
             id: crypto.randomUUID(),
             outraUnidade: "",

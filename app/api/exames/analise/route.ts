@@ -80,7 +80,7 @@ Formato JSON de saída esperado:
       
       // Validação e extração para sangue/urina
       if (tipo === 'sangue' || tipo === 'urina') {
-        const resultados = Array.isArray(parsedResponse.resultados) ? parsedResponse.resultados.filter((item: any) =>
+        const resultados = Array.isArray(parsedResponse.resultados) ? parsedResponse.resultados.filter((item: ExameResultado) =>
           typeof item.nome === 'string' &&
           typeof item.valor === 'string' &&
           typeof item.unidade === 'string' &&

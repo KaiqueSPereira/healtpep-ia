@@ -126,8 +126,15 @@ export type Exame = {
   };
 };
 
-export interface AnaliseApiResponse { 
-  resultados?: ResultadoExame[];
+export type ApiExameResult = {
+  nome: string;
+  valor: string;
+  unidade: string;
+  valorReferencia: string;
+};
+
+export interface AnaliseApiResponse {
+  resultados?: ApiExameResult[];
   anotacao?: string;
 }
 

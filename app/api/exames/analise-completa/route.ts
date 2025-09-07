@@ -36,7 +36,7 @@ function calcularIdade(dataNascimento: string): number {
 }
 
 // A função principal que será chamada para gerar a análise
-export async function analisarExame(examId: string, userId: string): Promise<string | null> {
+async function analisarExame(examId: string, userId: string): Promise<string | null> {
   try {
     // 1. Buscar todos os dados relevantes do banco de dados
     const exame = await prisma.exame.findUnique({
