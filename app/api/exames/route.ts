@@ -126,12 +126,12 @@ export async function POST(req: NextRequest) {
       data: {
         nome: encryptString(originalFileName || "Arquivo sem nome"),
         nomeArquivo: encryptString(uniqueFileName || ""),
-        dataExame: new Date(dataExame),
+        // CORREÇÃO: Passando a string da data diretamente para o Prisma
+        dataExame: dataExame,
         anotacao: encryptString(anotacao),
         userId, profissionalId, unidadesId: unidadeId,
         consultaId, tratamentoId, tipo,
         arquivoExame: encryptedFileBuffer,
-        // A análise será nula inicialmente
         analiseIA: null,
       },
     });
@@ -151,7 +151,6 @@ export async function POST(req: NextRequest) {
         }
     }
 
-    // CORREÇÃO: Retorna o ID do novo exame para o frontend
     return NextResponse.json({ 
         message: "Exame cadastrado com sucesso!",
         examId: exame.id 

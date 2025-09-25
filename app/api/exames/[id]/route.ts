@@ -114,32 +114,27 @@ export async function PUT(
 
     const transaction = await prisma.$transaction(async (prisma) => {
 
-      // 1. Atualizar os campos do exame principal
       const updateData: Prisma.ExameUpdateInput = {};
 
       if (anotacao !== undefined) {
         updateData.anotacao = encryptString(anotacao || "");
-    }
-    if (typeof dataExame === 'string' && dataExame !== '') {
-      const parsedDate = new Date(dataExame);
-      if (!isNaN(parsedDate.getTime())) {
-          updateData.dataExame = parsedDate;
-      } else {
       }
- }
-       if (tratamentoId !== undefined) {
-          updateData.tratamento = tratamentoId ? { connect: { id: tratamentoId } } : { disconnect: true };
-       }
-       if (tipo !== undefined) {
-          updateData.tipo = tipo;
-       }
+      // CORREÇÃO: Passando a string da data diretamente para o Prisma
+      if (dataExame) {
+        updateData.dataExame = dataExame;
+      }
+      if (tratamentoId !== undefined) {
+        updateData.tratamento = tratamentoId ? { connect: { id: tratamentoId } } : { disconnect: true };
+      }
+      if (tipo !== undefined) {
+        updateData.tipo = tipo;
+      }
 
       const exameAtualizado = await prisma.exame.update({
         where: { id },
         data: updateData,
       });
 
-      // 2. Processar os resultados de exame (criar, atualizar, ou deletar)
       const receivedResultIds = new Set();
 
       if (Array.isArray(resultados)) {
@@ -181,7 +176,6 @@ export async function PUT(
         }
       }
 
-      // 3. Deletar resultados que foram removidos no frontend
       const currentDbResults = await prisma.resultadoExame.findMany({
           where: { exameId: id },
           select: { id: true },

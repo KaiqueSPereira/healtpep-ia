@@ -95,7 +95,9 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
 
     // 3. Construir o prompt detalhado para a IA
     const prompt = `
-      Por favor, analise os seguintes resultados de exame de sangue para um paciente. Forneça uma análise clara e concisa em português, destacando quaisquer resultados que estejam fora dos valores de referência e explicando sua possível significância clínica de forma geral. A análise não deve ser um diagnóstico, mas sim um resumo informativo para auxiliar um profissional de saúde. Leve em consideração todos os dados fornecidos: dados do paciente, contexto da consulta e as anotações do próprio usuário, para uma análise mais precisa e contextualizada.
+      Por favor, analise os seguintes resultados de exame para um paciente. Forneça uma análise clara e concisa em português, destacando quaisquer resultados que estejam fora do padrão e explicando sua possível significância clínica de forma geral. 
+      A análise não deve ser um diagnóstico, mas sim um resumo informativo para auxiliar o usuário/paciente a passar informações para o profissional de saúde. Leve em consideração todos os dados fornecidos: dados do paciente, contexto da consulta e as 
+      anotações do próprio usuário, para uma análise mais precisa e contextualizada.
 
       **Dados do Paciente:**
       - Idade: ${idade} anos

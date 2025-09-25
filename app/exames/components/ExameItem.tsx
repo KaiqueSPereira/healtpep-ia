@@ -34,13 +34,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
 
   const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
 
-  const horaFormatada = dataObj
-    ? dataObj.toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "Hora não especificada";
-
   // Lida com dados opcionais de profissional e unidade
   // Usamos profissional?.nome e unidades?.nome conforme a estrutura esperada
   const profissionalNome =
@@ -83,7 +76,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
           <div className="flex flex-col items-center justify-between px-5 py-5 flex-shrink-0 w-24">
             <p className="text-sm capitalize ">{mes}</p>
             <p className="text-2xl font-bold ">{dia}</p>
-            <p className="text-sm ">{horaFormatada}</p>
           </div>
         </CardContent>
       </Card>

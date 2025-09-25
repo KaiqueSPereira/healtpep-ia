@@ -1,4 +1,4 @@
-// app/exames/components/ExameGrid.tsx
+// app/exames/components/ExamesGrid.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -6,9 +6,6 @@ import { Card, CardContent } from "@/app/_components/ui/card";
 import { Button } from "@/app/_components/ui/button";
 import { Trash2, Pencil } from "lucide-react";
 import clsx from "clsx";
-import { useState, useEffect } from "react"; 
-import Image from 'next/image';
-
 
 type Resultado = {
   nome: string;
@@ -19,15 +16,15 @@ type Resultado = {
 
 type Exame = {
   id: string;
-  nome: string; // Mantido, embora 'tipo' pareça ser usado para o nome/tipo do exame agora
+  nome: string; 
   dataExame: string;
   nomeArquivo?: string;
   profissional?: { nome: string };
   unidades?: { nome: string };
-  tratamento?: { nome: string }; // Tratamento parece não ser usado no layout final do Item, mas mantido no type
-  tipo?: string; // Usado para o tipo do exame (Sangue, Urina, etc.)
-  anotacao?: string; // Adicionado 'anotacao' ao type
-  resultados?: Resultado[]; // Mantido, embora não exibido no layout do Item
+  tratamento?: { nome: string }; 
+  tipo?: string; 
+  anotacao?: string;
+  resultados?: Resultado[];
 };
 
 type Props = {
@@ -35,71 +32,9 @@ type Props = {
   onDeleteClick: (examId: string) => void;
 };
 
-export function ExameGrid({ exames, onDeleteClick }: Props) {
+// CORREÇÃO: O nome do componente foi corrigido para ExamesGrid
+export function ExamesGrid({ exames, onDeleteClick }: Props) {
   const router = useRouter();
-  // Novo estado para controlar qual exame está sendo hoverado
-  const [hoveredExamId, setHoveredExamId] = useState<string | null>(null);
-  // Novo estado para armazenar Data URLs das prévias
-  const [filePreviews, setFilePreviews] = useState<{ [key: string]: string }>({});
-   // Novo estado para rastrear erros de pré-visualização por exame
-  const [previewErrors, setPreviewErrors] = useState<{ [key: string]: string | null }>({});
-
-
-  // useEffect para buscar a Data URL da prévia quando hoveredExamId muda
-  useEffect(() => {
-      let timeoutId: NodeJS.Timeout | null = null;
-
-      const fetchPreview = async (id: string) => {
-         // Só busca se o arquivo existir e a prévia ainda não foi carregada e não houve erro anterior
-         const exameHovered = exames.find(e => e.id === id);
-         if (exameHovered?.nomeArquivo && !filePreviews[id] && previewErrors[id] === undefined) { // Verifique se não houve erro anterior
-             setPreviewErrors(prev => ({ ...prev, [id]: null })); // Limpa erro anterior para este ID
-             try {
-                 const res = await fetch(`/api/exames/arquivo?id=${id}`);
-                 if (res.ok) {
-                     const dataUrl = await res.text();
-                     // Adiciona uma verificação básica se a resposta parece ser uma Data URL
-                     if (dataUrl.startsWith('data:')) {
-                         setFilePreviews(prev => ({ ...prev, [id]: dataUrl }));
-                     } else {
-                         console.error("Resposta da API não é uma Data URL válida:", dataUrl);
-                         setPreviewErrors(prev => ({ ...prev, [id]: "Formato de arquivo inválido." }));
-                     }
-                 } else {
-                     console.error("Erro ao buscar prévia do arquivo:", res.statusText);
-                     setPreviewErrors(prev => ({ ...prev, [id]: `Erro ao buscar arquivo: ${res.statusText}` }));
-                 }
-             } catch (error: unknown) { // Use any ou unknown e verifique o tipo
-                 console.error("Erro no fetch da prévia:", error);
-                  if (error instanceof Error) {
-                     setPreviewErrors(prev => ({ ...prev, [id]: `Erro inesperado: ${error.message}` }));
-                 } else {
-                     setPreviewErrors(prev => ({ ...prev, [id]: "Ocorreu um erro desconhecido." }));
-                 }
-             }
-         }
-      };
-
-      if (hoveredExamId) {
-          // Adicione um pequeno atraso para evitar buscas excessivas ao mover o mouse rapidamente
-          // Ajuste o tempo (300ms) conforme a necessidade
-          timeoutId = setTimeout(() => {
-              fetchPreview(hoveredExamId);
-          }, 300);
-      }
-
-      // Função de limpeza para cancelar o timeout se o mouse sair antes do fetch
-      return () => {
-          if (timeoutId) {
-              clearTimeout(timeoutId);
-          }
-          // Opcional: Limpar a prévia e o erro quando o mouse sair
-          // setFilePreviews(prev => { const newState = { ...prev }; delete newState[hoveredExamId!]; return newState; });
-          // setPreviewErrors(prev => { const newState = { ...prev }; delete newState[hoveredExamId!]; return newState; });
-      };
-
-    }, [hoveredExamId, exames, filePreviews, previewErrors]); // Adicionado previewErrors às dependências
-
 
   if (exames.length === 0) {
     return <p className="text-muted-foreground">Nenhum exame encontrado.</p>;
@@ -109,7 +44,6 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
     router.push(`/exames/${id}/editar`);
   };
 
-  // Formata a data e hora de forma similar ao ExameItem
   const formatExameDate = (dateString: string) => {
     const dataObj = dateString ? new Date(dateString) : null;
 
@@ -124,8 +58,9 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
           hour: "2-digit",
           minute: "2-digit",
         })
-      : "Hora não especificado";
+      : "Hora não especificada";
 
+    // CORREÇÃO: Adicionado horaFormatada ao retorno
     return { mes, dia, horaFormatada };
   };
 
@@ -133,44 +68,32 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exames.map((exame) => {
+        // CORREÇÃO: Desestruturando horaFormatada corretamente
         const { mes, dia, horaFormatada } = formatExameDate(exame.dataExame);
         const profissionalNome = exame.profissional?.nome || "Profissional não especificado";
         const unidadeNome = exame.unidades?.nome || "Unidade não especificada";
         const anotacaoExame = exame.anotacao;
-        const isHovered = hoveredExamId === exame.id; // Adicionado para facilitar a leitura
-
 
         return (
           <Card
             key={exame.id}
-            // Adicionados manipuladores de mouse
-            onMouseEnter={() => setHoveredExamId(exame.id)}
-            onMouseLeave={() => setHoveredExamId(null)}
             onClick={() => router.push(`/exames/${exame.id}`)}
             className={clsx(
-              "relative cursor-pointer border bg-background transition-shadow duration-200 hover:shadow-lg", // Removido pb-16 para melhor controle do padding
+              "relative cursor-pointer border bg-background transition-shadow duration-200 hover:shadow-lg",
             )}
           >
-            {/* Conteúdo do Card replicando a estrutura do ExameItem */}
-            <CardContent className="flex p-0 overflow-hidden h-full"> {/* h-full para ocupar a altura do Card */}
-              {/* Informações do exame (lado esquerdo) */}
-              {/* Adicionado padding p-4 ou p-5 similar ao ExameItem */}
+            <CardContent className="flex p-0 overflow-hidden h-full">
               <div className="flex flex-col gap-1 py-5 pl-5 pr-4 flex-grow">
-                {/* Exibe o nome/tipo do exame com a cor de destaque */}
                 <h3 className="text-lg font-bold text-primary">{exame.tipo || 'Tipo não especificado'}</h3>
-                {/* Exibe o nome do profissional */}
                 <p className="text-sm font-semibold ">{profissionalNome}</p>
-                {/* Exibe o nome da unidade */}
                 <p className="truncate text-sm ">{unidadeNome}</p>
-                {/* Exibe a anotação se existir */}
                 {anotacaoExame && (
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{anotacaoExame}</p>
+                  // MELHORIA: Adicionada a classe para limitar o texto a 2 linhas
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{anotacaoExame}</p>
                 )}
-                {/* Os botões agora estarão dentro deste flex container, mas alinhados ao fundo */}
-                {/* Adicionado mt-auto para empurrar os botões para baixo */}
                 <div
-                    className="flex justify-between gap-2 mt-auto pt-4" // pt-4 para adicionar espaço acima dos botões
-                    onClick={(e) => e.stopPropagation()} // Impede propagação para o card
+                    className="flex justify-between gap-2 mt-auto pt-4"
+                    onClick={(e) => e.stopPropagation()}
                 >
                     <Button
                       variant="outline"
@@ -190,56 +113,15 @@ export function ExameGrid({ exames, onDeleteClick }: Props) {
                     </Button>
                 </div>
               </div>
-              {/* Separador com a cor de destaque */}
-              <div className="border-l-2 border-primary h-full flex-shrink-0"></div> {/* <-- Adicionado border-primary aqui */}
-              {/* Data e hora do exame (lado direito) */}
+              <div className="border-l-2 border-primary h-full flex-shrink-0"></div>
               <div className="flex flex-col items-center justify-between px-5 py-5 flex-shrink-0 w-24">
                 <p className="text-sm capitalize ">{mes}</p>
                 <p className="text-2xl font-bold ">{dia}</p>
+                {/* CORREÇÃO: Exibindo a hora formatada */}
                 <p className="text-sm ">{horaFormatada}</p>
               </div>
             </CardContent>
-
-            {/* Área de pré-visualização do anexo */}
-             {isHovered && exame.nomeArquivo && (
-                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"> {/* Posição fixa, tela cheia semi-transparente */}
-                     <div className="relative bg-white rounded-lg shadow-xl p-4 w-11/12 max-w-3xl h-5/6 flex flex-col overflow-hidden"> {/* Tamanho e layout para o conteúdo */}
-                         <div className="flex justify-between items-center mb-2">
-                             <h3 className="text-lg font-semibold">Pré-visualização do Arquivo</h3>
-                             {/* Botão para fechar a pré-visualização (ao tirar o mouse de cima) */}
-                             {/* Poderia adicionar um botão de fechar aqui para fechar clicando também */}
-                             {/* <Button variant="ghost" size="sm" onClick={() => setHoveredExamId(null)}>X</Button> */}
-                         </div>
-                         <div className="flex-1 flex items-center justify-center overflow-hidden"> {/* Container flexível para o conteúdo da prévia */}
-             {filePreviews[exame.id] ? (
-                 exame.nomeArquivo.toLowerCase().endsWith('.pdf') ? (
-                     <iframe src={filePreviews[exame.id]} className="w-full h-full border-0" title="Prévia do Exame"></iframe>
-                 ) : (
-                     // Usar o componente Image do Next.js
-                     <div className="relative w-full h-full"> {/* Contêiner relativo para Image fill */}
-                         <Image
-                             src={filePreviews[exame.id]}
-                             alt="Prévia do Exame"
-                             fill // Faz a imagem preencher o contêiner pai
-                             className="object-contain" // Mantém a proporção e ajusta ao contêiner
-                             unoptimized // Pode ser necessário se a Data URL não puder ser otimizada pelo Next.js
-                         />
-                     </div>
-                 )
-
-             ) : previewErrors[exame.id] ? (
-                  // Exibe mensagem de erro se houver
-                 <div className="text-red-500 text-center">{previewErrors[exame.id]}</div>
-             ) : (
-                 // Exibe um indicador de carregamento ou mensagem enquanto busca a prévia
-                 <div className="text-muted-foreground text-sm">Carregando prévia...</div>
-             )}
-          </div>
-
-                     </div>
-                 </div>
-             )}
-
+            {/* A funcionalidade de pré-visualização foi removida deste componente */}
           </Card>
         );
       })}

@@ -13,8 +13,6 @@ import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 
-
-
 interface ExamDetailsFormProps {
     consultas: Consulta[];
     selectedConsulta: Consulta | null;
@@ -34,12 +32,15 @@ interface ExamDetailsFormProps {
     dataExame: string;
     onDataExameChange: (data: string) => void;
 
+    // NOVOS PROPS PARA HORA
+    horaExame: string;
+    onHoraExameChange: (hora: string) => void;
+
     tipo: string;
     onTipoChange: (tipo: string) => void;
 
     selectorsKey: number;
 }
-
 
 export function ExamDetailsForm({
     selectedConsulta, onConsultaSelect,
@@ -47,6 +48,7 @@ export function ExamDetailsForm({
     profissionais, selectedProfissional, onProfissionalSelect,
     tratamentos, selectedTratamento, onTratamentoSelect,
     dataExame, onDataExameChange,
+    horaExame, onHoraExameChange, // Adicionado
     tipo, onTipoChange,
     selectorsKey
 }: ExamDetailsFormProps) {
@@ -76,22 +78,15 @@ export function ExamDetailsForm({
         fetchUnidades();
     }, [session?.user?.id]);
 
-    console.log("Value passed to MenuUnidades (selectedUnidade):", selectedUnidade); 
-    console.log("Value passed to MenuProfissionais (selectedProfissional):", selectedProfissional);
-
-
     return (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Move the JSX for the form fields here */}
-            {/* Consultas Select */}
             <div>
                 <Label>Consulta</Label>
                 <MenuConsultas
-                    userId={session?.user?.id || ''} // Pass the user ID
+                    userId={session?.user?.id || ''}
                     selectedConsulta={selectedConsulta}
                     onConsultaSelect={(consulta) => {
                         onConsultaSelect(consulta);
-                        // Also set professional and unit when a consulta is selected
                         if (consulta) {
                             onProfissionalSelect(consulta.profissional || null);
                             onUnidadeSelect(consulta.unidade || null);
@@ -103,57 +98,62 @@ export function ExamDetailsForm({
                 />
             </div>
 
-             {/* Unidade Select (conditionally rendered) */}
             {!selectedConsulta && (
               <>
                 <div>
                   <Label>Unidade</Label>
-                  <MenuUnidades // Pass the fetched units list
+                  <MenuUnidades
                     key={`unidade-selector-${selectorsKey}`}
                     unidades={unidadesList}
                     selectedUnidade={selectedUnidade} 
                     onUnidadeSelect={onUnidadeSelect}
                   />
                 </div>
-                {/* Profissional Select */}
                 <div>
                   <Label>Profissional</Label>
                   <MenuProfissionais
                      key={`profissional-selector-${selectorsKey}`}
-                    profissionais={profissionais} // Passed down from parent
-                    selectedProfissional={selectedProfissional} // Passed down from parent
-                    onProfissionalSelect={onProfissionalSelect} // Call parent handler
-                    unidadeId={selectedUnidade?.id} // Passed down from parent
+                    profissionais={profissionais}
+                    selectedProfissional={selectedProfissional}
+                    onProfissionalSelect={onProfissionalSelect}
+                    unidadeId={selectedUnidade?.id}
                   />
                 </div>
               </>
             )}
 
-             {/* Tratamento Select */}
             <div>
               <Label>Tratamento</Label>
               <MenuTratamentos
                  key={`tratamento-selector-${selectorsKey}`}
-                tratamentos={tratamentos} // Passed down from parent
-                selectedTratamento={selectedTratamento} // Passed down from parent
-                onTratamentoSelect={onTratamentoSelect} // Call parent handler
+                tratamentos={tratamentos}
+                selectedTratamento={selectedTratamento}
+                onTratamentoSelect={onTratamentoSelect}
               />
             </div>
 
-             {/* Data do Exame Input */}
+            {/* ATUALIZAÇÃO: Campo de data e hora juntos */}
             <div>
-              <Label>Data do Exame</Label>
-              <Input
-                type="date"
-                value={dataExame} // Passed down from parent
-                onChange={(e) => onDataExameChange(e.target.value)} // Call parent handler
-              />
+              <Label>Data e Hora do Exame</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={dataExame}
+                  onChange={(e) => onDataExameChange(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  type="time"
+                  value={horaExame}
+                  onChange={(e) => onHoraExameChange(e.target.value)}
+                  className="w-auto"
+                />
+              </div>
             </div>
 
-             {/* Tipo de Exame Select */}
             <div>
               <Label>Tipo de Exame</Label>
-              <Select value={tipo} onValueChange={onTipoChange}> {/* Call parent handler */}
+              <Select value={tipo} onValueChange={onTipoChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo de exame" />
                 </SelectTrigger>
