@@ -192,7 +192,7 @@ export function ExameFormWrapper({
 
     const formData = new FormData();
     formData.append("file", selectedFile);
-    formData.append("tipoExame", tipo);
+    formData.append("tipo", tipo);
 
     try {
       const res = await fetch("/api/exames/analise", { method: "POST", body: formData });

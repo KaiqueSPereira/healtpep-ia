@@ -126,13 +126,12 @@ export async function POST(req: NextRequest) {
       data: {
         nome: encryptString(originalFileName || "Arquivo sem nome"),
         nomeArquivo: encryptString(uniqueFileName || ""),
-        // CORREÇÃO: Passando a string da data diretamente para o Prisma
         dataExame: dataExame,
         anotacao: encryptString(anotacao),
         userId, profissionalId, unidadesId: unidadeId,
         consultaId, tratamentoId, tipo,
         arquivoExame: encryptedFileBuffer,
-        analiseIA: null,
+        analiseIA: null, // O campo analiseIA será preenchido pela API de análise separadamente se necessário
       },
     });
 
@@ -140,12 +139,13 @@ export async function POST(req: NextRequest) {
         const examesResultados = JSON.parse(examesRaw);
         if (Array.isArray(examesResultados) && examesResultados.length > 0) {
             await prisma.resultadoExame.createMany({
-                data: examesResultados.map(e => ({
+                data: examesResultados.map((e: any) => ({ // Adicionado :any para flexibilidade
                     exameId: exame.id,
                     nome: encryptString(e.nome || ""),
                     valor: encryptString(e.valor || ""),
                     unidade: encryptString(e.unidade || ""),
-                    referencia: encryptString(e.referencia || ""),
+                    // CORREÇÃO APLICADA AQUI
+                    referencia: encryptString(e.referencia || e.valorReferencia || ""),
                 })),
             });
         }
