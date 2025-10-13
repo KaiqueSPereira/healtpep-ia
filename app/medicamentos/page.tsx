@@ -121,7 +121,7 @@ export default function MedicamentosPage() {
                                         {(med.profissional || med.consulta || med.tratamento) && (
                                             <div className="mt-4 border-t pt-3 space-y-2 text-sm text-muted-foreground">
                                                 {med.profissional && (<div className="flex items-center"><User2 className="mr-2 h-4 w-4 shrink-0" /><span>Prescrito por <strong>{med.profissional.nome}</strong></span></div>)}
-                                                {med.consulta && (<div className="flex items-center"><Stethoscope className="mr-2 h-4 w-4 shrink-0" /><span>Consulta de <strong>{new Date(med.consulta.date).toLocaleDateString()}</strong></span></div>)}
+                                                {med.consulta && (<div className="flex items-center"><Stethoscope className="mr-2 h-4 w-4 shrink-0" /><span>Consulta de <strong>{new Date(med.consulta.data).toLocaleDateString()}</strong></span></div>)}
                                                 {med.tratamento && (<div className="flex items-center"><HeartPulse className="mr-2 h-4 w-4 shrink-0" /><span>Do tratamento <strong>{med.tratamento.nome}</strong></span></div>)}
                                             </div>
                                         )}
