@@ -1,4 +1,3 @@
-// app/exames/[id]/page.tsx
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -6,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { Exame } from "@/app/_components/types";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
-import { Pencil, BrainCircuit, RefreshCw } from "lucide-react"; // Importado o ícone de atualização
-import ExamFileDialog from "../components/ExamFileDialog";
+import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 
 interface ExameResultadoFrontend {
@@ -30,11 +29,10 @@ export default function ExameDetalhePage() {
   const { data: session } = useSession();
   const [exame, setExame] = useState<ExameComResultados | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isPolling, setIsPolling] = useState(false); // Estado para controlar se o polling está ativo
+  const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Função para iniciar o polling
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
@@ -68,7 +66,6 @@ export default function ExameDetalhePage() {
     }, 5000);
   }, [id]);
 
-  // Função para acionar a análise
   const triggerAnalysis = useCallback(async () => {
     if (!id || !session?.user?.id) return;
     try {
@@ -85,7 +82,6 @@ export default function ExameDetalhePage() {
     }
   }, [id, session, startPolling]);
 
-  // Efeito principal para buscar o exame e decidir a ação
   useEffect(() => {
     if (!id) {
       setLoading(false);
@@ -102,7 +98,6 @@ export default function ExameDetalhePage() {
         const examData = dataExame?.exame;
         setExame(examData);
 
-        // Se o exame não tiver análise, aciona pela primeira vez.
         if (examData && !examData.analiseIA) {
           triggerAnalysis();
         }
@@ -119,7 +114,6 @@ export default function ExameDetalhePage() {
 
     fetchExameDetails();
 
-    // Limpeza ao desmontar
     return () => {
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
@@ -127,11 +121,8 @@ export default function ExameDetalhePage() {
     };
   }, [id, triggerAnalysis]);
 
-  // Função para o botão de atualizar
   const handleRefreshAnalysis = () => {
-    // Limpa a análise existente para mostrar o spinner
     setExame(prev => prev ? { ...prev, analiseIA: null } : null);
-    // Aciona uma nova análise
     triggerAnalysis();
   };
 
@@ -178,7 +169,6 @@ export default function ExameDetalhePage() {
               <h2 className="text-lg font-semibold flex items-center">
                 <BrainCircuit className="mr-2 h-5 w-5" /> Análise da IA
               </h2>
-              {/* BOTÃO DE ATUALIZAR */}
               <Button variant="ghost" size="icon" onClick={handleRefreshAnalysis} disabled={isPolling} className="h-7 w-7">
                 <RefreshCw className={`h-4 w-4 ${isPolling ? 'animate-spin' : ''}`} />
               </Button>
@@ -231,8 +221,13 @@ export default function ExameDetalhePage() {
 
           {exame.nomeArquivo && (
             <div>
-              <h2 className="mb-2 text-lg font-semibold">Arquivo Anexo</h2>
-              <ExamFileDialog examId={id} hasFile={!!exame.nomeArquivo} />
+              <h2 className="mb-2 text-lg font-semibold">Anexo</h2>
+                <Button asChild>
+                    <Link href={`/api/exames/arquivo?id=${id}`} target="_blank">
+                        <FileText className="mr-2 h-4 w-4" />
+                        Ver Laudo
+                    </Link>
+                </Button>
             </div>
           )}
 
