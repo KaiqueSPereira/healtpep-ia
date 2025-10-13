@@ -1,89 +1,95 @@
 "use client";
 
-import React, { useState } from 'react';
-import { Button } from '@/app/_components/ui/button';
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuTrigger, 
-    DropdownMenuCheckboxItem, 
-    DropdownMenuLabel, 
-    DropdownMenuSeparator, 
-    DropdownMenuGroup 
-} from '@/app/_components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
+import { useEffect, useState, useCallback } from "react"; // CORREÇÃO: Adicionado useCallback
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/app/_components/ui/dropdown-menu";
+import { Button } from "@/app/_components/ui/button";
+import { ListFilter } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface ExameTypeFilterProps {
-    title: string;
-    options: string[];
-    selectedOptions: string[];
-    onSelectionChange: (selected: string[]) => void;
+    allTypes: string[];
 }
 
-export default function ExameTypeFilter({ title, options, selectedOptions, onSelectionChange }: ExameTypeFilterProps) {
-    const [isOpen, setIsOpen] = useState(false);
+export function ExameTypeFilter({ allTypes }: ExameTypeFilterProps) {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // CORREÇÃO: Função envolvida em useCallback para estabilizá-la
+    const getInitialSelectedTypes = useCallback(() => {
+        const typesFromUrl = searchParams.get('tipos');
+        return typesFromUrl ? new Set(typesFromUrl.split(',')) : new Set();
+    }, [searchParams]);
+
+    const [selectedTypes, setSelectedTypes] = useState(getInitialSelectedTypes);
+
+    // Update URL when selectedTypes change
+    useEffect(() => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (selectedTypes.size > 0) {
+            params.set('tipos', Array.from(selectedTypes).join(','));
+        } else {
+            params.delete('tipos');
+        }
+        // Using router.replace to avoid adding to history
+        router.replace(`${pathname}?${params.toString()}`);
+    }, [selectedTypes, pathname, router, searchParams]);
+    
 
     const handleSelectAll = () => {
-        onSelectionChange(options);
-    };
-
-    const handleClearAll = () => {
-        onSelectionChange([]);
-    };
-
-    const handleCheckboxChange = (option: string, checked: boolean) => {
-        if (checked) {
-            onSelectionChange([...selectedOptions, option]);
+        if (selectedTypes.size === allTypes.length) {
+            // If all are selected, deselect all
+            setSelectedTypes(new Set());
         } else {
-            onSelectionChange(selectedOptions.filter(item => item !== option));
+            // Otherwise, select all
+            setSelectedTypes(new Set(allTypes));
         }
     };
 
-    const buttonText = () => {
-        const numSelected = selectedOptions.length;
-        if (numSelected === 0) return `Nenhum selecionado`;
-        if (numSelected === options.length) return `Todos selecionados`;
-        if (numSelected === 1) return selectedOptions[0];
-        return `${numSelected} selecionados`;
+    const handleTypeChange = (type: string, checked: boolean) => {
+        const newSelectedTypes = new Set(selectedTypes);
+        if (checked) {
+            newSelectedTypes.add(type);
+        } else {
+            newSelectedTypes.delete(type);
+        }
+        setSelectedTypes(newSelectedTypes);
     };
+    
+    // Handle browser back/forward navigation
+    // CORREÇÃO: `getInitialSelectedTypes` adicionada como dependência
+    useEffect(() => {
+        setSelectedTypes(getInitialSelectedTypes());
+    }, [searchParams, getInitialSelectedTypes]);
 
-    const preventDefault = (e: React.SyntheticEvent) => e.preventDefault();
 
     return (
-        <div>
-            <label className="block text-sm font-medium text-gray-700">{title}</label>
-            <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-                <DropdownMenuTrigger asChild className="mt-1">
-                    <Button variant="outline" className="w-56 justify-between">
-                        <span className="truncate pr-2">{buttonText()}</span>
-                        <ChevronDown className="h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 max-h-72 overflow-y-auto">
-                    <DropdownMenuLabel>Opções de Filtro</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                         <DropdownMenuCheckboxItem onSelect={preventDefault} onClick={handleSelectAll}>
-                            Selecionar Todos
-                        </DropdownMenuCheckboxItem>
-                        <DropdownMenuCheckboxItem onSelect={preventDefault} onClick={handleClearAll}>
-                            Limpar Seleção
-                        </DropdownMenuCheckboxItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                        {options.map(option => (
-                            <DropdownMenuCheckboxItem
-                                key={option}
-                                checked={selectedOptions.includes(option)}
-                                onCheckedChange={(checked: boolean) => handleCheckboxChange(option, !!checked)}
-                            >
-                                {option}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuGroup>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-10 gap-1">
+                    <ListFilter className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filtrar Tipos</span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                 <DropdownMenuCheckboxItem
+                    checked={selectedTypes.size === allTypes.length}
+                    onSelect={() => handleSelectAll()} >
+                    Selecionar Todos
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuSeparator />
+                {allTypes.map((type) => (
+                    <DropdownMenuCheckboxItem
+                        key={type}
+                        checked={selectedTypes.has(type)}
+                        onCheckedChange={(checked) => handleTypeChange(type, !!checked)}
+                    >
+                        {type}
+                    </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 }

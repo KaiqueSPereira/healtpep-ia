@@ -118,7 +118,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     if (selectedUnidade) {
       const profissionaisDaUnidade = allProfissionais.filter(profissional =>
         // Verifica se o profissional tem alguma unidade cujo ID coincide com o da unidade selecionada
-        profissional.unidades.some(unidade => unidade.id === selectedUnidade.id)
+        profissional.unidades && profissional.unidades.some(unidade => unidade.id === selectedUnidade.id)
       );
       setFilteredProfissionais(profissionaisDaUnidade);
     } else {

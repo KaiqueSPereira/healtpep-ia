@@ -7,6 +7,36 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ENUMS
+enum TipoAnexo {
+  ENCAMINHAMENTO
+  ATESTADO_DECLARACAO
+  RECEITA_MEDICA
+  RELATORIO
+  OUTRO
+}
+
+enum StatusMedicamento {
+  ATIVO
+  CONCLUIDO
+  SUSPENSO
+}
+
+enum FrequenciaTipo {
+  HORA
+  DIA
+  SEMANA
+  MES
+}
+
+enum TipoMedicamento {
+  USO_CONTINUO
+  TRATAMENTO_CLINICO
+  ESPORADICO
+}
+
+// MODELOS
+
 model User {
   id            String          @id @default(cuid())
   name          String?
@@ -23,20 +53,21 @@ model User {
   tratamentos   Tratamento[]
   exames        Exame[]
   dadosSaude    DadosSaude?
-  historicoPeso PesoHistorico[] 
+  historicoPeso PesoHistorico[]
   profissionais Profissional[]
   unidades      UnidadeDeSaude[]
+  medicamentos  Medicamento[]
 }
 
 model DadosSaude {
   id             String    @id @default(uuid())
   userId         String    @unique
-  CNS            String?   
-  tipoSanguineo  String?   
-  sexo           String?   
-  dataNascimento String?   
-  altura         String?   
-   usuario   User     @relation(fields: [userId], references: [id])
+  CNS            String?
+  tipoSanguineo  String?
+  sexo           String?
+  dataNascimento String?
+  altura         String?
+  usuario        User      @relation(fields: [userId], references: [id])
 }
 
 model PesoHistorico {
@@ -101,31 +132,33 @@ model Authenticator {
 
 model Consultas {
   id             String          @id @default(uuid())
-  data           DateTime 
-  motivo         String 
+  data           DateTime
+  motivo         String
   tipodeexame    String?
   tipo           Consultatype
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   userId         String
-  profissionalId String        ?
+  profissionalId String?
   unidadeId      String?
-  profissional   Profissional  ? @relation(fields: [profissionalId], references: [id])
+  profissional   Profissional?   @relation(fields: [profissionalId], references: [id])
   unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario        User            @relation(fields: [userId], references: [id])
   Exame          Exame[]
   Anotacoes      Anotacoes[]
   Tratamento     Tratamento[]
-}
-model Anotacoes {
-  id           String          @id @default(uuid())
-  consultaId   String
-  anotacao     String
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  consulta     Consultas      @relation(fields: [consultaId], references: [id])
+  anexos         AnexoConsulta[]
+  medicamentos   Medicamento[]
 }
 
+model Anotacoes {
+  id         String    @id @default(uuid())
+  consultaId String
+  anotacao   String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  consulta   Consultas @relation(fields: [consultaId], references: [id])
+}
 
 model Endereco {
   id           String          @id @default(uuid())
@@ -145,18 +178,19 @@ model Endereco {
 }
 
 model Profissional {
-  id            String           @id @default(uuid())
+  id            String         @id @default(uuid())
   nome          String
   especialidade String
-  NumClasse     String           @unique
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  NumClasse     String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   consultas     Consultas[]
-  tratamentos   Tratamento[]     @relation("ProfissionalTratamentos")
+  tratamentos   Tratamento[]   @relation("ProfissionalTratamentos")
   unidades      UnidadeDeSaude[] @relation("ProfissionalUnidades")
-  exames        Exame[]  
-  userId         String?      
-  usuario      User?              @relation(fields: [userId], references: [id]) 
+  exames        Exame[]
+  userId        String?
+  usuario       User?          @relation(fields: [userId], references: [id])
+  medicamentos  Medicamento[]
 }
 
 model Tratamento {
@@ -170,6 +204,7 @@ model Tratamento {
   consultas      Consultas[]
   profissional   Profissional @relation("ProfissionalTratamentos", fields: [profissionalId], references: [id])
   usuario        User         @relation(fields: [userId], references: [id])
+  medicamentos   Medicamento[]
 }
 
 model UnidadeDeSaude {
@@ -184,7 +219,7 @@ model UnidadeDeSaude {
   endereco      Endereco?      @relation(fields: [enderecoId], references: [id])
   profissionais Profissional[] @relation("ProfissionalUnidades")
   exames        Exame[]
-  userId        String? // Adicionado campo para o ID do usuário
+  userId        String?
   usuario       User?          @relation(fields: [userId], references: [id])
 }
 
@@ -212,24 +247,63 @@ model Exame {
   tipo           String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
-
-
-  tratamento    Tratamento?      @relation(fields: [tratamentoId], references: [id])
+  tratamento     Tratamento?      @relation(fields: [tratamentoId], references: [id])
   usuario        User             @relation(fields: [userId], references: [id])
-  profissional   Profissional?     @relation(fields: [profissionalId], references: [id])
+  profissional   Profissional?    @relation(fields: [profissionalId], references: [id])
   consulta       Consultas?       @relation(fields: [consultaId], references: [id])
   unidades       UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
-  resultados     ResultadoExame[] // nova relação
+  resultados     ResultadoExame[]
 }
 
 model ResultadoExame {
-  id           String  @id @default(uuid())
-  exameId      String
-  nome         String
-  valor        String
-  unidade      String?
-  referencia   String?
-  createdAt    DateTime         @default(now())
+  id         String   @id @default(uuid())
+  exameId    String
+  nome       String
+  valor      String
+  unidade    String?
+  referencia String?
+  createdAt  DateTime @default(now())
+  exame      Exame    @relation(fields: [exameId], references: [id])
+}
 
-  exame        Exame   @relation(fields: [exameId], references: [id])
+model AnexoConsulta {
+  id          String    @id @default(uuid())
+  nomeArquivo String
+  urlArquivo  String
+  tipo        TipoAnexo
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  consultaId  String
+  consulta    Consultas @relation(fields: [consultaId], references: [id], onDelete: Cascade)
+}
+
+model Medicamento {
+  id             String             @id @default(uuid())
+  nome           String
+  posologia      String?
+  forma          String? // Comprimido, Cápsula, etc.
+  tipo           TipoMedicamento    @default(ESPORADICO)
+  dataInicio     DateTime
+  dataFim        DateTime?
+  status         StatusMedicamento  @default(ATIVO)
+  estoque        Int?               @default(0)
+  quantidadeCaixa  Int?
+  quantidadeDose   Float?
+  frequenciaNumero Int?
+  frequenciaTipo   FrequenciaTipo?
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  
+  userId         String
+  usuario        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  profissionalId String?
+  profissional   Profissional?      @relation(fields: [profissionalId], references: [id])
+  
+  consultaId     String?
+  consulta       Consultas?         @relation(fields: [consultaId], references: [id])
+  
+  tratamentoId   String?
+  tratamento     Tratamento?        @relation(fields: [tratamentoId], references: [id])
 }

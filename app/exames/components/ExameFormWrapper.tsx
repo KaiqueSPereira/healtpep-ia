@@ -224,7 +224,7 @@ export function ExameFormWrapper({
       } else {
         setAnotacao("");
       }
-    } catch (error: unknown) {
+    } catch {
       toast({ title: "Ocorreu um erro inesperado durante a análise.", variant: "destructive", duration: 5000 });
       setExameResultados([]);
       setAnotacao("");
@@ -305,8 +305,7 @@ export function ExameFormWrapper({
           toast({ title: "Erro ao enviar o exame", description: errorData.error || "Ocorreu um erro ao salvar o exame.", variant: "destructive", duration: 5000 });
         }
       }
-    } catch(e) {
-        console.error(e)
+    } catch {
         toast({ title: "Ocorreu um erro", variant: "destructive" })
     } finally {
       setLoadingSubmit(false);

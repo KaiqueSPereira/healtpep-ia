@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { safeDecrypt, encryptString } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { Consultas, Anotacoes, Exame } from '@prisma/client';
+import { Consultas, Anotacoes, Exame, AnexoConsulta } from '@prisma/client';
 
 interface ConsultaParams {
   params: { consultaId: string };
@@ -30,12 +30,11 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
       );
     }
 
-    // Tipar a variável consulta com o tipo do Prisma que inclui as relações
-    // Dependendo da versão do Prisma ou complexidade, pode precisar de um tipo mais específico
-    const consulta: (Consultas & { Anotacoes: Anotacoes[], Exame: Exame[] } | null) = await db.consultas.findUnique({ // <--- Tipagem aqui
+    // Tipar a variável para incluir a nova relação de anexos
+    const consulta: (Consultas & { Anotacoes: Anotacoes[], Exame: Exame[], anexos: AnexoConsulta[] } | null) = await db.consultas.findUnique({
       where: {
         id: params.consultaId,
-        usuario: { // <--- Correção do filtro do usuário
+        usuario: {
           id: userId
         }
       },
@@ -45,6 +44,7 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
         usuario: true,
         Anotacoes: true,
         Exame: true,
+        anexos: true, // <<< CORREÇÃO: Incluir os anexos na busca
       },
     });
 
@@ -55,17 +55,17 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
       );
     }
 
-    // Decrypt sensitive fields
+    // Decrypt sensitive fields e incluir os anexos na resposta
     const decryptedConsulta = {
       ...consulta,
       motivo: consulta.motivo ? safeDecrypt(consulta.motivo) : null,
       tipodeexame: consulta.tipodeexame ? safeDecrypt(consulta.tipodeexame) : null,
-      Anotacoes: consulta.Anotacoes ? consulta.Anotacoes.map((anotacao: Anotacoes) => ({ // <--- Tipagem do parâmetro anotacao
+      Anotacoes: consulta.Anotacoes ? consulta.Anotacoes.map((anotacao: Anotacoes) => ({
         ...anotacao,
         anotacao: safeDecrypt(anotacao.anotacao),
       })) : [],
 
-      Exame: consulta.Exame ? consulta.Exame.map((exame: Exame) => { // <--- Tipagem do parâmetro exame
+      Exame: consulta.Exame ? consulta.Exame.map((exame: Exame) => {
       return {
         ...exame,
         tipo: typeof exame.tipo === 'string' ? safeDecrypt(exame.tipo) : exame.tipo,
@@ -73,6 +73,7 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
         dataExame: typeof exame.dataExame === 'object' ? exame.dataExame.toISOString() : exame.dataExame,
       };
      }) : [],
+     anexos: consulta.anexos || [], // <<< CORREÇÃO: Adicionar os anexos à resposta final
     };
 
     return NextResponse.json(decryptedConsulta);
@@ -114,7 +115,7 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
     const consultaAtualizada = await db.consultas.update({
       where: {
         id: params.consultaId,
-        usuario: { // <--- Correção do filtro do usuário
+        usuario: { 
           id: userId
         }
       },
@@ -148,7 +149,7 @@ export async function DELETE(_request: Request, { params }: ConsultaParams) {
     await db.consultas.delete({
       where: {
         id: params.consultaId,
-        usuario: { // <--- Correção do filtro do usuário
+        usuario: { 
           id: userId
         }
       },

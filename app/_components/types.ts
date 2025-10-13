@@ -1,3 +1,8 @@
+
+import { Medicamento as PrismaMedicamento } from '@prisma/client';
+
+// Seus Tipos Originais (com correções)
+
 export interface BaseEntity {
   id: string;
   createdAt?: Date;
@@ -18,12 +23,59 @@ export interface Endereco {
   bairro: string;
 }
 
+export type Unidade = {
+  id: string;
+  nome: string;
+  tipo: string;
+  telefone?: string;
+  userId: string;
+  endereco: {
+    nome: string;
+  };
+};
+
+// CORREÇÃO: `unidades` agora é opcional para corresponder aos dados da API.
+export type Profissional = {
+  id: string;
+  nome: string;
+  especialidade: string;
+  NumClasse: string;
+  unidades?: Unidade[]; // Tornou-se opcional
+};
+
+// O tipo Consulta já estava correto, esperando `data` como string.
+export type Consulta = {
+  id: string;
+  data: string;
+  profissional?: Profissional | null;
+  tipo: ConsultaType;
+  tipodeexame?: string;
+  queixas?: string;
+  unidade?: Unidade | null;
+};
+
+// O seu tipo Tratamento original
 export interface Tratamento {
   id: string;
   nome: string;
   profissionalId: string;
   userId: string;
 }
+
+// NOVO: Tipo partilhado para Medicamentos, usado pela página e pelo formulário.
+// Define as datas como `string` e as relações com os tipos corretos.
+export type MedicamentoComRelacoes = Omit<PrismaMedicamento, 'dataInicio' | 'dataFim' | 'createdAt' | 'updatedAt'> & {
+    dataInicio: string;
+    dataFim: string | null;
+    createdAt: string;
+    updatedAt: string;
+    profissional: Profissional | null;
+    consulta: Consulta | null;
+    tratamento: Tratamento | null;
+};
+
+
+// O resto dos seus tipos permanece inalterado
 
 export interface Agendamento {
   id: string;
@@ -44,34 +96,6 @@ export interface MenuUnidadesProps {
   onSelect: (unidade: Unidade | null) => void;
 }
 
-export type Unidade = {
-  id: string;
-  nome: string;
-  tipo: string;
-  telefone?: string;
-  userId: string;
-  endereco: {
-    nome: string;
-  };
-};
-
-export type Profissional = {
-  id: string;
-  nome: string;
-  especialidade: string;
-  NumClasse: string;
-  unidades: Unidade[];
-};
-
-export type Consulta = {
-  id: string;
-  data: string;
-  profissional?: Profissional | null;
-  tipo: ConsultaType;
-  tipodeexame?: string;
-  queixas?: string;
-  unidade?: Unidade | null;
-};
 export interface TabelaExamesProps {
   exames: {
     nome: string;
@@ -94,11 +118,11 @@ export interface TabelaExamesProps {
 }
 
 export type ResultadoExame = {
-  id: string; // Adicionado id
+  id: string;
   nome: string;
   valor: string;
   unidade: string;
-  referencia?: string; // Corrigido para 'referencia'
+  referencia?: string;
   outraUnidade?: string;
 };
 
@@ -153,15 +177,15 @@ export type ExameCompleto = {
 };
 export interface ExameLineChartProps {
   data: {
-    labels: string[]; // Datas dos exames
+    labels: string[];
     datasets: {
-      label: string; // Nome do resultado (ex: "Glicose")
-      data: number[]; // Valores do resultado - AQUI ESTÁ O CONFLITO
+      label: string;
+      data: number[];
       borderColor: string;
       backgroundColor: string;
     }[];
   };
-  title: string; // Título do gráfico
+  title: string;
 }
 
 

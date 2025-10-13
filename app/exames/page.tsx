@@ -1,18 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import {useEffect, useState, useMemo } from "react";
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import { toast } from "@/app/_hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import ExameLineChart from "./components/ExameLineChart";
 import { Input } from "@/app/_components/ui/input";
-import ExameTypeFilter from "./components/ExameTypeFilter";
 import { ExamesGrid } from "./components/ExamesGrid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 import { ChartData, ExameCompleto, ExameGraficos } from "../_components/types";
 import Link from "next/link";
 import { Button } from "@/app/_components/ui/button";
+import { ExameTypeFilter } from "./components/ExameTypeFilter";
 
 export default function ExamesPage() {
     // --- ESTADO PRINCIPAL ---
@@ -40,7 +40,7 @@ export default function ExamesPage() {
     // --- CARREGAMENTO DE DADOS ---
     useEffect(() => {
         setLoading(true);
-        const fetchData = (url: string, setData: (data: any) => void, cache: any[]) => {
+        const fetchData = <T extends unknown[]>(url: string, setData: (data: T) => void, cache: T) => {
             if (cache.length > 0) {
                 setLoading(false);
                 return;
@@ -49,7 +49,7 @@ export default function ExamesPage() {
                 .then(res => res.ok ? res.json() : Promise.reject(res))
                 .then(data => {
                     if (!Array.isArray(data)) throw new Error("A resposta da API não é um array");
-                    setData(data);
+                    setData(data as T); // CORREÇÃO: Adicionada asserção de tipo
                 })
                 .catch(() => toast({ title: `Erro ao carregar dados de ${url}`, variant: "destructive" }))
                 .finally(() => setLoading(false));
@@ -176,7 +176,7 @@ export default function ExamesPage() {
             toast({ title: "Exame excluído com sucesso!", variant: "default" });
             setExamesListaData(prev => prev.filter(exame => exame.id !== examToDelete));
             setExamesGraficosData(prev => prev.filter(exame => exame.id !== examToDelete));
-        } catch (error) {
+        } catch {
             toast({ title: "Erro ao excluir exame", variant: "destructive" });
         } finally {
             setIsConfirmDeleteDialogOpen(false);
@@ -211,10 +211,7 @@ export default function ExamesPage() {
 
                     {currentView === 'list' && listFilterOptions.length > 0 && (
                         <ExameTypeFilter
-                            title="Filtrar por Tipo"
-                            options={listFilterOptions}
-                            selectedOptions={selectedListTypes}
-                            onSelectionChange={setSelectedListTypes}
+                            allTypes={listFilterOptions}
                         />
                     )}
 
@@ -226,10 +223,7 @@ export default function ExamesPage() {
                              </div>
                             {selectedChartType && chartComponentOptions.length > 0 && (
                                 <ExameTypeFilter
-                                    title="Filtrar Componentes"
-                                    options={chartComponentOptions}
-                                    selectedOptions={selectedChartComponents}
-                                    onSelectionChange={setSelectedChartComponents}
+                                    allTypes={chartComponentOptions}
                                 />
                             )}
                         </div>
@@ -245,7 +239,7 @@ export default function ExamesPage() {
                         )}
 
                         {currentView === 'charts' && (
-                            !selectedChartType ? <p className="text-center text-gray-500 py-10">Selecione "Sangue" ou "Urina" para ver o gráfico.</p> : (
+                            !selectedChartType ? <p className="text-center text-gray-500 py-10">Selecione &quot;Sangue&quot; ou &quot;Urina&quot; para ver o gráfico.</p> : (
                             chartData && chartData.datasets.length > 0 ? <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} /> :
                             <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
                         ))}
