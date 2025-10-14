@@ -45,35 +45,47 @@ function determinarUnidade(valor: string, referencia: string): string {
     return "--";
 }
 
-function parseIaResponse(iaObject: any): IaResponse {
-    const resultadosFinais: ExameResultado[] = [];
-    const anotacao = iaObject.anotacao || "";
+function parseIaResponse(iaObject: unknown): IaResponse {
+    if (typeof iaObject !== 'object' || iaObject === null) {
+        return { resultados: [], anotacao: "A resposta da IA não é um objeto JSON válido." };
+    }
 
-    if (Array.isArray(iaObject.resultados)) {
-        for (const mainSection of iaObject.resultados) {
-            const examesContainer = mainSection.exames;
+    const iaRecord = iaObject as Record<string, unknown>;
+    const resultadosFinais: ExameResultado[] = [];
+    const anotacao = typeof iaRecord.anotacao === 'string' ? iaRecord.anotacao : "";
+
+    if (Array.isArray(iaRecord.resultados)) {
+        for (const mainSection of iaRecord.resultados) {
+            if (typeof mainSection !== 'object' || mainSection === null) continue;
+            const mainSectionRecord = mainSection as Record<string, unknown>;
+            const examesContainer = mainSectionRecord.exames;
             if (typeof examesContainer !== 'object' || examesContainer === null) continue;
 
-            for (const subSectionName in examesContainer) {
-                if (Object.prototype.hasOwnProperty.call(examesContainer, subSectionName)) {
-                    const subSectionObject = examesContainer[subSectionName];
+            const examesContainerRecord = examesContainer as Record<string, unknown>;
+            for (const subSectionName in examesContainerRecord) {
+                if (Object.prototype.hasOwnProperty.call(examesContainerRecord, subSectionName)) {
+                    const subSectionObject = examesContainerRecord[subSectionName];
                     if (typeof subSectionObject !== 'object' || subSectionObject === null) continue;
 
-                    for (const examName in subSectionObject) {
-                        if (Object.prototype.hasOwnProperty.call(subSectionObject, examName)) {
-                            const examDetails = subSectionObject[examName];
+                    const subSectionObjectRecord = subSectionObject as Record<string, unknown>;
+                    for (const examName in subSectionObjectRecord) {
+                        if (Object.prototype.hasOwnProperty.call(subSectionObjectRecord, examName)) {
+                            const examDetails = subSectionObjectRecord[examName];
                             
-                            if (typeof examDetails === 'object' && examDetails !== null && 'valor' in examDetails) {
-                                const valor = String(examDetails.valor || '');
-                                const valorReferencia = String(examDetails.referencia || '');
-                                const unidade = determinarUnidade(valor, valorReferencia);
+                            if (typeof examDetails === 'object' && examDetails !== null) {
+                                const examDetailsRecord = examDetails as Record<string, unknown>;
+                                if ('valor' in examDetailsRecord) {
+                                    const valor = String(examDetailsRecord.valor || '');
+                                    const valorReferencia = String(examDetailsRecord.referencia || '');
+                                    const unidade = determinarUnidade(valor, valorReferencia);
 
-                                resultadosFinais.push({
-                                    nome: examName.charAt(0).toUpperCase() + examName.slice(1).toLowerCase().replace(/_/g, ' '),
-                                    valor: valor,
-                                    unidade: unidade,
-                                    valorReferencia: valorReferencia,
-                                });
+                                    resultadosFinais.push({
+                                        nome: examName.charAt(0).toUpperCase() + examName.slice(1).toLowerCase().replace(/_/g, ' '),
+                                        valor: valor,
+                                        unidade: unidade,
+                                        valorReferencia: valorReferencia,
+                                    });
+                                }
                             }
                         }
                     }
@@ -84,7 +96,7 @@ function parseIaResponse(iaObject: any): IaResponse {
     return { resultados: resultadosFinais, anotacao };
 }
 
-async function analisarTextoDeExameComIA(texto: string, tipo: string): Promise<IaResponse> {
+async function analisarTextoDeExameComIA(texto: string): Promise<IaResponse> {
     const prompt = `Analise o texto e retorne um JSON. O objeto DEVE ter duas chaves: "resultados" e "anotacao".
 1. "resultados": DEVE ser um ARRAY. Cada item no array representa uma seção principal (ex: "URINA I") e deve ter DUAS chaves: "secao" (o nome da seção) e "exames".
 2. O valor de "exames" DEVE ser um OBJETO. As chaves deste objeto são as sub-seções (ex: "ANÁLISE QUÍMICA").
@@ -108,9 +120,10 @@ Texto:
         const parsedResponse = JSON.parse(jsonResponse);
         return parseIaResponse(parsedResponse);
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Erro na análise da IA:", error);
-        return { resultados: [], anotacao: "Erro ao processar a resposta da IA." };
+        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido ao processar a resposta da IA.";
+        return { resultados: [], anotacao: `Erro ao processar a resposta da IA: ${errorMessage}` };
     }
 }
 
@@ -127,10 +140,9 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
-    const tipoExame = formData.get("tipo") as string | null;
 
-    if (!file || !tipoExame) {
-      return NextResponse.json({ error: "Arquivo e tipo são obrigatórios" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ error: "Arquivo é obrigatório" }, { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();
@@ -152,12 +164,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nenhum texto extraído" }, { status: 500 });
     }
 
-    const analiseIA = await analisarTextoDeExameComIA(textoExtraido, tipoExame);
+    const analiseIA = await analisarTextoDeExameComIA(textoExtraido);
 
     return NextResponse.json({ ...analiseIA });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Erro geral no handler POST:", error);
-    return NextResponse.json({ error: "Erro interno no servidor" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro interno desconhecido.";
+    return NextResponse.json({ error: `Erro interno no servidor: ${errorMessage}` }, { status: 500 });
   }
 }

@@ -6,9 +6,8 @@ import { authOptions } from "@/app/_lib/auth";
 import { prisma } from "@/app/_lib/prisma";
 import { encrypt, encryptString, safeDecrypt } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
-import { Prisma } from "@prisma/client"; // Importa o Prisma
+import { Prisma } from "@prisma/client";
 
-// Interface para tipar os resultados (útil para o frontend também)
 interface ResultadoExame {
     id: string;
     nome: string;
@@ -17,7 +16,14 @@ interface ResultadoExame {
     referencia: string | null;
 }
 
-// Define a estrutura de dados esperada da query do Prisma
+interface RawResultado {
+    nome?: string;
+    valor?: string;
+    unidade?: string;
+    referencia?: string;
+    valorReferencia?: string;
+}
+
 const examWithDetails = Prisma.validator<Prisma.ExameDefaultArgs>()({
   select: { 
     id: true,
@@ -36,7 +42,6 @@ const examWithDetails = Prisma.validator<Prisma.ExameDefaultArgs>()({
   },
 });
 
-// Cria o tipo com base na definição acima
 type ExamPayload = Prisma.ExameGetPayload<typeof examWithDetails>;
 
 export async function GET() {
@@ -50,11 +55,10 @@ export async function GET() {
   try {
     const exams = await prisma.exame.findMany({
       where: { userId: userId },
-      select: examWithDetails.select, // Reutiliza a definição para garantir consistência
+      select: examWithDetails.select,
       orderBy: { dataExame: 'desc' },
     });
 
-    // Usa o tipo ExamPayload para anotar o parâmetro 'exame'
     const decryptedExams = exams.map((exame: ExamPayload) => {
       const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : null;
       const decryptedNomeArquivo = exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null;
@@ -80,9 +84,10 @@ export async function GET() {
     });
 
     return NextResponse.json(decryptedExams);
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Um erro desconhecido ocorreu";
     console.error("Erro ao buscar exames:", error);
-    return NextResponse.json({ error: "Erro ao buscar exames." }, { status: 500 });
+    return NextResponse.json({ error: `Erro ao buscar exames: ${errorMessage}` }, { status: 500 });
   }
 }
 
@@ -131,7 +136,7 @@ export async function POST(req: NextRequest) {
         userId, profissionalId, unidadesId: unidadeId,
         consultaId, tratamentoId, tipo,
         arquivoExame: encryptedFileBuffer,
-        analiseIA: null, // O campo analiseIA será preenchido pela API de análise separadamente se necessário
+        analiseIA: null,
       },
     });
 
@@ -139,12 +144,11 @@ export async function POST(req: NextRequest) {
         const examesResultados = JSON.parse(examesRaw);
         if (Array.isArray(examesResultados) && examesResultados.length > 0) {
             await prisma.resultadoExame.createMany({
-                data: examesResultados.map((e: any) => ({ // Adicionado :any para flexibilidade
+                data: examesResultados.map((e: RawResultado) => ({ 
                     exameId: exame.id,
                     nome: encryptString(e.nome || ""),
                     valor: encryptString(e.valor || ""),
                     unidade: encryptString(e.unidade || ""),
-                    // CORREÇÃO APLICADA AQUI
                     referencia: encryptString(e.referencia || e.valorReferencia || ""),
                 })),
             });
@@ -156,8 +160,9 @@ export async function POST(req: NextRequest) {
         examId: exame.id 
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Um erro desconhecido ocorreu";
     console.error("Erro no handler POST de exames:", error);
-    return NextResponse.json({ error: "Erro ao salvar o exame." }, { status: 500 });
+    return NextResponse.json({ error: `Erro ao salvar o exame: ${errorMessage}` }, { status: 500 });
   }
 }

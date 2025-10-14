@@ -1,7 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import { decrypt } from "@/app/_lib/crypto";
-import { decryptString } from "@/app/_lib/crypto";
+import { decrypt, decryptString } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
 
 export async function GET(req: NextRequest) {
@@ -44,13 +43,17 @@ export async function GET(req: NextRequest) {
       png: "image/png",
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
-      // ... outros tipos
     };
 
     const contentType = (fileExtension && contentTypes[fileExtension]) || "application/octet-stream";
 
-    // CORREÇÃO: Retorna o Buffer do arquivo diretamente com os cabeçalhos corretos
-    return new Response(decryptedFileBuffer, {
+    // SOLUÇÃO FINAL E DEFINITIVA:
+    // Cria uma cópia dos dados do Buffer do Node.js para uma nova Uint8Array (tipo da Web API).
+    // Isto quebra a herança de tipos do Node.js e cria um objeto "puro", 100% compatível
+    // com o construtor da Response, resolvendo o conflito de tipos de uma vez por todas.
+    const body = new Uint8Array(decryptedFileBuffer);
+
+    return new Response(body, {
       status: 200,
       headers: {
         "Content-Type": contentType,
