@@ -124,9 +124,9 @@ const UnidadesPage = () => {
     setDeleteId(unidadeId);
   };
 
-  const handleDelete = () => {
+  const handleDelete = (unidadeId: string | number) => {
     if (!deleteId) return;
-    fetch(`/api/unidadesaude?id=${deleteId}`, {
+    fetch(`/api/unidadesaude/${unidadeId}`, {
       method: "DELETE",
     })
       .then(async (response) => {
@@ -207,7 +207,7 @@ const UnidadesPage = () => {
                         <Button onClick={() => setDeleteId(null)}>
                           Cancelar
                         </Button>
-                        <Button onClick={handleDelete} className="bg-red-500">
+                        <Button onClick={() => handleDelete(unidade.id)} className="bg-red-500">
                           Confirmar
                         </Button>
                       </DialogFooter>

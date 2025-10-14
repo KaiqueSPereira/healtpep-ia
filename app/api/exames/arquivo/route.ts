@@ -47,10 +47,6 @@ export async function GET(req: NextRequest) {
 
     const contentType = (fileExtension && contentTypes[fileExtension]) || "application/octet-stream";
 
-    // SOLUÇÃO FINAL E DEFINITIVA:
-    // Cria uma cópia dos dados do Buffer do Node.js para uma nova Uint8Array (tipo da Web API).
-    // Isto quebra a herança de tipos do Node.js e cria um objeto "puro", 100% compatível
-    // com o construtor da Response, resolvendo o conflito de tipos de uma vez por todas.
     const body = new Uint8Array(decryptedFileBuffer);
 
     return new Response(body, {

@@ -144,10 +144,6 @@ export async function POST(req: Request) {
     return NextResponse.json(novaUnidade, { status: 201 });
   } catch (error) {
     console.error("Erro ao cadastrar a unidade:", error);
-    // Melhorar o tratamento de erro para capturar erros específicos do Prisma se necessário
-    // if (error instanceof PrismaClientKnownRequestError) {
-    //   return NextResponse.json({ error: `Erro do banco de dados: ${error.code}` }, { status: 500 });
-    // }
     const errorMessage = (error as Error).message || "Falha ao cadastrar a unidade";
     return NextResponse.json(
       { error: errorMessage },
@@ -155,7 +151,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-// Adicionar método PUT e DELETE se necessário para a API completa
-// export async function PUT(req: Request) { ... }
-// export async function DELETE(req: Request) { ... }
