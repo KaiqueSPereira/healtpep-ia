@@ -8,6 +8,7 @@ import {
   Hospital,
   LogInIcon,
   LogOutIcon,
+  Pill,
 } from "lucide-react";
 import { SheetClose, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
@@ -85,6 +86,12 @@ const Sidebarbotton = () => {
           <ClipboardPlus size={18} />
           <Link href="/exames" className="text-inherit no-underline">
             Exames
+          </Link>
+        </Button>
+        <Button className="flex items-center gap-2" variant="ghost">
+          <Pill size={18} />
+          <Link href="/medicamentos" className="text-inherit no-underline">
+            Medicamentos
           </Link>
         </Button>
       </div>

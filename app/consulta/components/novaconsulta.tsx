@@ -96,7 +96,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       if (!session?.user?.id) return;
 
       try {
-        const response = await fetch(`/api/profissional?userId=${session.user.id}`);
+        const response = await fetch(`/api/profissionais?userId=${session.user.id}`);
         if (!response.ok) throw new Error("Erro ao buscar profissionais");
         const data: Profissional[] = await response.json();
         setAllProfissionais(data || []); // Armazena na lista completa
@@ -125,10 +125,8 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       // Se nenhuma unidade estiver selecionada, mostre todos os profissionais
       setFilteredProfissionais(allProfissionais);
     }
-     // Ao mudar a unidade selecionada, resetar o profissional selecionado
-     // Isso é feito no onUnidadeSelect agora
-     // setSelectedProfissional(null); // Removido daqui
-  }, [selectedUnidade, allProfissionais]); // Depende da unidade selecionada e da lista completa de profissionais
+     
+  }, [selectedUnidade, allProfissionais]); 
 
   // Buscar tratamentos do usuário logado
   useEffect(() => {
@@ -137,7 +135,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
 
       try {
         const response = await fetch(
-          `/api/tratamento?userId=${session.user.id}`,
+          `/api/tratamentos?userId=${session.user.id}`,
         );
         if (!response.ok) throw new Error("Erro ao buscar tratamentos");
 

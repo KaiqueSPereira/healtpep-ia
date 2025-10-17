@@ -34,16 +34,14 @@ export type Unidade = {
   };
 };
 
-// CORREÇÃO: `unidades` agora é opcional para corresponder aos dados da API.
 export type Profissional = {
   id: string;
   nome: string;
   especialidade: string;
   NumClasse: string;
-  unidades?: Unidade[]; // Tornou-se opcional
+  unidades?: Unidade[];
 };
 
-// O tipo Consulta já estava correto, esperando `data` como string.
 export type Consulta = {
   id: string;
   data: string;
@@ -54,7 +52,6 @@ export type Consulta = {
   unidade?: Unidade | null;
 };
 
-// O seu tipo Tratamento original
 export interface Tratamento {
   id: string;
   nome: string;
@@ -62,9 +59,10 @@ export interface Tratamento {
   userId: string;
 }
 
-// NOVO: Tipo partilhado para Medicamentos, usado pela página e pelo formulário.
-// Define as datas como `string` e as relações com os tipos corretos.
+// CORREÇÃO: Adicionados `principioAtivo` e `linkBula` para alinhar com o schema e a API.
 export type MedicamentoComRelacoes = Omit<PrismaMedicamento, 'dataInicio' | 'dataFim' | 'createdAt' | 'updatedAt'> & {
+    principioAtivo: string | null; // Adicionado
+    linkBula: string | null;       // Adicionado
     dataInicio: string;
     dataFim: string | null;
     createdAt: string;

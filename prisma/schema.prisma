@@ -7,6 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Tabela para armazenar os dados de medicamentos da ANVISA
+model AnvisaMedicamento {
+  id             String  @id @unique // Número do processo
+  nome           String
+  principioAtivo String
+
+  @@index([nome]) // Adiciona um índice na coluna nome para buscas mais rápidas
+}
+
 // ENUMS
 enum TipoAnexo {
   ENCAMINHAMENTO
@@ -280,12 +289,14 @@ model AnexoConsulta {
 model Medicamento {
   id             String             @id @default(uuid())
   nome           String
+  principioAtivo String?
+  linkBula       String?
   posologia      String?
   forma          String? // Comprimido, Cápsula, etc.
-  tipo           TipoMedicamento    @default(ESPORADICO)
+  tipo           TipoMedicamento    // @default(ESPORADICO) REMOVIDO
   dataInicio     DateTime
   dataFim        DateTime?
-  status         StatusMedicamento  @default(ATIVO)
+  status         StatusMedicamento  // @default(ATIVO) REMOVIDO
   estoque        Int?               @default(0)
   quantidadeCaixa  Int?
   quantidadeDose   Float?

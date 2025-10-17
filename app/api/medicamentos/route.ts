@@ -7,6 +7,8 @@ import { db } from '@/app/_lib/prisma';
 
 const medicamentoCreateSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório.'),
+  principioAtivo: z.string().optional().nullable(), // Adicionado
+  linkBula: z.string().optional().nullable(),       // Adicionado
   posologia: z.string().optional().nullable(),
   forma: z.string().optional().nullable(),
   tipo: z.enum(['USO_CONTINUO', 'TRATAMENTO_CLINICO', 'ESPORADICO']),
@@ -32,7 +34,32 @@ export async function GET() {
 
     const medicamentos = await db.medicamento.findMany({
       where: { userId: session.user.id },
-      include: {
+      // O select não é estritamente necessário aqui se todos os campos forem retornados por padrão,
+      // mas o include força a necessidade de especificar os campos escalares que queremos.
+      // Para garantir clareza e evitar problemas futuros, selecionamos explicitamente.
+      select: {
+        id: true,
+        nome: true,
+        principioAtivo: true, // Selecionado
+        linkBula: true,       // Selecionado
+        posologia: true,
+        forma: true,
+        tipo: true,
+        dataInicio: true,
+        dataFim: true,
+        status: true,
+        estoque: true,
+        quantidadeCaixa: true,
+        quantidadeDose: true,
+        frequenciaNumero: true,
+        frequenciaTipo: true,
+        createdAt: true,
+        updatedAt: true,
+        userId: true,
+        profissionalId: true,
+        consultaId: true,
+        tratamentoId: true,
+        // Inclui os dados das relações
         profissional: true,
         consulta: true,
         tratamento: true,
@@ -57,9 +84,10 @@ export async function POST(req: Request) {
     const json = await req.json();
     const body = medicamentoCreateSchema.parse(json);
 
-    // Converte campos vazios ('') ou undefined para null, garantindo a integridade dos dados.
     const dataForDb = {
       ...body,
+      principioAtivo: body.principioAtivo || null,
+      linkBula: body.linkBula || null,
       posologia: body.posologia || null,
       forma: body.forma || null,
       frequenciaTipo: body.frequenciaTipo || null,

@@ -1,12 +1,14 @@
-
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 
+// CORREÇÃO: Adicionados `principioAtivo` e `linkBula` ao schema de validação.
 const medicamentoUpdateSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório.').optional(),
+  principioAtivo: z.string().optional().nullable(), // Adicionado
+  linkBula: z.string().optional().nullable(),       // Adicionado
   posologia: z.string().optional().nullable(),
   forma: z.string().optional().nullable(),
   tipo: z.enum(['USO_CONTINUO', 'TRATAMENTO_CLINICO', 'ESPORADICO']).optional(),
@@ -67,6 +69,7 @@ export async function PATCH(req: Request, { params }: { params: { medicamentoId:
         const json = await req.json();
         const body = medicamentoUpdateSchema.parse(json);
 
+        // CORREÇÃO: O `dataForDb` agora irá incluir os novos campos se eles estiverem presentes no body.
         const dataForDb = Object.fromEntries(
             Object.entries(body).map(([key, value]) => [key, value === '' ? null : value])
         );
