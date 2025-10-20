@@ -5,10 +5,11 @@ import { z } from 'zod';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 
+// UPDATED: Zod schema to use condicaoSaudeId
 const medicamentoCreateSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório.'),
-  principioAtivo: z.string().optional().nullable(), // Adicionado
-  linkBula: z.string().optional().nullable(),       // Adicionado
+  principioAtivo: z.string().optional().nullable(),
+  linkBula: z.string().optional().nullable(),
   posologia: z.string().optional().nullable(),
   forma: z.string().optional().nullable(),
   tipo: z.enum(['USO_CONTINUO', 'TRATAMENTO_CLINICO', 'ESPORADICO']),
@@ -22,7 +23,7 @@ const medicamentoCreateSchema = z.object({
   frequenciaTipo: z.enum(['HORA', 'DIA', 'SEMANA', 'MES']).optional().nullable(),
   profissionalId: z.string().optional().nullable(),
   consultaId: z.string().optional().nullable(),
-  tratamentoId: z.string().optional().nullable(),
+  condicaoSaudeId: z.string().optional().nullable(), // UPDATED
 });
 
 export async function GET() {
@@ -34,14 +35,12 @@ export async function GET() {
 
     const medicamentos = await db.medicamento.findMany({
       where: { userId: session.user.id },
-      // O select não é estritamente necessário aqui se todos os campos forem retornados por padrão,
-      // mas o include força a necessidade de especificar os campos escalares que queremos.
-      // Para garantir clareza e evitar problemas futuros, selecionamos explicitamente.
+      // UPDATED: Select clause to include condicaoSaude
       select: {
         id: true,
         nome: true,
-        principioAtivo: true, // Selecionado
-        linkBula: true,       // Selecionado
+        principioAtivo: true,
+        linkBula: true,
         posologia: true,
         forma: true,
         tipo: true,
@@ -58,11 +57,10 @@ export async function GET() {
         userId: true,
         profissionalId: true,
         consultaId: true,
-        tratamentoId: true,
-        // Inclui os dados das relações
+        condicaoSaudeId: true, // UPDATED
         profissional: true,
         consulta: true,
-        tratamento: true,
+        condicaoSaude: true, // UPDATED
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -84,6 +82,7 @@ export async function POST(req: Request) {
     const json = await req.json();
     const body = medicamentoCreateSchema.parse(json);
 
+    // UPDATED: dataForDb to handle condicaoSaudeId
     const dataForDb = {
       ...body,
       principioAtivo: body.principioAtivo || null,
@@ -93,7 +92,7 @@ export async function POST(req: Request) {
       frequenciaTipo: body.frequenciaTipo || null,
       profissionalId: body.profissionalId || null,
       consultaId: body.consultaId || null,
-      tratamentoId: body.tratamentoId || null,
+      condicaoSaudeId: body.condicaoSaudeId || null, // UPDATED
       dataFim: body.dataFim ?? null,
       estoque: body.estoque ?? null,
       quantidadeCaixa: body.quantidadeCaixa ?? null,

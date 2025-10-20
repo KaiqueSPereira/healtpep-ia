@@ -1,269 +1,231 @@
-// app/users/[id]/page.tsx
-"use client";
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Header from '@/app/_components/header';
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { Label } from "@/app/_components/ui/label";
 import { Avatar, AvatarImage } from "@/app/_components/ui/avatar";
 import { Button } from "@/app/_components/ui/button";
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle, ChevronRight, PlusCircle } from 'lucide-react';
 import Link from "next/link";
 import { useToast } from "@/app/_hooks/use-toast";
 import PesoHistoryChart from '@/app/users/_components/PesoHistoryChart';
-import IMCChart from '../_components/IMCChart'; // Importe o componente IMCChart
+import IMCChart from '../_components/IMCChart';
+import { Badge } from '@/app/_components/ui/badge';
 
-interface UserData {
-  id: string;
-  name: string | null;
-  email: string;
-  image: string | null;
-  dadosSaude?: {
+// Interface unificada para os dados do dashboard
+interface UserDashboardData {
     id: string;
-    userId: string;
-    CNS: string | null;
-    tipoSanguineo: string | null;
-    sexo: string | null;
-    dataNascimento: string | null;
-    altura: number | null;
-  } | null;
+    name: string | null;
+    email: string;
+    image: string | null;
+    dadosSaude: {
+        id: string;
+        userId: string;
+        CNS: string | null;
+        tipoSanguineo: string | null;
+        sexo: string | null;
+        dataNascimento: string | null;
+        altura: string | null;
+        alergias: string[];
+    } | null;
+    historicoPeso: {
+        id: string;
+        peso: string;
+        data: string;
+    }[];
+    condicoesSaude: {
+        id: string;
+        nome: string;
+        createdAt: string;
+        cidCodigo: string | null;
+        cidDescricao: string | null;
+        profissional: { nome: string; especialidade: string; } | null;
+    }[];
 }
-
-interface PesoRegistro {
-  id: string;
-  userId: string;
-  peso: string;
-  data: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 
 const calcularIdade = (dataNascimento: string | null | undefined): number | null => {
-  if (!dataNascimento) return null;
-
-  try {
+    if (!dataNascimento) return null;
     const today = new Date();
     const birthDate = new Date(dataNascimento);
-
-    if (isNaN(birthDate.getTime())) {
-      return null;
-    }
-
+    if (isNaN(birthDate.getTime())) return null;
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
-
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
+        age--;
     }
-
     return age;
-  } catch (e) {
-    console.error("Erro ao calcular idade:", e);
-    return null;
-  }
 };
 
 const formatarData = (data: string | null | undefined) => {
-  if (!data) return "Não informado";
-  try {
-    const parts = data.split('-');
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
-    const day = parseInt(parts[2], 10);
-
-    const dateObj = new Date(Date.UTC(year, month - 1, day));
-
-    const dia = dateObj.getUTCDate().toString().padStart(2, '0');
-    const mes = (dateObj.getUTCMonth() + 1).toString().padStart(2, '0');
-    const ano = dateObj.getUTCFullYear();
-
-    return `${dia}/${mes}/${ano}`;
-  } catch {
-    return "Data inválida";
-  }
+    if (!data) return "Não informado";
+    const dateObj = new Date(data);
+    if (isNaN(dateObj.getTime())) return "Data inválida";
+    return dateObj.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 };
 
-
 export default function UserProfilePage() {
-  const params = useParams();
-  const id = params.id as string;
+    const params = useParams();
+    const id = params.id as string;
+    const { toast } = useToast();
 
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]); // Estado para histórico de peso
-  const [loadingHistorico, setLoadingHistorico] = useState(true); // Estado de loading para histórico de peso
-  const [errorHistorico] = useState<string | null>(null); // Estado de erro para histórico de peso
+    const [dashboardData, setDashboardData] = useState<UserDashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-
-  const { toast } = useToast();
-
-
-  useEffect(() => {
-    if (typeof id !== 'string' || !id) {
-      setLoading(false);
-      const errorMessage = "ID do usuário não fornecido ou inválido.";
-      setError(errorMessage);
-       toast({
-         variant: "destructive",
-         title: "Erro de rota",
-         description: errorMessage,
-       });
-      return;
-    }
-
-    const fetchUserDataAndPeso = async () => { // Função única para buscar dados do usuário e peso
-      setLoading(true);
-      setLoadingHistorico(true);
-      try {
-        // Busca dados do usuário
-        const userResponse = await fetch(`/api/users/${id}`);
-        if (!userResponse.ok) {
-           const errorMessage = `Erro ao carregar dados do usuário: ${userResponse.statusText}`;
-           setError(errorMessage);
-           toast({
-             variant: "destructive",
-             title: "Erro ao carregar",
-             description: errorMessage,
-           });
-           setLoading(false);
-          return;
+    const fetchDashboardData = useCallback(async () => {
+        if (!id) return;
+        setLoading(true);
+        try {
+            const response = await fetch(`/api/pacientes/dashboard/${id}`);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `Erro ao carregar dados do paciente`);
+            }
+            const data: UserDashboardData = await response.json();
+            setDashboardData(data);
+            setError(null);
+        } catch (err: any) {
+            const errorMessage = err.message || "Ocorreu um erro inesperado.";
+            setError(errorMessage);
+            toast({ variant: "destructive", title: "Erro ao Carregar Dados", description: errorMessage });
+            console.error(err);
+        } finally {
+            setLoading(false);
         }
-        const userData: UserData = await userResponse.json();
-        setUserData(userData);
-        console.log("Dados do Usuário:", userData); // Log para verificar dados do usuário
+    }, [id, toast]);
 
-
-        // Busca histórico de peso
-        const pesoResponse = await fetch(`/api/pesos/${id}`);
-        if (!pesoResponse.ok) {
-          const errorData = await pesoResponse.json();
-          throw new Error(errorData.error || 'Erro ao buscar histórico de peso');
+    useEffect(() => {
+        if (id) {
+            fetchDashboardData();
+        } else {
+             setError("ID do usuário não fornecido.");
+             setLoading(false);
         }
-        const pesoData: PesoRegistro[] = await pesoResponse.json();
-        setHistoricoPeso(pesoData);
-        console.log("Dados do Histórico de Peso:", pesoData); // Log para verificar dados do histórico de peso
+    }, [id, fetchDashboardData]);
 
+    const alturaNumerica = dashboardData?.dadosSaude?.altura ? parseFloat(dashboardData.dadosSaude.altura) : null;
 
-      } catch (err) {
-         const errorMessage = "Ocorreu um erro inesperado ao buscar os dados.";
-         setError(errorMessage);
-         toast({
-            variant: "destructive",
-            title: "Erro na busca",
-            description: errorMessage,
-          });
-        console.error(err);
-      } finally {
-        setLoading(false);
-        setLoadingHistorico(false);
-      }
-    };
+    return (
+        <>
+            <Header />
+            <div className="container mx-auto p-4">
+                {loading ? (
+                    <div className="flex justify-center items-center h-screen"><Loader2 className="h-10 w-10 animate-spin" /></div>
+                ) : error ? (
+                    <p className="text-red-500 text-center">{error}</p>
+                ) : !dashboardData ? (
+                    <p className="text-center">Nenhum dado de usuário encontrado.</p>
+                ) : (
+                    <Card className="border-none">
+                        <CardHeader>
+                            <div className="flex justify-between items-center">
+                                <CardTitle>Perfil do Paciente</CardTitle>
+                                <Link href={`/users/${dashboardData.id}/editar`} passHref><Button variant="outline" size="sm">Editar</Button></Link>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="grid gap-6">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-2">
+                                    <div className="flex items-baseline gap-2">
+                                        <p className="text-2xl font-semibold">
+                                            {dashboardData.name || "Não informado"}
+                                            <span className="text-lg font-normal text-muted-foreground ml-2">
+                                                {dashboardData.dadosSaude?.dataNascimento ? `(${calcularIdade(dashboardData.dadosSaude.dataNascimento)} anos)` : ''}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{dashboardData.email}</p>
+                                </div>
+                                {dashboardData.image && (
+                                    <Avatar className="h-24 w-24 border"><AvatarImage src={dashboardData.image} alt={dashboardData.name || "User Image"} /></Avatar>
+                                )}
+                            </div>
 
-    fetchUserDataAndPeso(); // Chama a nova função de busca combinada
-  }, [id, toast]);
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div><Label>Tipo Sanguíneo</Label><p className="font-semibold">{dashboardData.dadosSaude?.tipoSanguineo || "-"}</p></div>
+                                <div><Label>Sexo</Label><p className="font-semibold">{dashboardData.dadosSaude?.sexo || "-"}</p></div>
+                                <div><Label>Nascimento</Label><p className="font-semibold">{formatarData(dashboardData.dadosSaude?.dataNascimento)}</p></div>
+                                <div><Label>CNS</Label><p className="font-semibold">{dashboardData.dadosSaude?.CNS || "-"}</p></div>
+                            </div>
 
+                            <div>
+                                <Label>Alergias</Label>
+                                <div className="flex flex-wrap gap-2 mt-1">
+                                    {dashboardData.dadosSaude?.alergias?.length ? (
+                                        dashboardData.dadosSaude.alergias.map((alergia, index) => (
+                                            <Badge key={index} variant="destructive"><AlertTriangle className="h-3 w-3 mr-1" />{alergia}</Badge>
+                                        ))
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">Nenhuma alergia informada.</p>
+                                    )}
+                                </div>
+                            </div>
 
-  return (
-    <>
-      <Header />
-      <div className="container mx-auto p-4">
-        {loading ? (
-          <div className="flex justify-center items-center h-screen">
-            <Loader2 className="h-10 w-10 animate-spin" />
-          </div>
-        ) : error ? (
-           <p className="text-red-500">{error}</p> // Exibe erro de dados do usuário
-        ) : !userData ? (
-          <p>Nenhum dado de usuário encontrado.</p>
-        ) : (
-          <Card className="border-none">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Perfil do Usuário</CardTitle>
-                <Link href={`/users/${userData.id}/editar`} passHref>
-                  <Button variant="outline" size="sm">Editar</Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="flex items-start justify-between">
-                <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="name" className="text-lg font-semibold">Nome:</Label>
-                    <p id="name" className="text-lg text-gray-900 dark:text-gray-100">
-                      {userData.name || "Não informado"}
-                      {userData.dadosSaude?.dataNascimento && ` (${calcularIdade(userData.dadosSaude.dataNascimento)} anos)`}
-                    </p>
-                  </div>
-                  <div>
-                    <Label htmlFor="email" className="text-sm">Email:</Label>
-                    <p id="email" className="text-sm text-gray-500 dark:text-gray-300">{userData.email}</p>
-                  </div>
-                </div>
-                {userData.image && (
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={userData.image} alt={userData.name || "User Image"} />
-                  </Avatar>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                <div className="md:col-span-2">
+                                    <PesoHistoryChart 
+                                        userId={dashboardData.id}
+                                        historicoPeso={dashboardData.historicoPeso} 
+                                        loading={loading}
+                                        error={error}
+                                        onDataChange={fetchDashboardData}
+                                    />
+                                </div>
+                                <div className="md:col-span-1">
+                                     {alturaNumerica ? (
+                                        <IMCChart
+                                            userHeight={alturaNumerica}
+                                            historicoPeso={dashboardData.historicoPeso}
+                                        />
+                                    ) : (
+                                        <div className='flex items-center justify-center h-full bg-gray-100 rounded-lg p-4'>
+                                            <p className='text-sm text-center text-muted-foreground'>Informe a altura do paciente para calcular o IMC.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="pt-6">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h3 className="text-lg font-semibold">Condições de Saúde</h3>
+                                     <Link href={`/condicoes/novo?userId=${dashboardData.id}`} passHref>
+                                        <Button variant="outline" size="sm"><PlusCircle className="h-4 w-4 mr-2"/>Adicionar</Button>
+                                    </Link>
+                                </div>
+                                {dashboardData.condicoesSaude?.length ? (
+                                    <div className="grid gap-3">
+                                        {dashboardData.condicoesSaude.map((condicao) => (
+                                            <Link href={`/condicoes/${condicao.id}`} key={condicao.id} passHref>
+                                                <Card className="hover:bg-accent/50 cursor-pointer transition-colors">
+                                                    <CardContent className="p-4 flex justify-between items-center">
+                                                        <div>
+                                                            <p className="font-semibold">{condicao.nome}</p>
+                                                            {condicao.cidCodigo && (
+                                                                <p className="text-sm font-mono bg-gray-100 px-2 py-1 rounded-md inline-block my-1">
+                                                                    {condicao.cidCodigo}: {condicao.cidDescricao}
+                                                                </p>
+                                                            )}
+                                                            <p className="text-sm text-muted-foreground">Registrado em: {formatarData(condicao.createdAt)}</p>
+                                                            {condicao.profissional && (
+                                                                <p className="text-sm text-muted-foreground">com {condicao.profissional.nome} ({condicao.profissional.especialidade})</p>
+                                                            )}
+                                                        </div>
+                                                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                                                    </CardContent>
+                                                </Card>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground text-center pt-4">Nenhuma condição de saúde encontrada.</p>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
                 )}
-              </div>
-
-              <div>
-                <Label htmlFor="tipoSanguineo">Tipo Sanguíneo:</Label>
-                <p id="tipoSanguineo" className="text-sm text-gray-700 dark:text-gray-300">
-                  {userData.dadosSaude?.tipoSanguineo || "Não informado"}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="sexo">Sexo:</Label>
-                <p id="sexo" className="text-sm text-gray-700 dark:text-gray-300">
-                  {userData.dadosSaude?.sexo || "Não informado"}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="dataNascimento">Data de Nascimento:</Label>
-                <p id="dataNascimento" className="text-sm text-gray-700 dark:text-gray-300">
-                  {formatarData(userData.dadosSaude?.dataNascimento)}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="cns">CNS:</Label>
-                <p id="cns" className="text-sm text-gray-700 dark:text-gray-300">{userData.dadosSaude?.CNS || "Não informado"}</p>
-              </div>
-
-              {/* Container para os gráficos (lado a lado em telas maiores) */}
-              <div className="flex flex-col md:flex-row gap-4">
-                {/* Gráfico de Histórico de Peso */}
-                <div className="md:w-4/5">
-                   {userData && (
-                      <PesoHistoryChart
-                         userId={userData.id}
-                         userHeight={userData.dadosSaude?.altura || null} // Passa a altura para o gráfico de Peso
-                     />
-                   )}
-                </div>
-
-                {/* Gráfico de IMC */}
-                <div className="flex-1">
-                   {userData && userData.dadosSaude?.altura !== null && ( // Renderize apenas se userData e altura existirem
-                      <IMCChart
-                         userId={userData.id}
-                         userHeight={userData.dadosSaude?.altura || null} // Passa a altura (number | null)
-                         historicoPeso={historicoPeso} // Passa o histórico de peso buscado no pai
-                         loadingHistorico={loadingHistorico} // Passa o estado de loading
-                         errorHistorico={errorHistorico} // Passa o estado de erro
-                     />
-                   )}
-                </div>
-              </div>
-
-
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </>
-  );
+            </div>
+        </>
+    );
 }

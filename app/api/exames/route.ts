@@ -8,6 +8,7 @@ import { encrypt, encryptString, safeDecrypt } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
 import { Prisma } from "@prisma/client";
 
+// ... (interfaces and type definitions remain the same)
 interface ResultadoExame {
     id: string;
     nome: string;
@@ -44,51 +45,51 @@ const examWithDetails = Prisma.validator<Prisma.ExameDefaultArgs>()({
 
 type ExamPayload = Prisma.ExameGetPayload<typeof examWithDetails>;
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
 
-  if (!userId) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
+export async function GET(req: NextRequest) {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
-  try {
-    const exams = await prisma.exame.findMany({
-      where: { userId: userId },
-      select: examWithDetails.select,
-      orderBy: { dataExame: 'desc' },
-    });
+    if (!userId) {
+        return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
 
-    const decryptedExams = exams.map((exame: ExamPayload) => {
-      const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : null;
-      const decryptedNomeArquivo = exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null;
-      const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
-      const decryptedAnaliseIA = exame.analiseIA ? safeDecrypt(exame.analiseIA) : null;
+    try {
+        const exams = await prisma.exame.findMany({
+            where: { userId: userId },
+            select: examWithDetails.select,
+            orderBy: { dataExame: 'desc' },
+        });
 
-      const decryptedResultados = exame.resultados ? exame.resultados.map((resultado: ResultadoExame) => ({
-          ...resultado,
-          nome: resultado.nome ? safeDecrypt(resultado.nome) : '',
-          valor: resultado.valor ? safeDecrypt(resultado.valor) : '',
-          unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
-          referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
-      })) : [];
+        const decryptedExams = exams.map((exame: ExamPayload) => {
+            const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : null;
+            const decryptedNomeArquivo = exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null;
+            const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
+            const decryptedAnaliseIA = exame.analiseIA ? safeDecrypt(exame.analiseIA) : null;
 
-      return {
-        ...exame,
-        nome: decryptedNome,
-        nomeArquivo: decryptedNomeArquivo,
-        anotacao: decryptedAnotacao,
-        analiseIA: decryptedAnaliseIA,
-        resultados: decryptedResultados,
-      };
-    });
+            const decryptedResultados = exame.resultados ? exame.resultados.map((resultado: ResultadoExame) => ({
+                ...resultado,
+                nome: resultado.nome ? safeDecrypt(resultado.nome) : '',
+                valor: resultado.valor ? safeDecrypt(resultado.valor) : '',
+                unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
+                referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
+            })) : [];
 
-    return NextResponse.json(decryptedExams);
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Um erro desconhecido ocorreu";
-    console.error("Erro ao buscar exames:", error);
-    return NextResponse.json({ error: `Erro ao buscar exames: ${errorMessage}` }, { status: 500 });
-  }
+            return {
+                ...exame,
+                nome: decryptedNome,
+                nomeArquivo: decryptedNomeArquivo,
+                anotacao: decryptedAnotacao,
+                analiseIA: decryptedAnaliseIA,
+                resultados: decryptedResultados,
+            };
+        });
+
+        return NextResponse.json(decryptedExams);
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Um erro desconhecido ocorreu";
+        return NextResponse.json({ error: `Erro ao buscar exames: ${errorMessage}` }, { status: 500 });
+    }
 }
 
 export async function POST(req: NextRequest) {
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
     const profissionalId = formData.get("profissionalId")?.toString();
     const unidadeId = formData.get("unidadeId")?.toString();
     const consultaId = formData.get("consultaId")?.toString() || null;
-    const tratamentoId = formData.get("tratamentoId")?.toString() || null;
+    // UPDATED: Changed tratamentoId to condicaoSaudeId
+    const condicaoSaudeId = formData.get("condicaoSaudeId")?.toString() || null;
     const anotacao = formData.get("anotacao")?.toString() || "";
     const dataExame = formData.get("dataExame")?.toString();
     const file = formData.get("file") as File | null;
@@ -133,8 +135,12 @@ export async function POST(req: NextRequest) {
         nomeArquivo: encryptString(uniqueFileName || ""),
         dataExame: dataExame,
         anotacao: encryptString(anotacao),
-        userId, profissionalId, unidadesId: unidadeId,
-        consultaId, tratamentoId, tipo,
+        userId, 
+        profissionalId, 
+        unidadesId: unidadeId,
+        consultaId, 
+        condicaoSaudeId, // UPDATED: Pass condicaoSaudeId to prisma
+        tipo,
         arquivoExame: encryptedFileBuffer,
         analiseIA: null,
       },

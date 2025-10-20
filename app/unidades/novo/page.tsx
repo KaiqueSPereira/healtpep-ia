@@ -1,295 +1,246 @@
+
 'use client';
+
 import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import Link from "next/link";
+import { toast } from "@/app/_hooks/use-toast";
+import { cn } from "@/app/_lib/utils";
+
 import Header from "@/app/_components/header";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/app/_components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/app/_components/ui/form";
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
-import Link from "next/link";
-import { Check, ChevronLeftIcon, Loader2 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/app/_components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/app/_components/ui/command";
-import { Endereco, Unidade } from "@/app/_components/types";
-import { useForm } from "react-hook-form";
-import { useState, useEffect, Suspense } from "react";
-import { Dialog, DialogContent } from "@/app/_components/ui/dialog"; // Importar componentes do Dialog
-import EnderecoDialog from "@/app/enderecos/_components/enderecosdialog"; // Importar o EnderecoDialog
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/_components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/_components/ui/command";
+import { Dialog } from "@/app/_components/ui/dialog";
+import { Check, ChevronLeftIcon, Loader2, ChevronsUpDown, PlusCircle } from "lucide-react";
 
-interface FormData {
-  unidade: Unidade;
-  endereco?: Endereco;
-}
+// Correctly import the type from the main types file
+import { Endereco } from "@/app/_components/types";
+// Import the refactored dialog component
+import EnderecoDialog from "@/app/enderecos/_components/enderecosdialog";
 
-function UnidadeFormWrapper() {
-  const searchParams = useSearchParams();
+// --- Zod Schema for Flat Form Validation ---
+const formSchema = z.object({
+  nome: z.string().min(1, "O nome da unidade é obrigatório."),
+  tipo: z.string().min(1, "O tipo da unidade é obrigatório."),
+  telefone: z.string().optional(),
+  enderecoId: z.string({ required_error: "O endereço é obrigatório." }).min(1, "O endereço é obrigatório."),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+function UnidadeForm() {
   const router = useRouter();
-  const unidadeid = searchParams.get("unidadeid");
+  const searchParams = useSearchParams();
+  const unidadeId = searchParams.get("unidadeid");
+  const isEditMode = !!unidadeId;
+
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [enderecos, setEnderecos] = useState<Endereco[]>([]);
+  const [isEnderecoPopoverOpen, setIsEnderecoPopoverOpen] = useState(false);
+  const [isEnderecoDialogOpen, setIsEnderecoDialogOpen] = useState(false); // State for the new address dialog
 
   const form = useForm<FormData>({
-    defaultValues: {
-      unidade: { nome: "", tipo: "" },
-    },
+    resolver: zodResolver(formSchema),
+    defaultValues: { nome: "", tipo: "", telefone: "", enderecoId: "" },
   });
-
-  const [enderecos, setEnderecos] = useState<Endereco[]>([]);
-  const [selectedEndereco, setSelectedEndereco] = useState<Endereco | null>(
-    null,
-  );
-  const [isEnderecoDialogOpen, setIsEnderecoDialogOpen] = useState(false); // Estado para controlar o diálogo de endereço
-
-  const fetchUnidadeById = async (unidadeid: string) => {
-    try {
-      const response = await fetch(`/api/unidadesaude/${unidadeid}`);
-      if (!response.ok) throw new Error("Erro ao buscar unidade");
-
-      const data: { unidade: Unidade; endereco: Endereco } =
-        await response.json();
-      form.setValue("unidade", data.unidade);
-      form.setValue("endereco", data.endereco);
-      setSelectedEndereco(data.endereco);
-    } catch (error) {
-      console.error("Erro ao buscar unidade:", error);
-    }
-  };
-
-  useEffect(() => {
-    if (unidadeid) {
-      fetchUnidadeById(unidadeid);
-    }
-    fetchEnderecos();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [unidadeid]);
 
   const fetchEnderecos = async () => {
     try {
       const response = await fetch("/api/enderecos");
       if (!response.ok) throw new Error("Erro ao buscar endereços");
-
-      const data: Endereco[] = await response.json();
-      setEnderecos(data);
+      const data = await response.json();
+      setEnderecos(Array.isArray(data) ? data : []);
     } catch (error) {
-      console.error("Erro ao buscar endereços:", error);
+      toast({ title: "Erro", description: "Não foi possível carregar os endereços.", variant: "destructive" });
     }
   };
 
-  const createUnidade = async (data: FormData) => {
-    try {
-      const response = await fetch("/api/unidadesaude", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nome: data.unidade.nome,
-          tipo: data.unidade.tipo,
-          telefone: data.unidade.telefone,
-          enderecoId: selectedEndereco?.id, // Ajustado para enviar enderecoId como string
-        }),
-      });
+  useEffect(() => {
+    // Fetch initial data
+    const fetchData = async () => {
+        setLoading(true);
+        await fetchEnderecos();
+        if (isEditMode) {
+            try {
+                const response = await fetch(`/api/unidadesaude/${unidadeId}`);
+                if (!response.ok) throw new Error("Erro ao buscar unidade");
+                const data = await response.json();
+                form.reset({
+                    nome: data.unidade?.nome || "",
+                    tipo: data.unidade?.tipo || "",
+                    telefone: data.unidade?.telefone || "",
+                    enderecoId: data.unidade?.enderecoId || "",
+                });
+            } catch (error) {
+                toast({ title: "Erro", description: "Não foi possível carregar os dados da unidade.", variant: "destructive" });
+            }
+        }
+        setLoading(false);
+    };
+    fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, unidadeId, form.reset]);
 
-      if (response.ok) {
-        router.push("/unidades");
-      } else {
-        console.error("Erro ao criar unidade");
-        const errorDetails = await response.json();
-        console.error("Detalhes do erro:", errorDetails);
-      }
-    } catch (error) {
-      console.error("Erro ao criar unidade:", error);
-    }
-  };
 
-  const updateUnidade = async (data: FormData) => {
-    try {
-      const response = await fetch(`/api/unidadesaude/${unidadeid}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          unidade: data.unidade,
-          endereco: data.endereco,
-        }),
-      });
-      if (!response.ok) throw new Error("Erro ao atualizar unidade");
-
-      router.push("/");
-    } catch (error) {
-      console.error("Erro ao atualizar unidade:", error);
-    }
+  const handleEnderecoCreated = async () => {
+    toast({ title: "Sucesso", description: "Novo endereço criado. A lista foi atualizada." });
+    await fetchEnderecos();
   };
 
   const handleSubmit = async (data: FormData) => {
-    if (!selectedEndereco) {
-      alert("Selecione um endereço antes de salvar.");
-      return;
-    }
-
+    setIsSubmitting(true);
     try {
-      if (unidadeid) {
-        await updateUnidade(data);
-      } else {
-        await createUnidade(data);
+      const url = isEditMode ? `/api/unidadesaude/${unidadeId}` : "/api/unidadesaude";
+      const method = isEditMode ? "PATCH" : "POST";
+      
+      const response = await fetch(url, {
+        method: method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Erro ao ${isEditMode ? 'atualizar' : 'criar'} a unidade`);
       }
+
+      toast({ title: `Unidade ${isEditMode ? 'atualizada' : 'criada'} com sucesso!` });
+      router.push("/unidades");
+      router.refresh();
+
     } catch (error) {
-      console.error("Erro ao salvar:", error);
+      toast({ title: "Erro", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  if (loading) {
+    return <div className="flex justify-center items-center h-64"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
+  }
+
   return (
-    <div>
+    <>
       <Header />
-      <div className="flex items-center justify-between p-5">
-        <Button
-          size="icon"
-          variant="secondary"
-          className="left-5 top-6"
-          asChild
-        >
-          <Link href="/">
-            <ChevronLeftIcon />
-          </Link>
+      <div className="flex items-center p-5">
+        <Button size="icon" variant="outline" asChild>
+          <Link href="/unidades"><ChevronLeftIcon /></Link>
         </Button>
       </div>
 
-      <div className="mx-auto my-8 w-4/5">
-        <h1 className="mb-6 text-center text-2xl font-bold">
-          {unidadeid ? "Editar Unidade" : "Nova Unidade"}
+      <div className="mx-auto my-8 max-w-2xl px-4">
+        <h1 className="mb-8 text-center text-3xl font-bold">
+          {isEditMode ? "Editar Unidade" : "Nova Unidade"}
         </h1>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="unidade.nome"
+              name="nome"
               render={({ field }) => (
                 <FormItem>
-                  <label>Nome da Unidade:</label>
-                  <FormControl>
-                    <Input {...field} required />
-                  </FormControl>
+                  <FormLabel>Nome da Unidade</FormLabel>
+                  <FormControl><Input placeholder="Ex: Hospital Central" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="unidade.tipo"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Tipo da Unidade:</label>
-                  <FormControl>
-                    <Input {...field} required />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="unidade.telefone"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Telefone da Unidade:</label>
-                  <FormControl>
-                    <Input {...field} required />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <h2 className="mt-6 text-xl font-semibold">Endereço</h2>
-            <div>
-              <label>Escolher Endereço Existente</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    aria-expanded={false}
-                    className="w-full justify-between"
-                  >
-                    {selectedEndereco
-                      ? selectedEndereco.nome
-                      : "Selecione um Endereço..."}
-                    <ChevronLeftIcon className="ml-2 h-4 w-4" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0">
-                  <Command>
-                    <CommandInput placeholder="Buscar endereço..." />
-                    <CommandList>
-                      <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {enderecos.map((endereco) => (
-                          <CommandItem
-                            key={endereco.id}
-                            onSelect={() => {
-                              setSelectedEndereco(endereco);
-                              form.setValue("endereco", endereco);
-                            }}
-                          >
-                            {endereco.nome} - {endereco.bairro}
-                          </CommandItem>
-                        ))}
-                        {/* Modificado para abrir o diálogo */}
-                        <CommandItem
-                          key="add-new-address" // Alterado o key para maior clareza
-                          value="add-new-address" // Alterado o value
-                          onSelect={() => {
-                            setIsEnderecoDialogOpen(true); // Abre o diálogo
-                          }}
-                        >
-                          <Check className="mr-2 h-4 w-4 opacity-0" />
-                          Adicionar Novo Endereço
-                        </CommandItem>
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <FormField
+                control={form.control}
+                name="tipo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo da Unidade</FormLabel>
+                    <FormControl><Input placeholder="Ex: Clínica, Laboratório" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="telefone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone (Opcional)</FormLabel>
+                    <FormControl><Input placeholder="(00) 00000-0000" {...field} value={field.value ?? ''} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-
-            <Button type="submit" className="mt-6 justify-center">
-              Salvar
-            </Button>
+            <FormField
+              control={form.control}
+              name="enderecoId"
+              render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <FormLabel>Endereço</FormLabel>
+                  <Popover open={isEnderecoPopoverOpen} onOpenChange={setIsEnderecoPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                          {field.value ? enderecos.find((e) => e.id === field.value)?.nome : "Selecione um Endereço"}
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                      <Command>
+                        <CommandInput placeholder="Buscar endereço..." />
+                        <CommandList>
+                          <CommandEmpty>Nenhum endereço encontrado.</CommandEmpty>
+                          <CommandGroup>
+                            {enderecos.map((endereco) => (
+                              <CommandItem value={endereco.nome} key={endereco.id} onSelect={() => { form.setValue("enderecoId", endereco.id); setIsEnderecoPopoverOpen(false); }}>
+                                <Check className={cn("mr-2 h-4 w-4", endereco.id === field.value ? "opacity-100" : "opacity-0")} />
+                                <div><p>{endereco.nome}</p><p className="text-xs text-muted-foreground">{endereco.rua}, {endereco.bairro}</p></div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                          <CommandGroup className="border-t">
+                              <CommandItem onSelect={() => { setIsEnderecoPopoverOpen(false); setIsEnderecoDialogOpen(true); }}>
+                                  <PlusCircle className="mr-2 h-4 w-4"/> Adicionar Novo Endereço
+                              </CommandItem>
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="flex justify-end pt-4">
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isEditMode ? 'Salvar Alterações' : 'Criar Unidade')}
+              </Button>
+            </div>
           </form>
         </Form>
-
-        {/* Diálogo para adicionar novo endereço */}
-        <Dialog open={isEnderecoDialogOpen} onOpenChange={setIsEnderecoDialogOpen}>
-          <DialogContent>
-            <EnderecoDialog /> {/* Renderiza o formulário de endereço */}
-          </DialogContent>
-        </Dialog>
-
       </div>
-    </div>
+      
+      {/* --- Dialog for adding a new address --- */}
+      <Dialog open={isEnderecoDialogOpen} onOpenChange={setIsEnderecoDialogOpen}>
+        <EnderecoDialog 
+            onOpenChange={setIsEnderecoDialogOpen} 
+            onEnderecoCreated={handleEnderecoCreated}
+        />
+      </Dialog>
+    </>
   );
 }
 
-// Este componente parece ser a página que renderiza o UnidadeFormWrapper
 export default function UnidadePage() {
   return (
-    <div>
-      <Suspense fallback={<Loader2 className="h-10 w-10 animate-spin text-gray-600" />}>
-        <UnidadeFormWrapper />
-      </Suspense>
-    </div>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>}>
+      <UnidadeForm />
+    </Suspense>
   );
 }

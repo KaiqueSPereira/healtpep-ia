@@ -39,7 +39,7 @@ const ProfissionaisPage = () => {
   useEffect(() => {
     const fetchProfissionais = async () => {
       try {
-        const response = await fetch("/api/profissional");
+        const response = await fetch("/api/profissionais");
         const data = await response.json();
         setProfissionais(data);
       } catch (error) {
@@ -54,7 +54,7 @@ const ProfissionaisPage = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetch(`/api/profissional/${id}`, { method: "DELETE" });
+      await fetch(`/api/profissionais/${id}`, { method: "DELETE" });
       setProfissionais(profissionais.filter((p) => p.id !== id));
       setSelectedProfissional(null);
     } catch (error) {

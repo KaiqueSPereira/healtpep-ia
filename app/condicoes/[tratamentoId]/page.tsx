@@ -52,7 +52,7 @@ const NewTratamento: React.FC = () => {
   useEffect(() => {
     async function fetchProfissionais() {
       try {
-        const response = await fetch("/api/profissional");
+        const response = await fetch("/api/profissionais");
         if (!response.ok) throw new Error("Erro ao buscar profissionais.");
         const data = await response.json();
         setProfissionais(data || []);

@@ -51,7 +51,7 @@ const UnidadesPage = () => {
         const [unidadesData, profissionaisData, consultasData] =
           await Promise.all([
             fetch("/api/unidadesaude").then(fetchJson),
-            fetch("/api/profissional").then(fetchJson),
+            fetch("/api/profissionais").then(fetchJson),
             fetch("/api/consultas").then(fetchJson),
           ]);
 

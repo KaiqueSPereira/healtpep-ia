@@ -1,92 +1,58 @@
-// app/users/_components/PesoHistoryChart.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from 'react'; // Importado useCallback
+import { useState } from 'react';
 import { useToast } from '@/app/_hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Label } from '@/app/_components/ui/label';
 import { Input } from '@/app/_components/ui/input';
 import { Button } from '@/app/_components/ui/button';
 import { Loader2 } from 'lucide-react';
-// Importa componentes necessários diretamente da Chart.js e react-chartjs-2
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 
-// Registra os componentes necessários do Chart.js
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
-
 
 interface PesoRegistro {
   id: string;
   userId: string;
-  peso: string; // Peso descriptografado (string)
-  data: string; // Data descriptografada (string)
+  peso: string;
+  data: string;
   createdAt: string;
   updatedAt: string;
 }
 
 interface PesoHistoryChartProps {
   userId: string;
-  userHeight: number | null; // Altura do usuário em metros
-};
+  historicoPeso: PesoRegistro[];
+  loading: boolean;
+  error: string | null;
+  onDataChange: () => void; // Callback para notificar o pai que os dados mudaram
+}
 
-
-export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
-  const [historicoPeso, setHistoricoPeso] = useState<PesoRegistro[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export default function PesoHistoryChart({ userId, historicoPeso, loading, error, onDataChange }: PesoHistoryChartProps) {
   const [novoPeso, setNovoPeso] = useState('');
   const [novaDataPeso, setNovaDataPeso] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-
   const { toast } = useToast();
 
   const formatarDataGrafico = (dataString: string): string => {
     try {
       const date = new Date(dataString);
-      return date.toLocaleDateString();
+      // Adiciona verificação para datas inválidas que podem vir da descriptografia
+      if (isNaN(date.getTime())) return "Inválido";
+      return date.toLocaleDateString('pt-BR');
     } catch {
       return dataString;
     }
   };
-  const fetchHistoricoPeso = useCallback(async () => { // Envolvido com useCallback
-    if (!userId) return;
-    setLoading(true);
-    try {
-      const response = await fetch(`/api/pesos/${userId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao buscar histórico de peso');
-      }
-      const data: PesoRegistro[] = await response.json();
-      setHistoricoPeso(data);
-    } catch (err: unknown) {
-      setError('Erro inesperado ao buscar histórico de peso');
-      toast({
-        variant: "destructive",
-        title: "Erro",
-        description: "Não foi possível carregar o histórico de peso.",
-      });
-      console.error('Fetch histórico peso error:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, toast]); // Dependências de fetchHistoricoPeso
-
-
-  useEffect(() => {
-    fetchHistoricoPeso();
-  }, [fetchHistoricoPeso]); // Dependência de useEffect agora é a função memorizada
-
-
-  // ... função handleAddPeso existente ...
+  
   const handleAddPeso = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoPeso || !novaDataPeso || !userId || isSaving) {
       toast({
         variant: "destructive",
         title: "Atenção",
-        description: "Preencha o peso e a data.",
+        description: "Preencha o peso e a data corretamente.",
       });
       return;
     }
@@ -94,15 +60,14 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
     setIsSaving(true);
 
     try {
-      const response = await fetch('/api/pesos', {
+      const response = await fetch(`/api/pacientes/dashboard/${userId}`, { // URL da API corrigida
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: userId,
+        body: JSON.stringify({ // Corpo da requisição corrigido
           peso: novoPeso,
-          data: novaDataPeso, // Espera formato YYYY-MM-DD do input[date]
+          data: novaDataPeso,
         }),
       });
 
@@ -111,23 +76,21 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
         throw new Error(errorData.error || 'Erro ao adicionar peso');
       }
 
-      await response.json();
-      fetchHistoricoPeso(); // Refetch para atualizar gráfico
+      onDataChange(); // Notifica o componente pai para recarregar os dados
 
-      setNovoPeso(''); // Limpa o campo de peso
-      setNovaDataPeso(''); // Limpa o campo de data
+      setNovoPeso('');
+      setNovaDataPeso('');
 
       toast({
         title: "Sucesso!",
-        description: "Registro de peso adicionado.",
+        description: "Registro de peso adicionado. O gráfico será atualizado.",
       });
 
-    } catch (err: unknown) {
-      setError('Erro inesperado ao adicionar peso');
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Erro",
-        description: "Não foi possível adicionar o registro de peso.",
+        description: err.message || "Não foi possível adicionar o registro de peso.",
       });
       console.error('Add peso error:', err);
     } finally {
@@ -135,20 +98,20 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
     }
   };
 
-
-  // Preparar dados para o gráfico no formato do Chart.js
-  // Sort the historicoPeso array by date before mapping
   const sortedHistoricoPeso = [...historicoPeso].sort((a, b) => {
     const dateA = new Date(a.data);
     const dateB = new Date(b.data);
+    // Trata datas inválidas colocando-as no final
+    if (isNaN(dateA.getTime())) return 1;
+    if (isNaN(dateB.getTime())) return -1;
     return dateA.getTime() - dateB.getTime();
   });
+
   const datas = sortedHistoricoPeso.map(registro => formatarDataGrafico(registro.data));
   const pesos = sortedHistoricoPeso.map(registro => parseFloat(registro.peso)).filter(peso => !isNaN(peso));
-
+  
   const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
-  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 140;
-
+  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 100;
 
   const dadosGraficoChartJS = {
     labels: datas,
@@ -163,32 +126,24 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
     ],
   };
 
-    // Opções do gráfico (adaptadas do seu ExameLineChart)
-    const chartOptions = {
-      responsive: true,
-      plugins: {
-        legend: {
-          position: 'top' as const, // Adicionado 'as const' para tipagem mais estrita
-        },
+  const chartOptions = {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top' as const,
       },
-      scales: {
-        x: {
-          title: {
-            display: true,
-            text: 'Data',
-          },
-        },
-        y: {
-          title: {
-            display: true,
-            text: 'Peso (kg)',
-          },
-          suggestedMin: minPeso > 0 ? minPeso * 0.9 : 0, // 10% below min or 0
-          suggestedMax: maxPeso * 1.1, // 10% above max
-        },
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Data' },
       },
-    };
-
+      y: {
+        title: { display: true, text: 'Peso (kg)' },
+        suggestedMin: minPeso > 10 ? minPeso - 5 : 0,
+        suggestedMax: maxPeso + 5,
+      },
+    },
+  };
 
   return (
     <Card className="border-none">
@@ -197,7 +152,6 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
       </CardHeader>
       <CardContent className="grid gap-4">
 
-        {/* Formulário para adicionar novo peso */}
         <form onSubmit={handleAddPeso} className="flex flex-col sm:flex-row gap-4 sm:items-end">
           <div className="flex-1">
             <Label htmlFor="novoPeso">Peso (kg):</Label>
@@ -221,13 +175,12 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
               disabled={isSaving}
             />
           </div>
-          <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
+          <Button type="submit" disabled={isSaving || loading} className="w-full sm:w-auto">
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Adicionar
           </Button>
         </form>
 
-        {/* Exibição do gráfico ou mensagens */}
         {loading ? (
           <div className="flex justify-center items-center h-40">
             <Loader2 className="h-8 w-8 animate-spin" />
@@ -235,16 +188,11 @@ export default function PesoHistoryChart({ userId }: PesoHistoryChartProps) {
         ) : error ? (
           <p className="text-red-500">{error}</p>
         ) : historicoPeso.length === 0 ? (
-          <p>Nenhum registro de peso encontrado.</p>
+          <p className="text-center text-muted-foreground pt-4">Nenhum registro de peso encontrado.</p>
         ) : (
-          // Container para o gráfico e informações de IMC
-          <div className="flex flex-col items-center w-full">
-            
-             <div className="w-full"> 
-               <h3 className="text-center text-lg font-semibold mb-4">Histórico de Peso</h3>
-               <Line data={dadosGraficoChartJS} options={chartOptions} />
-             </div>
-           </div>
+          <div className="w-full mt-4"> 
+            <Line data={dadosGraficoChartJS} options={chartOptions} />
+          </div>
         )}
       </CardContent>
     </Card>

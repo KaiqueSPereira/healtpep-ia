@@ -1,13 +1,57 @@
 
-import { Medicamento as PrismaMedicamento } from '@prisma/client';
+import { 
+    Medicamento as PrismaMedicamento, 
+    CondicaoSaude as PrismaCondicaoSaude, 
+    Profissional as PrismaProfissional, 
+    UnidadeDeSaude as PrismaUnidade, 
+    Consultas as PrismaConsulta,
+    Exame as PrismaExame,
+    ResultadoExame as PrismaResultadoExame,
+    Endereco as PrismaEndereco
+} from '@prisma/client';
 
-// Seus Tipos Originais (com correções)
+// --- Base Entity Types ---
 
-export interface BaseEntity {
-  id: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+export type Endereco = PrismaEndereco;
+
+export type Unidade = PrismaUnidade & {
+    endereco?: Endereco;
+};
+
+export type Profissional = PrismaProfissional & {
+  unidades?: Unidade[];
+};
+
+export type CondicaoSaude = PrismaCondicaoSaude & {
+  profissional?: Profissional | null;
+};
+
+// CORRECTED: 'data' property is now a Date object, which was the source of many errors.
+export type Consulta = Omit<PrismaConsulta, 'data'> & {
+  data: Date;
+  profissional?: Profissional | null;
+  unidade?: Unidade | null;
+  condicaoSaude?: CondicaoSaude | null;
+};
+
+export type ResultadoExame = PrismaResultadoExame;
+
+export type Exame = PrismaExame & {
+  resultados?: ResultadoExame[];
+  profissional?: Profissional | null;
+  unidades?: Unidade | null; 
+  consulta?: Consulta | null;
+  condicaoSaude?: CondicaoSaude | null;
+};
+
+// CORRECTED: Includes the full 'condicaoSaude' relation to match API responses.
+export type MedicamentoComRelacoes = PrismaMedicamento & {
+    profissional: Profissional | null;
+    consulta: Consulta | null;
+    condicaoSaude: CondicaoSaude | null; 
+};
+
+// --- Auxiliary Types ---
 
 export enum ConsultaType {
   Rotina = "Rotina",
@@ -16,176 +60,6 @@ export enum ConsultaType {
   Retorno = "Retorno",
   Tratamento = "Tratamento",
 }
-
-export interface Endereco {
-  id: string;
-  nome: string;
-  bairro: string;
-}
-
-export type Unidade = {
-  id: string;
-  nome: string;
-  tipo: string;
-  telefone?: string;
-  userId: string;
-  endereco: {
-    nome: string;
-  };
-};
-
-export type Profissional = {
-  id: string;
-  nome: string;
-  especialidade: string;
-  NumClasse: string;
-  unidades?: Unidade[];
-};
-
-export type Consulta = {
-  id: string;
-  data: string;
-  profissional?: Profissional | null;
-  tipo: ConsultaType;
-  tipodeexame?: string;
-  queixas?: string;
-  unidade?: Unidade | null;
-};
-
-export interface Tratamento {
-  id: string;
-  nome: string;
-  profissionalId: string;
-  userId: string;
-}
-
-// CORREÇÃO: Adicionados `principioAtivo` e `linkBula` para alinhar com o schema e a API.
-export type MedicamentoComRelacoes = Omit<PrismaMedicamento, 'dataInicio' | 'dataFim' | 'createdAt' | 'updatedAt'> & {
-    principioAtivo: string | null; // Adicionado
-    linkBula: string | null;       // Adicionado
-    dataInicio: string;
-    dataFim: string | null;
-    createdAt: string;
-    updatedAt: string;
-    profissional: Profissional | null;
-    consulta: Consulta | null;
-    tratamento: Tratamento | null;
-};
-
-
-// O resto dos seus tipos permanece inalterado
-
-export interface Agendamento {
-  id: string;
-  tipo: string;
-  data: Date;
-  profissional?: { nome: string };
-  unidade?: { nome: string };
-}
-
-export interface AgendamentoItemProps {
-  consultas: Agendamento;
-  profissional: string;
-  unidade: string;
-}
-
-export interface MenuUnidadesProps {
-  selected: Unidade | null;
-  onSelect: (unidade: Unidade | null) => void;
-}
-
-export interface TabelaExamesProps {
-  exames: {
-    nome: string;
-    valor: string;
-    unidade: string;
-    ValorReferencia: string;
-    outraUnidade: string;
-  }[];
-  onChange: React.Dispatch<
-    React.SetStateAction<
-      {
-        nome: string;
-        valor: string;
-        unidade: string;
-        ValorReferencia: string;
-        outraUnidade: string;
-      }[]
-    >
-  >;
-}
-
-export type ResultadoExame = {
-  id: string;
-  nome: string;
-  valor: string;
-  unidade: string;
-  referencia?: string;
-  outraUnidade?: string;
-};
-
-export type Exame = {
-  id: string;
-  nome: string;
-  dataExame: Date;
-  anotacao?: string;
-  nomeArquivo?: string;
-  tipo?: string;
-  resultados?: ResultadoExame[];
-  profissional?: Profissional;
-  unidades?: Unidade;
-  consulta?: {
-    id: string;
-    data: string;
-    tipo: ConsultaType;
-    queixas?: string;
-    profissional?: {
-      nome: string;
-    };
-    unidade?: {
-      nome: string;
-    };
-  };
-};
-
-export type ApiExameResult = {
-  nome: string;
-  valor: string;
-  unidade: string;
-  valorReferencia: string;
-};
-
-export interface AnaliseApiResponse {
-  resultados?: ApiExameResult[];
-  anotacao?: string;
-}
-
-export type ExameCompleto = { 
-  id: string;
-  nome: string;
-  dataExame: string;
-  anotacao?: string;
-  nomeArquivo?: string;
-  profissional?: Profissional;
-  unidades?: Unidade;
-  resultados?: ResultadoExame[];
-  tratamento?: Tratamento;
-  consulta?: Consulta;
-  tipo?: string;
-};
-export interface ExameLineChartProps {
-  data: {
-    labels: string[];
-    datasets: {
-      label: string;
-      data: number[];
-      borderColor: string;
-      backgroundColor: string;
-    }[];
-  };
-  title: string;
-}
-
 
 export type ChartData = {
   labels: string[];
@@ -197,21 +71,4 @@ export type ChartData = {
     spanGaps: boolean;
     backgroundColor: string;
   }[];
-}
-
-export type Resultado = {
-  nome: string;
-  valor: string;
-  unidade?: string;
-  referencia?: string;
-};
-
-export type ExameGraficos = { 
-  id: string;
-  nome: string;
-  dataExame: string;
-  anotacao?: string;
-  nomeArquivo?: string;
-  tipo?: string;
-  resultados?: Resultado[];
 };
