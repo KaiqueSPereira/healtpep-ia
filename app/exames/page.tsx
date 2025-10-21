@@ -9,60 +9,72 @@ import ExameLineChart from "./components/ExameLineChart";
 import { Input } from "@/app/_components/ui/input";
 import { ExamesGrid } from "./components/ExamesGrid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
-import { ChartData, ExameCompleto, ExameGraficos } from "../_components/types";
 import Link from "next/link";
 import { Button } from "@/app/_components/ui/button";
 import { ExameTypeFilter } from "./components/ExameTypeFilter";
+import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
+
+// CORREÇÃO: O tipo ExameCompleto foi exportado para poder ser usado em outros componentes como o ExamesGrid.
+export type ExameCompleto = Exame & {
+    profissional: Profissional | null;
+    unidades: UnidadeDeSaude | null;
+    resultados: ResultadoExame[];
+};
+
+type ExameGraficos = Exame & {
+    resultados: ResultadoExame[];
+};
+
+type ChartData = {
+    labels: string[];
+    datasets: {
+        label: string;
+        data: (number | typeof NaN)[];
+        borderColor: string;
+        backgroundColor: string;
+        tension: number;
+        spanGaps: boolean;
+    }[];
+};
 
 export default function ExamesPage() {
-    // --- ESTADO PRINCIPAL ---
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentView, setCurrentView] = useState<'list' | 'charts'>('list');
-
-    // --- ESTADO DOS FILTROS (REESTRUTURADO) ---
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
-
-    // Filtro para a VIEW DE LISTA (por tipo de exame, ex: "Sangue", "USG")
     const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
-    
-    // Filtro para a VIEW DE GRÁFICOS
     const [selectedChartType, setSelectedChartType] = useState<'Urina' | 'Sangue'>('Sangue');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
-
-    // --- ESTADO DOS DADOS PROCESSADOS ---
     const [chartData, setChartData] = useState<ChartData | null>(null);
     const [examToDelete, setExamToDelete] = useState<string | null>(null);
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
 
-    // --- CARREGAMENTO DE DADOS ---
     useEffect(() => {
-        setLoading(true);
-        const fetchData = <T extends unknown[]>(url: string, setData: (data: T) => void, cache: T) => {
-            if (cache.length > 0) {
+        const fetchData = async () => {
+            setLoading(true);
+            const url = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
+                const data = await res.json();
+                if (!Array.isArray(data)) throw new Error("A resposta da API não é um array");
+                if (currentView === 'list') {
+                    setExamesListaData(data as ExameCompleto[]);
+                } else {
+                    setExamesGraficosData(data as ExameGraficos[]);
+                }
+            } catch (error) {
+                toast({ title: `Erro ao carregar dados de ${url}`, variant: "destructive" });
+                console.error(error);
+            } finally {
                 setLoading(false);
-                return;
             }
-            fetch(url)
-                .then(res => res.ok ? res.json() : Promise.reject(res))
-                .then(data => {
-                    if (!Array.isArray(data)) throw new Error("A resposta da API não é um array");
-                    setData(data as T); // CORREÇÃO: Adicionada asserção de tipo
-                })
-                .catch(() => toast({ title: `Erro ao carregar dados de ${url}`, variant: "destructive" }))
-                .finally(() => setLoading(false));
         };
+        fetchData();
+    }, [currentView]);
 
-        if (currentView === 'list') {
-            fetchData("/api/exames", setExamesListaData, examesListaData);
-        } else {
-            fetchData("/api/exames/graficos", setExamesGraficosData, examesGraficosData);
-        }
-    }, [currentView, examesListaData, examesGraficosData]);
-
-    // --- OPÇÕES DINÂMICAS PARA OS FILTROS ---
     const listFilterOptions = useMemo(() => 
         Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), 
         [examesListaData]
@@ -73,31 +85,21 @@ export default function ExamesPage() {
         const componentNames = examesGraficosData
             .filter(exame => exame.tipo === selectedChartType)
             .flatMap(exame => exame.resultados?.map(res => res.nome) || []);
-        return Array.from(new Set(componentNames)).sort();
+        return Array.from(new Set(componentNames.filter(Boolean))).sort();
     }, [examesGraficosData, currentView, selectedChartType]);
 
-    // --- INICIALIZAÇÃO DOS FILTROS ---
     useEffect(() => {
-        if (currentView === 'list' && listFilterOptions.length > 0) {
+        if (currentView === 'list' && listFilterOptions.length > 0 && selectedListTypes.length === 0) {
             setSelectedListTypes(listFilterOptions);
-        } else if (currentView === 'charts') {
-            // Ao mudar para gráficos, não limpamos o selectedChartType para manter a seleção do usuário
-            // A seleção de componentes é atualizada pelo próximo useEffect
         }
-    }, [currentView, listFilterOptions]);
+    }, [currentView, listFilterOptions, selectedListTypes.length]);
     
     useEffect(() => {
-        // Quando as opções de componentes de gráfico mudam (ex: ao trocar de 'Sangue' para 'Urina'),
-        // selecionamos todas por padrão.
-        if (chartComponentOptions.length > 0) {
+        if (chartComponentOptions.length > 0 && selectedChartComponents.length === 0) {
             setSelectedChartComponents(chartComponentOptions);
-        } else {
-            setSelectedChartComponents([]);
         }
-    }, [chartComponentOptions]);
+    }, [chartComponentOptions, selectedChartComponents.length]);
 
-
-    // --- APLICAÇÃO DOS FILTROS ---
     const filteredListExams = useMemo(() => {
         if (currentView !== 'list') return [];
         return examesListaData.filter(exame => {
@@ -111,7 +113,6 @@ export default function ExamesPage() {
         });
     }, [examesListaData, selectedListTypes, startDate, endDate, currentView]);
 
-    // --- GERAÇÃO DOS DADOS DO GRÁFICO ---
     useEffect(() => {
         if (currentView !== 'charts' || !selectedChartType || examesGraficosData.length === 0 || selectedChartComponents.length === 0) {
             setChartData(null);
@@ -130,7 +131,7 @@ export default function ExamesPage() {
         const processedData: { [componentName: string]: { dates: string[], values: number[] } } = {};
         relevantExams.forEach(exame => {
             exame.resultados?.forEach(resultado => {
-                if (selectedChartComponents.includes(resultado.nome)) {
+                if (resultado.nome && selectedChartComponents.includes(resultado.nome)) {
                     const numericValue = parseFloat(resultado.valor);
                     if (!isNaN(numericValue)) {
                         if (!processedData[resultado.nome]) processedData[resultado.nome] = { dates: [], values: [] };
@@ -162,7 +163,6 @@ export default function ExamesPage() {
 
     }, [currentView, examesGraficosData, selectedChartType, selectedChartComponents, startDate, endDate]);
 
-    // --- HANDLERS ---
     const handleDeleteClick = (examId: string) => {
         setExamToDelete(examId);
         setIsConfirmDeleteDialogOpen(true);
@@ -184,7 +184,6 @@ export default function ExamesPage() {
         }
     };
     
-    // --- RENDERIZAÇÃO ---
     return (
         <div className="flex min-h-screen flex-col">
             <Header />
@@ -212,6 +211,8 @@ export default function ExamesPage() {
                     {currentView === 'list' && listFilterOptions.length > 0 && (
                         <ExameTypeFilter
                             allTypes={listFilterOptions}
+                            selectedTypes={selectedListTypes}
+                            onTypeChange={setSelectedListTypes}
                         />
                     )}
 
@@ -224,6 +225,8 @@ export default function ExamesPage() {
                             {selectedChartType && chartComponentOptions.length > 0 && (
                                 <ExameTypeFilter
                                     allTypes={chartComponentOptions}
+                                    selectedTypes={selectedChartComponents}
+                                    onTypeChange={setSelectedChartComponents}
                                 />
                             )}
                         </div>
@@ -233,9 +236,7 @@ export default function ExamesPage() {
                 {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                     <>
                         {currentView === 'list' && (
-                            filteredListExams.length > 0 ? (
-                                <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />
-                            ) : <p className="text-center text-gray-500 py-10">Nenhum exame encontrado para os filtros selecionados.</p>
+                            <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />
                         )}
 
                         {currentView === 'charts' && (

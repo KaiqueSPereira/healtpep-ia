@@ -1,8 +1,9 @@
 // app/exames/components/ExamesList.tsx
 "use client";
-import { useState, useEffect, useCallback } from "react"; // Import useCallback
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
-import { Exame } from "@/app/_components/types";
+// CORREÇÃO: Importa os tipos corretos diretamente do Prisma
+import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
 import ExameSection from "./ExameSection";
 
@@ -10,39 +11,40 @@ interface ExamesListProps {
   userId: string;
 }
 
+// CORREÇÃO: Cria um tipo que representa um Exame com as suas relações
+type ExameComRelacoes = Exame & {
+  profissional: Profissional | null;
+  unidades: UnidadeDeSaude | null;
+};
+
 const ExamesList = ({ userId }: ExamesListProps) => {
-  const [futurosExames, setFuturosExames] = useState<Exame[]>([]);
-  const [ultimos5PassadosExames, setUltimos5PassadosExames] = useState<
-    Exame[]
-  >([]);
+  // CORREÇÃO: Utiliza o novo tipo para o estado
+  const [futurosExames, setFuturosExames] = useState<ExameComRelacoes[]>([]);
+  const [ultimos5PassadosExames, setUltimos5PassadosExames] = useState<ExameComRelacoes[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchExames = useCallback(async () => { // Use useCallback
+  const fetchExames = useCallback(async () => {
     setLoading(true);
     try {
       const resExames = await fetch(`/api/exames?userId=${userId}`);
       if (!resExames.ok) throw new Error("Erro ao buscar exames");
-      const examesData: Exame[] = await resExames.json();
-
-      const examesComDatasConvertidas = examesData.map((exame) => ({
-        ...exame,
-        dataExame: new Date(exame.dataExame),
-      }));
+      const examesData: ExameComRelacoes[] = await resExames.json();
 
       const agora = new Date();
 
-      const futurosExames = examesComDatasConvertidas.filter(
-        (exame: Exame) => exame.dataExame >= agora,
+      const futuros = examesData.filter(
+        (exame) => new Date(exame.dataExame) >= agora
       );
-      const passadosExames = examesComDatasConvertidas.filter(
-        (exame: Exame) => exame.dataExame < agora,
+      const passados = examesData.filter(
+        (exame) => new Date(exame.dataExame) < agora
       );
-      const ultimos5PassadosExamesOrdenados = passadosExames
-        .sort((a: Exame, b: Exame) => b.dataExame.getTime() - a.dataExame.getTime())
+      const ultimos5PassadosOrdenados = passados
+        .sort((a, b) => new Date(b.dataExame).getTime() - new Date(a.dataExame).getTime())
         .slice(0, 5);
 
-      setFuturosExames(futurosExames);
-      setUltimos5PassadosExames(ultimos5PassadosExamesOrdenados);
+      setFuturosExames(futuros);
+      setUltimos5PassadosExames(ultimos5PassadosOrdenados);
+
     } catch (error) {
       console.error("Erro ao buscar exames:", error);
       toast({
@@ -53,12 +55,12 @@ const ExamesList = ({ userId }: ExamesListProps) => {
     } finally {
       setLoading(false);
     }
-  }, [userId]); // fetchExames now only depends on userId
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
     fetchExames();
-  }, [userId, fetchExames]); // Keep fetchExames here as it's a dependency of useEffect
+  }, [userId, fetchExames]);
 
   const handleRefreshClick = () => {
     fetchExames();
@@ -81,9 +83,9 @@ const ExamesList = ({ userId }: ExamesListProps) => {
             </Button>
           </div>
 
-          <ExameSection title="Proximos Exames" exames={futurosExames} />
+          <ExameSection title="Próximos Exames" exames={futurosExames} />
 
-          <ExameSection title="Últimos Exames " exames={ultimos5PassadosExames} />
+          <ExameSection title="Últimos 5 Exames" exames={ultimos5PassadosExames} />
         </>
       )}
     </div>

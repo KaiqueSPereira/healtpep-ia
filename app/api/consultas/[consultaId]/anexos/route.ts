@@ -1,16 +1,13 @@
-
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 import { z } from 'zod';
-import { writeFile } from 'fs/promises';
-import path from 'path';
-import fs from 'fs'; // CORREÇÃO: Módulo 'fs' importado usando a sintaxe ES6
+import { encryptString } from '@/app/_lib/crypto'; // Importa a função de encriptação
 
-// Validação para o corpo do pedido (multipart/form-data)
+// Validação para o tipo de anexo
 const anexoCreateSchema = z.object({
-  tipo: z.enum(['ENCAMINHAMENTO', 'ATESTADO_DECLARACAO', 'RECEITA_MEDICA', 'RELATORIO', 'OUTRO']),
+  tipo: z.enum(['Encaminhamento', 'Atestado_Declaracao', 'Receita_Medica', 'Relatorio', 'Outro']),
 });
 
 export async function POST(
@@ -41,35 +38,32 @@ export async function POST(
         return new NextResponse('Tipo de anexo inválido', { status: 400 });
     }
 
-    // 1. Guardar o arquivo no sistema de ficheiros
+    // 1. Ler o ficheiro para um buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Cria um nome de ficheiro único para evitar conflitos
-    const fileExtension = path.extname(file.name);
-    const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}${fileExtension}`;
-    
-    // Caminho onde o ficheiro será guardado (dentro da pasta public)
-    const uploadDir = path.join(process.cwd(), 'public/uploads/anexos');
-    const filePath = path.join(uploadDir, fileName);
+    // 2. Encriptar o buffer
+    // Para usar a função de encriptação baseada em string, convertemos o buffer para base64
+    const fileBase64 = buffer.toString('base64');
+    const encryptedFile = encryptString(fileBase64);
 
-    // Certifique-se de que o diretório de upload existe
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    await writeFile(filePath, buffer);
-
-    // 2. Criar o registo na base de dados
-    const publicUrl = `/uploads/anexos/${fileName}`;
-
+    // 3. Criar o registo na base de dados com o ficheiro encriptado
     const anexo = await db.anexoConsulta.create({
       data: {
         consultaId: consultaId,
         nomeArquivo: file.name, // Nome original do ficheiro
-        urlArquivo: publicUrl, // URL pública para aceder ao ficheiro
+        arquivo: Buffer.from(encryptedFile), // Guarda o conteúdo encriptado como Bytes
+        mimetype: file.type, // Guarda o tipo do ficheiro
         tipo: validation.data.tipo,
       },
+      // Não devolve o conteúdo do ficheiro na resposta por segurança e performance
+      select: {
+        id: true,
+        nomeArquivo: true,
+        tipo: true,
+        createdAt: true,
+        consultaId: true,
+      }
     });
 
     return NextResponse.json(anexo, { status: 201 });

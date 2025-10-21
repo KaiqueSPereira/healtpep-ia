@@ -3,10 +3,10 @@ import { Medicamento } from "@prisma/client";
 
 // Mapeia FrequenciaTipo para um fator de multiplicação em dias
 const frequencyToDaysFactor = {
-    HORA: 1 / 24,
-    DIA: 1,
-    SEMANA: 7,
-    MES: 30, 
+    Hora: 1 / 24,
+    Dia: 1,
+    Semana: 7,
+    Mes: 30, 
 };
 
 export const calculateRemainingDays = (medicamento: Partial<Medicamento>): number | null => {

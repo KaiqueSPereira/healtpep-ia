@@ -29,7 +29,7 @@ export const GET: ApiRouteHandler<ProfissionalParams> = async (
       where: { id: params.profissionalId },
       include: {
         unidades: true,
-         tratamentos: true,
+         condicoesSaude: true,
          consultas: {
            include: {
              usuario: true,
@@ -91,16 +91,12 @@ export const PATCH: ApiRouteHandler<ProfissionalParams> = async (
     if (parsedData.nome !== undefined) updateData.nome = parsedData.nome;
     if (parsedData.especialidade !== undefined) updateData.especialidade = parsedData.especialidade;
     if (parsedData.NumClasse !== undefined) updateData.NumClasse = parsedData.NumClasse;
-    // A atualização de unidades NÃO é feita aqui
-
+   
     const profissionalAtualizado = await db.profissional.update({
       where: { id: profissionalId },
       data: updateData,
-       include: { // Incluir apenas as relações que a tela de EDIÇÃO precisa na resposta (geralmente menos)
-        unidades: true, // Incluir unidades para o componente UnidadeSelectorMultiple
-        // Remover includes de consultas e exames se não forem exibidos/atualizados na tela de edição
-        // consultas: true,
-        // exames: true,
+       include: { 
+        unidades: true,
       },
     });
 

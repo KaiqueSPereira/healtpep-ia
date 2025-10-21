@@ -3,7 +3,7 @@ import { prisma } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { safeDecrypt, encryptString } from "@/app/_lib/crypto"; 
-import { Prisma } from "@prisma/client"; 
+import { Prisma, ResultadoExame } from "@prisma/client"; 
 
 
 interface ResultadoExameInput {
@@ -38,24 +38,12 @@ export async function GET(
         id,
         userId,
       },
-      select: {
-        id: true,
-        nome: true,
-        nomeArquivo: true,
-        dataExame: true,
-        anotacao: true,
-        analiseIA: true,
-        userId: true,
-        profissionalId: true,
-        consultaId: true,
-        unidadesId: true,
-        tratamentoId: true,
-        tipo: true,
+      include: {
         profissional: true,
         unidades: true,
         consulta: true,
-        tratamento: true,
         resultados: true,
+        condicaoSaude: true, // CORREÇÃO: Inclui a condição de saúde relacionada
       },
     });
 
@@ -66,6 +54,14 @@ export async function GET(
       );
     }
 
+    const descriptografarResultados = (r: ResultadoExame) => ({
+      ...r,
+      nome: safeDecrypt(r.nome) ?? '',
+      valor: safeDecrypt(r.valor) ?? '',
+      unidade: safeDecrypt(r.unidade ?? "") ?? '',
+      referencia: safeDecrypt(r.referencia ?? "") ?? '',
+    });
+
     const exameDescriptografado = {
       ...exame,
       nome: exame.nome ? safeDecrypt(exame.nome) : null,
@@ -74,16 +70,10 @@ export async function GET(
       analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
       tipo: exame.tipo || null,
       consulta: exame.consulta || null,
-      tratamento: exame.tratamento || null,
       profissional: exame.profissional || null,
       unidades: exame.unidades || null,
-      resultados: exame.resultados?.map((r) => ({
-        ...r,
-        nome: safeDecrypt(r.nome) ?? '',
-        valor: safeDecrypt(r.valor) ?? '',
-        unidade: safeDecrypt(r.unidade ?? "") ?? '',
-        referencia: safeDecrypt(r.referencia ?? "") ?? '',
-      })),
+      resultados: exame.resultados?.map(descriptografarResultados),
+      condicaoSaude: exame.condicaoSaude || null, // CORREÇÃO: Adiciona o objeto da condição de saúde na resposta
     };
 
     return NextResponse.json({ exame: exameDescriptografado }, { status: 200 });
@@ -110,7 +100,8 @@ export async function PUT(
 
   try {
     const data = await req.json();
-    const { anotacao, dataExame, tratamentoId, tipo, resultados } = data;
+    // CORREÇÃO: Adiciona condicaoSaudeId para permitir a atualização da relação
+    const { anotacao, dataExame, tipo, resultados, condicaoSaudeId } = data;
 
     const transaction = await prisma.$transaction(async (prisma) => {
 
@@ -119,15 +110,22 @@ export async function PUT(
       if (anotacao !== undefined) {
         updateData.anotacao = encryptString(anotacao || "");
       }
-      // CORREÇÃO: Passando a string da data diretamente para o Prisma
+      
       if (dataExame) {
         updateData.dataExame = dataExame;
       }
-      if (tratamentoId !== undefined) {
-        updateData.tratamento = tratamentoId ? { connect: { id: tratamentoId } } : { disconnect: true };
-      }
+      
       if (tipo !== undefined) {
         updateData.tipo = tipo;
+      }
+
+      // CORREÇÃO: Lógica para conectar ou desconectar a condição de saúde
+      if (condicaoSaudeId !== undefined) {
+        if (condicaoSaudeId === null) {
+          updateData.condicaoSaude = { disconnect: true };
+        } else {
+          updateData.condicaoSaude = { connect: { id: condicaoSaudeId } };
+        }
       }
 
       const exameAtualizado = await prisma.exame.update({
@@ -229,10 +227,6 @@ export async function DELETE(
   const id = context.params.id;
 
   try {
-    // A exclusão em cascata configurada no Prisma deve lidar com resultadoExame.
-    // Se não estiver configurado, descomente a linha abaixo:
-    // await prisma.resultadoExame.deleteMany({ where: { exameId: id } });
-
     await prisma.exame.delete({ where: { id } });
     return NextResponse.json({ message: "Exame deletado com sucesso" });
   } catch (error: unknown) {

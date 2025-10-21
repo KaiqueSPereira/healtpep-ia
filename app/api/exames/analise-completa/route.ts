@@ -46,7 +46,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
         usuario: {
           include: {
             dadosSaude: true,
-            tratamentos: true,
+            condicoesSaude: true,
             historicoPeso: {
               orderBy: { data: 'desc' },
               take: 1
@@ -78,7 +78,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     const peso = exame.usuario.historicoPeso[0]?.peso ? `${exame.usuario.historicoPeso[0].peso} kg` : 'Não informado';
     
     // Usa o tipo local correto agora
-    const tratamentosAtuais = exame.usuario.tratamentos.map((t: LocalTratamento) => `- ${t.nome}`).join('\n') || "Nenhum";
+    const tratamentosAtuais = exame.usuario.condicoesSaude.map((t: LocalTratamento) => `- ${t.nome}`).join('\n') || "Nenhum";
 
     let consultaInfo = "Nenhuma consulta diretamente vinculada a este exame.";
     if (exame.consulta) {

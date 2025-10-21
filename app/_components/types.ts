@@ -1,4 +1,3 @@
-
 import { 
     Medicamento as PrismaMedicamento, 
     CondicaoSaude as PrismaCondicaoSaude, 
@@ -7,26 +6,31 @@ import {
     Consultas as PrismaConsulta,
     Exame as PrismaExame,
     ResultadoExame as PrismaResultadoExame,
-    Endereco as PrismaEndereco
+    Endereco as PrismaEndereco,
+    User as PrismaUsuario // Added Usuario
 } from '@prisma/client';
 
 // --- Base Entity Types ---
 
 export type Endereco = PrismaEndereco;
+export type Usuario = PrismaUsuario; // Exporting base user type
 
 export type Unidade = PrismaUnidade & {
     endereco?: Endereco;
 };
 
+// CORRECTED: Profissional type now includes relations for consultas, exames, and condicoesSaude.
 export type Profissional = PrismaProfissional & {
   unidades?: Unidade[];
+  consultas?: Consulta[];
+  exames?: Exame[];
+  condicoesSaude?: CondicaoSaude[];
 };
 
 export type CondicaoSaude = PrismaCondicaoSaude & {
   profissional?: Profissional | null;
 };
 
-// CORRECTED: 'data' property is now a Date object, which was the source of many errors.
 export type Consulta = Omit<PrismaConsulta, 'data'> & {
   data: Date;
   profissional?: Profissional | null;
@@ -36,15 +40,16 @@ export type Consulta = Omit<PrismaConsulta, 'data'> & {
 
 export type ResultadoExame = PrismaResultadoExame;
 
+// CORRECTED: Exame type now includes the 'usuario' relation.
 export type Exame = PrismaExame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
   unidades?: Unidade | null; 
   consulta?: Consulta | null;
   condicaoSaude?: CondicaoSaude | null;
+  usuario?: Usuario | null; // Added relation to user
 };
 
-// CORRECTED: Includes the full 'condicaoSaude' relation to match API responses.
 export type MedicamentoComRelacoes = PrismaMedicamento & {
     profissional: Profissional | null;
     consulta: Consulta | null;

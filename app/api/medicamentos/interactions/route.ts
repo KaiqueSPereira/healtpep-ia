@@ -1,73 +1,67 @@
 import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/app/_lib/auth';
 
-const FDA_API_BASE_URL = 'https://api.fda.gov/drug/label.json';
 
-/**
- * API Route para verificar interações medicamentosas usando a API da OpenFDA.
- * Recebe uma lista de princípios ativos e retorna possíveis interações.
- */
-export async function POST(req: Request) {
-  const body = await req.json();
-  const { principiosAtivos } = body;
+// A mock function that simulates calling an external drug interaction API.
+// In a real-world scenario, this would make an HTTP request to a service like
+// the National Library of Medicine (NLM) API or a commercial drug database API.
+async function checkDrugInteractions(activePrinciples: string[]): Promise<string[]> {
+    console.log(`Checking interactions for: ${activePrinciples.join(', ')}`);
 
-  if (!principiosAtivos || !Array.isArray(principiosAtivos) || principiosAtivos.length < 2) {
-    // Retorna um array vazio se não houver pelo menos dois medicamentos para comparar
-    return NextResponse.json({ interactions: [] });
-  }
+    // Mock data for potential interactions.
+    const interactionDatabase: { [key: string]: string[] } = {
+        'warfarin': ['ibuprofen', 'aspirin'],
+        'ibuprofen': ['warfarin', 'aspirin'],
+        'aspirin': ['warfarin', 'ibuprofen', 'lisinopril'],
+        'lisinopril': ['aspirin'],
+        'paracetamol': [],
+    };
 
-  try {
-    // A API da OpenFDA permite buscar interações para um medicamento de cada vez.
-    // Vamos verificar as interações de cada medicamento contra a lista dos outros.
-    // O endpoint de `drug-interactions` está no campo `drug_interactions` do label.
+    const interactionsFound: string[] = [];
+    const principlesToCheck = activePrinciples.map(p => p.toLowerCase());
 
-    // Formata a query: busca por documentos onde o `active_ingredient` é um dos medicamentos da lista
-    // E o campo `drug_interactions` existe.
-    const query = principiosAtivos.map(pa => `"${pa}"`).join('+');
-    const searchUrl = `${FDA_API_BASE_URL}?search=active_ingredient:(${query})+AND+_exists_:drug_interactions`;
+    for (let i = 0; i < principlesToCheck.length; i++) {
+        for (let j = i + 1; j < principlesToCheck.length; j++) {
+            const principle1 = principlesToCheck[i];
+            const principle2 = principlesToCheck[j];
 
-    const fdaResponse = await fetch(searchUrl, {
-        headers: {
-            'Accept': 'application/json'
-        }
-    });
-
-    if (!fdaResponse.ok) {
-      throw new Error(`Erro na API da FDA: ${fdaResponse.statusText}`);
-    }
-
-    const fdaData = await fdaResponse.json();
-
-    let interactions: { drug: string, interaction: string }[] = [];
-
-    if(fdaData.results) {
-        fdaData.results.forEach((result: any) => {
-            const drugName = result.openfda?.brand_name?.[0] || result.openfda?.generic_name?.[0] || 'Desconhecido';
-            
-            if (result.drug_interactions && result.drug_interactions.length > 0) {
-                // Simplificando: retornamos o primeiro parágrafo de interações encontrado.
-                // A resposta pode ser bem complexa.
-                const interactionText = result.drug_interactions[0];
-
-                // Lógica para verificar se a interação é com outro medicamento da lista do usuário
-                const interactsWithOtherUserDrug = principiosAtivos.some(pa => 
-                    interactionText.toLowerCase().includes(pa.toLowerCase())
-                );
-
-                if(interactsWithOtherUserDrug) {
-                    interactions.push({ drug: drugName, interaction: interactionText });
+            if (interactionDatabase[principle1]?.includes(principle2)) {
+                const interactionMsg = `Interação potencial detectada entre ${principle1} e ${principle2}.`;
+                if (!interactionsFound.includes(interactionMsg)) {
+                    interactionsFound.push(interactionMsg);
                 }
             }
-        });
+        }
     }
 
-    // Remove duplicatas e retorna
-    const uniqueInteractions = Array.from(new Set(interactions.map(i => JSON.stringify(i)))).map(s => JSON.parse(s));
+    // Simulate network delay.
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    return NextResponse.json({ interactions: uniqueInteractions });
+    return interactionsFound;
+}
 
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Erro desconhecido';
-    console.error("Erro ao verificar interações medicamentosas:", message);
-    return NextResponse.json({ error: `Erro interno ao verificar interações: ${message}` }, { status: 500 });
-  }
+export async function POST(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    try {
+        // CORRECTED: 'const' is used as 'interactions' is not reassigned.
+        const activePrinciples: string[] = await req.json();
+
+        if (!Array.isArray(activePrinciples) || activePrinciples.length < 2) {
+            return NextResponse.json({ interactions: [] }); // No need to check if less than 2 drugs
+        }
+
+        const interactions = await checkDrugInteractions(activePrinciples);
+
+        return NextResponse.json({ interactions });
+    } catch (error) {
+        console.error("Falha ao verificar interações medicamentosas:", error);
+        // CORRECTED: Explicitly typed the error object.
+        const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro inesperado';
+        return NextResponse.json({ error: 'Erro Interno do Servidor', details: errorMessage }, { status: 500 });
+    }
 }

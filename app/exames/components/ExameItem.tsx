@@ -2,11 +2,19 @@
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
-import { Exame } from "@/app/_components/types"; // Importe os tipos necessários
-import { FileText } from 'lucide-react'; // Importar o ícone
+// CORREÇÃO: Importa os tipos corretos do Prisma
+import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
+import { FileText } from 'lucide-react';
+
+// CORREÇÃO: Define o mesmo tipo que os componentes pai usam
+type ExameComRelacoes = Exame & {
+  profissional: Profissional | null;
+  unidades: UnidadeDeSaude | null;
+};
 
 interface ExameItemProps {
-  exame: Exame;
+  // CORREÇÃO: Usa o novo tipo para a prop exame
+  exame: ExameComRelacoes;
 }
 
 const ExameItem = ({ exame }: ExameItemProps) => {
@@ -17,16 +25,16 @@ const ExameItem = ({ exame }: ExameItemProps) => {
   }
 
   const {
-    id, // Pegamos o ID para o link
+    id,
     profissional,
-    unidades, // Usamos 'unidades' conforme a API retorna a relação
+    unidades,
     dataExame,
     anotacao,
-    tipo, // Adicionado a propriedade tipo
-    nomeArquivo, // Adicionado nomeArquivo
+    tipo,
+    nomeArquivo,
   } = exame;
 
-  // Formata a data e hora
+  // CORREÇÃO: Usa a propriedade "data" para criar o objeto Date
   const dataObj = dataExame ? new Date(dataExame) : null;
 
   const mes = dataObj
@@ -35,14 +43,11 @@ const ExameItem = ({ exame }: ExameItemProps) => {
 
   const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
 
-  // Lida com dados opcionais de profissional e unidade
   const profissionalNome =
     profissional?.nome || "Profissional não especificado";
-  const unidadeNome = unidades?.nome || "Unidade não especificada"; // Acessando o nome da unidade
+  const unidadeNome = unidades?.nome || "Unidade não especificada";
 
-  // Exibe a anotação se existir
   const anotacaoExame = anotacao;
-
 
   return (
     <div className="w-full md:w-auto">
@@ -55,7 +60,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
             {anotacaoExame && (
                 <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{anotacaoExame}</p>
             )}
-            {/* Botões de ação */}
             <div className="flex items-center gap-2 mt-auto">
               <Button variant="secondary" asChild>
                 <Link href={`/exames/${id}`}>Detalhes</Link>

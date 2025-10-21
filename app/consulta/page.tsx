@@ -1,6 +1,5 @@
 // Este arquivo é um Server Component por padrão no App Router.
-
-import { Consultatype, Consultas, Profissional } from "@prisma/client";
+import { Consultas, Consultatype, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { db } from "@/app/_lib/prisma";
 import AgendamentoItem from "./components/agendamentosItem";
 import Header from "@/app/_components/header";
@@ -8,6 +7,8 @@ import Header from "@/app/_components/header";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import ConsultaFilter from './components/ConsultaFilter';
+// CORREÇÃO: Importa o tipo unificado para fazer o mapeamento
+import { AgendamentoUnificado } from "./components/agendamentolist"; 
 
 
 const parseDate = (dateString: string) => {
@@ -71,7 +72,6 @@ interface SearchCondition {
   profissional?: { nome: { contains: string; mode: "insensitive" } };
   Anotacoes?: { some: { anotacao: { contains: string; mode: "insensitive" } } } | undefined;
   unidade?: { nome: { contains: string; mode: "insensitive" } };
-  // Adicione outras possíveis condições aqui se houver
 }
 interface ConsultaWhereClause {
   profissionalId?: string;
@@ -79,14 +79,18 @@ interface ConsultaWhereClause {
   AND?: SearchCondition[];
   OR?: SearchCondition[];
   data?: { equals: Date };
-  // Adicione outras propriedades que whereClause possa receber
 }
+
+// CORREÇÃO: Define um tipo mais preciso para as consultas que vêm da base de dados
+type ConsultaComRelacoes = Consultas & { 
+    profissional: Profissional | null; 
+    unidade: UnidadeDeSaude | null; 
+};
 
 const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const session = await getServerSession(authOptions);
 
   if (!session || !session.user?.id) {
-    // Handle unauthorized access - you might want to redirect or show a message
     return <div className="p-5">Usuário não autenticado.</div>;
   }
 
@@ -96,7 +100,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const profissionalId = searchParams.profissionalId;
   const tipo = searchParams.tipo;
 
-  const whereClause: ConsultaWhereClause = {};
+  const whereClause: ConsultaWhereClause & { userId: string } = { userId };
 
   if (profissionalId) {
     whereClause.profissionalId = profissionalId;
@@ -107,32 +111,30 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
 
   if (search) {
     const parsedDate = parseDate(search);
-    if (parsedDate && Object.keys(whereClause).length === 0) {
+    if (parsedDate && Object.keys(whereClause).length === 1) { // Verifica se só tem userId
       whereClause.data = { equals: parsedDate };
     } else if (!parsedDate) {
       const searchConditions: SearchCondition[] = [
-        { motivo: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
-        { tipodeexame: { contains: search, mode: "insensitive" as const } as { contains: string; mode: "insensitive" } },
-        {
-          profissional: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } },
-        },
-        { Anotacoes: { some: { anotacao: { contains: search, mode: "insensitive" as const } } } as { some: { anotacao: { contains: string; mode: "insensitive" } } } | undefined },
-        { unidade: { nome: { contains: search, mode: "insensitive" as const } } as { nome: { contains: string; mode: "insensitive" } }, },
-      ].filter(Boolean);
-      if (Object.keys(whereClause).length > 0) {
-        whereClause.AND = searchConditions;
+        { motivo: { contains: search, mode: "insensitive" } },
+        { tipodeexame: { contains: search, mode: "insensitive" } },
+        { profissional: { nome: { contains: search, mode: "insensitive" } } },
+        { Anotacoes: { some: { anotacao: { contains: search, mode: "insensitive" } } } },
+        { unidade: { nome: { contains: search, mode: "insensitive" } } },
+      ].filter(Boolean) as SearchCondition[];
+      
+      if (Object.keys(whereClause).length > 1) {
+        whereClause.AND = (whereClause.AND || []).concat(searchConditions);
       } else {
         whereClause.OR = searchConditions;
       }
     }
   }
 
-  const consultas: Consultas[] = await db.consultas.findMany({
-    where: { ...whereClause, userId: userId }, // Filter by logged-in user ID
+  const consultas: ConsultaComRelacoes[] = await db.consultas.findMany({
+    where: whereClause,
     include: {
       profissional: true,
       unidade: true,
-      // Anotacoes: true, // No need to include Anotacoes here to filter on them
     },
     orderBy: {
       data: 'desc',
@@ -140,47 +142,52 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   });
 
   const profissionaisList: Profissional[] = await db.profissional.findMany({
-    where: { userId: userId }, // <-- Adicionado filtro pelo userId do usuário logado
+    where: { userId: userId },
     orderBy: { nome: 'asc' },
   });
 
   const tiposConsultaList: Consultatype[] = Object.values(Consultatype);
 
-
   return (
     <div>
       <Header />
+      <div className="p-5">
+        <ConsultaFilter
+          professionals={profissionaisList}
+          consultationTypes={tiposConsultaList}
+        />
 
-      <ConsultaFilter
-        professionals={profissionaisList} // Agora passará a lista filtrada
-        consultationTypes={tiposConsultaList}
-      />
+        <h2 className="text-xs font-bold uppercase text-gray-400 mt-6 mb-2">
+          {search || profissionalId || tipo ?
+            `Resultados da Busca:`
+            : "Todas as Consultas"}
+        </h2>
 
-      <h2 className="text-xs font-bold uppercase text-gray-400 mt-4">
-        {search || profissionalId || tipo ?
-          `Resultados da Busca:`
-          : "Todas as Consultas"}
-      </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {consultas && consultas.length > 0 ? (
+            consultas.map((consulta) => {
+              // CORREÇÃO: Mapeia o objeto 'consulta' para o formato 'AgendamentoUnificado'
+              const agendamento: AgendamentoUnificado = {
+                id: consulta.id,
+                data: new Date(consulta.data),
+                nomeProfissional: consulta.profissional?.nome || 'Não especificado',
+                especialidade: consulta.profissional?.especialidade || 'Clínico Geral',
+                local: consulta.unidade?.nome || 'Local não especificado',
+                tipo: 'Consulta',
+                userId: consulta.userId,
+              };
 
-      {(search || profissionalId || tipo) && (
-        <p className="text-sm text-gray-500 mb-4">
-          {search && `Busca por texto: "${search}"`}
-          {profissionalId && ` | Profissional ID: ${profissionalId}`}
-          {tipo && ` | Tipo: ${tipo}`}
-        </p>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {consultas && consultas.length > 0 ? (
-          consultas.map((consulta) => (
-            <AgendamentoItem
-              key={consulta.id}
-              consultas={consulta}
-            />
-          ))
-        ) : (
-          <p>Nenhum resultado encontrado com os critérios especificados.</p>
-        )}
+              return (
+                <AgendamentoItem
+                  key={consulta.id}
+                  agendamento={agendamento}
+                />
+              );
+            })
+          ) : (
+            <p className="text-sm text-gray-500">Nenhum resultado encontrado com os critérios especificados.</p>
+          )}
+        </div>
       </div>
     </div>
   );

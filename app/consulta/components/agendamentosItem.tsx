@@ -1,85 +1,63 @@
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
+import { AgendamentoUnificado } from "./agendamentolist"; // 1. IMPORTA O TIPO CORRETO
+import { Badge } from "@/app/_components/ui/badge";
 
-interface Agendamento {
-  id: string;
-  tipo: string;
-  data: Date;
-  profissional?: { nome: string };
-  unidade?: { nome: string };
-  tratamento?: { nome: string }; // Campo opcional para o tratamento
-}
-
+// 2. MUDA A PROPRIEDADE E O TIPO
 interface AgendamentoItemProps {
-  consultas: Agendamento;
+  agendamento: AgendamentoUnificado;
 }
 
-const AgendamentoItem = ({ consultas }: AgendamentoItemProps) => {
-  if (!consultas) {
-    return (
-      <p className="text-gray-300">Dados do agendamento não encontrados.</p>
-    );
+const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
+  if (!agendamento) {
+    return null;
   }
 
+  // 3. USA AS PROPRIEDADES DO NOVO TIPO
   const {
-    tipo = "Tipo não especificado",
-    profissional,
-    unidade,
+    id,
+    tipo,
     data,
-    tratamento,
-  } = consultas;
+    nomeProfissional,
+    especialidade,
+    local,
+  } = agendamento;
 
-  // Formata a data e hora
-  const dataObj = data ? new Date(data) : null;
+  const dataObj = new Date(data);
+  const mes = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(dataObj).replace(".", "");
+  const dia = dataObj.getDate().toString();
+  const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const mes = dataObj
-    ? new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj)
-    : "Mês não especificado";
-
-  const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
-
-  const horaFormatada = dataObj
-    ? dataObj.toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "Hora não especificada";
-
-  // Lida com dados opcionais
-  const profissionalNome =
-    profissional?.nome || "Profissional não especificado";
-  const unidadeNome = unidade?.nome || "Unidade não especificada";
-  const tratamentoNome = tratamento?.nome;
-
+  // 4. CRIA O LINK DINÂMICO
+  const linkHref = `/${tipo.toLowerCase()}/${id}`;
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px] h-48"> {/* Increased height slightly if needed */}
-        {/* Adicionado overflow-hidden ao CardContent */}
-        <CardContent className="flex p-0 overflow-hidden h-full"> {/* Added h-full to CardContent */}
-          {/* Informações do agendamento */}
-          <div className="flex flex-col gap-2 py-5 pl-5 pr-4 flex-grow"> {/* Added flex-grow and adjusted padding */}
-            <h3 className="text-lg font-bold ">{tipo}</h3>
-            <p className="text-sm font-semibold ">
-              {profissionalNome}
-            </p>
-            <p className="truncate text-sm ">{unidadeNome}</p>
-            {tratamentoNome && (
-                <p className="text-sm text-gray-600 dark:text-gray-300">Tratamento: {tratamentoNome}</p>
-            )}
-            <Button variant="secondary" className="mt-2 w-20" asChild>
-              <Link href={`/consulta/${consultas.id}`}>Detalhes</Link>
+      <Card className="min-w-[280px] max-w-[320px] h-48">
+        <CardContent className="flex p-0 overflow-hidden h-full">
+          <div className="flex flex-col gap-1 py-4 px-5 flex-grow">
+            <Badge 
+              variant={tipo === 'Consulta' ? 'default' : 'secondary'} 
+              className="w-fit mb-2"
+            >
+              {tipo}
+            </Badge>
+            <h3 className="text-md font-bold truncate">{especialidade}</h3>
+            <p className="text-sm font-semibold">{nomeProfissional}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{local}</p>
+            <div className="flex-grow" /> {/* Spacer */}
+            <Button variant="secondary" className="mt-2 w-28" asChild>
+              <Link href={linkHref}>Ver Detalhes</Link>
             </Button>
           </div>
-          {/* Data e hora do agendamento com borda */}
-          {/* Separador com a borda. Posicionado para ocupar 0 espaço flex, apenas a borda. */}
- <div className="border-l-2 border-red-500 h-full flex-shrink-0"></div> {/* Added flex-shrink-0 */}
-          {/* Data e hora do agendamento. Usando w-24 para largura fixa. */}
-          <div className="flex flex-col items-center justify-between px-5 py-5 flex-shrink-0 w-24">
-            <p className="text-sm capitalize ">{mes}</p>
-            <p className="text-2xl font-bold ">{dia}</p>
-            <p className="text-sm ">{horaFormatada}</p>
+          
+          <div className="border-l-2 border-primary h-full flex-shrink-0"></div>
+
+          <div className="flex flex-col items-center justify-center px-4 py-5 flex-shrink-0 w-24">
+            <p className="text-sm font-bold uppercase text-primary">{mes}</p>
+            <p className="text-3xl font-bold">{dia}</p>
+            <p className="text-sm">{horaFormatada}</p>
           </div>
         </CardContent>
       </Card>

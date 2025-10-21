@@ -1,224 +1,150 @@
-"use client";
+'use client';
 
-import { useState} from "react";
-import { useForm } from "react-hook-form";
-import {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-} from "@/app/_components/ui/dialog";
-import { Button } from "@/app/_components/ui/button";
+import { useState} from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from '@/app/_hooks/use-toast';
+import { Button } from '@/app/_components/ui/button';
+import { 
+    Dialog, 
+    DialogContent, 
+    DialogHeader, 
+    DialogTitle, 
+    DialogDescription, 
+    DialogFooter 
+} from '@/app/_components/ui/dialog';
 import {
   Form,
+  FormControl,
   FormField,
   FormItem,
-  FormControl,
+  FormLabel,
   FormMessage,
-} from "@/app/_components/ui/form";
-import { Input } from "@/app/_components/ui/input";
-import { toast } from "@/app/_hooks/use-toast";
+} from '@/app/_components/ui/form';
+import { Input } from '@/app/_components/ui/input';
+import { Loader2 } from 'lucide-react';
 
-type EnderecoForm = {
-  CEP: string;
-  numero: number;
-  rua: string;
-  bairro: string;
-  municipio: string;
-  UF: string;
-  nome: string;
+interface Endereco {
+    id: string;
+    rua: string;
+    numero: string;
+    complemento?: string | null;
+    bairro: string;
+    cidade: string;
+    estado: string;
+    cep: string;
+}
+
+const formSchema = z.object({
+  rua: z.string().min(1, 'Rua é obrigatória'),
+  numero: z.string().min(1, 'Número é obrigatório'),
+  complemento: z.string().optional(),
+  bairro: z.string().min(1, 'Bairro é obrigatório'),
+  cidade: z.string().min(1, 'Cidade é obrigatória'),
+  estado: z.string().min(2, 'Estado deve ter 2 caracteres').max(2),
+  cep: z.string().min(8, 'CEP deve ter 8 caracteres'),
+});
+
+type FormData = z.infer<typeof formSchema>;
+
+interface EnderecosDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (endereco: Endereco) => void;
+    unidadeId?: string; // For linking address to a health unit
+    userId?: string;    // For linking address to a user
+}
+
+export const EnderecosDialog = ({ isOpen, onClose, onSave, unidadeId, userId }: EnderecosDialogProps) => {
+    const [loading, setLoading] = useState(false);
+    
+    const form = useForm<FormData>({
+        resolver: zodResolver(formSchema),
+        defaultValues: {
+            rua: '',
+            numero: '',
+            complemento: '',
+            bairro: '',
+            cidade: '',
+            estado: '',
+            cep: '',
+        }
+    });
+    
+    const handleViaCepSearch = async () => {
+        const cep = form.getValues("cep");
+        if (cep.length === 8) {
+            setLoading(true);
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                const data = await response.json();
+                if (!data.erro) {
+                    form.setValue('rua', data.logradouro);
+                    form.setValue('bairro', data.bairro);
+                    form.setValue('cidade', data.localidade);
+                    form.setValue('estado', data.uf);
+                }
+            } catch (err) { // CORRECTED: Renamed 'error' to 'err' to avoid conflict
+                console.error("Erro ao buscar CEP:", err);
+                toast({ title: "Erro", description: "Não foi possível buscar o CEP.", variant: "destructive" });
+            }
+            setLoading(false);
+        }
+    };
+    
+    const onSubmit = async (data: FormData) => {
+        setLoading(true);
+        try {
+            const response = await fetch('/api/enderecos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, unidadeId, userId }),
+            });
+            const newEndereco = await response.json();
+            if (!response.ok) {
+                throw new Error(newEndereco.error || 'Falha ao salvar endereço');
+            }
+            toast({ title: "Sucesso!", description: "Endereço salvo." });
+            onSave(newEndereco);
+            onClose();
+        } catch (err) { // CORRECTED: Renamed 'error' to 'err' to avoid conflict
+            console.error("Erro ao salvar endereço:", err);
+            toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
+        }
+        setLoading(false);
+    };
+    
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Adicionar Novo Endereço</DialogTitle>
+                    <DialogDescription>Preencha os dados do endereço ou use a busca por CEP.</DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="flex items-end gap-2">
+                            <FormField name="cep" control={form.control} render={({ field }) => (<FormItem className='flex-grow'><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <Button type="button" onClick={handleViaCepSearch} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buscar'}</Button>
+                        </div>
+                        <FormField name="rua" control={form.control} render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField name="numero" control={form.control} render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField name="complemento" control={form.control} render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="(Opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        <FormField name="bairro" control={form.control} render={({ field }) => (<FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField name="cidade" control={form.control} render={({ field }) => (<FormItem><FormLabel>Cidade</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+                            <FormField name="estado" control={form.control} render={({ field }) => (<FormItem><FormLabel>Estado</FormLabel><FormControl><Input maxLength={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={onClose}>Cancelar</Button>
+                            <Button type="submit" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar'}</Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
 };
-
-const EnderecoDialog: React.FC = () => {
-  const [open, setOpen] = useState(false);
-  const form = useForm<EnderecoForm>({
-    defaultValues: {
-      CEP: "",
-      numero: 0,
-      rua: "",
-      bairro: "",
-      municipio: "",
-      UF: "",
-      nome: "",
-    },
-  });
-
-  // Função para salvar o endereço
-  const handleSubmit = async (data: EnderecoForm) => {
-    try {
-      const response = await fetch("/api/enderecos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao salvar o endereço.");
-      }
-
-      toast({title: "Endereço salvo com sucesso!", variant:"default",duration: 5000} );
-      form.reset();
-      setOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast({ title:"Erro ao salvar o endereço.",variant: "destructive",duration: 5000});
-    }
-  };
-
-  // Função para consultar o CEP
-  const checkCEP = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const cep = e.target.value.replace(/\D/g, "");
-    if (cep.length === 8) {
-      fetch(`https://viacep.com.br/ws/${cep}/json/`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.erro) {
-            toast({title:"CEP não encontrado!", variant:"destructive",
-            duration: 5000 });
-          } else {
-            form.setValue("rua", data.logradouro);
-            form.setValue("bairro", data.bairro);
-            form.setValue("municipio", data.localidade);
-            form.setValue("UF", data.uf);
-          }
-        })
-        .catch((error) => {
-          console.error("Erro ao consultar CEP:", error);
-            toast({title: "Erro ao consultar CEP",variant: "destructive",
-            duration: 5000});
-        });
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="default">Adicionar Novo Endereço</Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Adicionar Novo Endereço</DialogTitle>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <FormField
-              control={form.control}
-              name="CEP"
-              render={({ field }) => (
-                <FormItem>
-                  <label>CEP:</label>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      onBlur={checkCEP}
-                      required
-                      placeholder="Digite o CEP"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="numero"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Número:</label>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      required
-                      placeholder="Número"
-                      type="number"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="rua"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Rua:</label>
-                  <FormControl>
-                    <Input {...field} required placeholder="Rua" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="bairro"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Bairro:</label>
-                  <FormControl>
-                    <Input {...field} required placeholder="Bairro" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="municipio"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Município:</label>
-                  <FormControl>
-                    <Input {...field} required placeholder="Município" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="UF"
-              render={({ field }) => (
-                <FormItem>
-                  <label>UF:</label>
-                  <FormControl>
-                    <Input {...field} required placeholder="UF" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="nome"
-              render={({ field }) => (
-                <FormItem>
-                  <label>Nome:</label>
-                  <FormControl>
-                    <Input {...field} required placeholder="Nome" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button variant="secondary" onClick={() => setOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" variant="default">
-                Salvar
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-export default EnderecoDialog;

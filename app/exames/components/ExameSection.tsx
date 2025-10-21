@@ -1,26 +1,28 @@
-// app/exame/components/ExameSection.tsx
+// app/exames/components/ExameSection.tsx
 import React from 'react';
-import ExameItem from './ExameItem'; // Importe o ExameItem da mesma pasta
-import { Exame } from '@/app/_components/types';
+import ExameItem from './ExameItem';
+import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
 
+type ExameComRelacoes = Exame & {
+  profissional: Profissional | null;
+  unidades: UnidadeDeSaude | null;
+};
 
 interface ExameSectionProps {
   title: string;
-  exames: Exame[]; // Recebe uma lista de Exames
+  exames: ExameComRelacoes[];
 }
 
 const ExameSection = ({ title, exames }: ExameSectionProps) => (
   <div className="mt-5">
-    {/* Título da seção */}
     <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
-    {/* Lista de cards de exame com overflow horizontal */}
     <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
       {exames.length > 0 ? (
         exames.map((exame) => (
-          <ExameItem key={exame.id} exame={exame} /> // Renderiza ExameItem para cada exame
+          <ExameItem key={exame.id} exame={exame} />
         ))
       ) : (
-        <p className="text-gray-500">Nenhum {title.toLowerCase()}.</p>
+        <p className="text-gray-500">Nenhum exame encontrado.</p>
       )}
     </div>
   </div>

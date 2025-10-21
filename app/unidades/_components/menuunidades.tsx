@@ -16,32 +16,24 @@ import {
   CommandItem,
   CommandList,
 } from "../../_components/ui/command";
-import { Unidade } from "../../_components/types";
+// CORREÇÃO: Importa o tipo correto diretamente do Prisma Client
+import { UnidadeDeSaude } from "@prisma/client";
 import { useRouter } from 'next/navigation';
-import { useSession } from "next-auth/react";
 
 
+// CORREÇÃO: Atualiza a interface de props com o tipo correto
 interface MenuUnidadesProps {
-  onUnidadeSelect: (unidade: Unidade) => void;
-  selectedUnidade: Unidade | null;
-  unidades: Unidade[];
+  onUnidadeSelect: (unidade: UnidadeDeSaude | null) => void;
+  selectedUnidade: UnidadeDeSaude | null;
+  unidades: UnidadeDeSaude[];
+  disabled?: boolean;
 }
 
-const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUnidade, unidades }) => {
+const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUnidade, unidades, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { data: session } = useSession();
-    const currentUser = session?.user;
 
-
-  // Filter units based on currentUser.id
-  // Adicionado um check para garantir que currentUser e currentUser.id existem antes de filtrar
-  const filteredUnidades = currentUser?.id
-    ? unidades.filter(unidade => unidade.userId === currentUser.id)
-    : []; // Retorna um array vazio se o usuário não estiver logado
-
-
-  const handleUnidadeSelect = (unidade: Unidade) => {
+  const handleUnidadeSelect = (unidade: UnidadeDeSaude) => {
     onUnidadeSelect(unidade);
     setOpen(false);
   };
@@ -59,6 +51,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUn
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
+            disabled={disabled}
           >
             {selectedUnidade
               ? selectedUnidade.nome
@@ -73,10 +66,10 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUn
             <CommandList>
               <CommandEmpty>Nenhuma unidade encontrada.</CommandEmpty>
               <CommandGroup>
-                {filteredUnidades.length === 0 ? ( // Use filteredUnidades
-                  <CommandItem disabled>Nenhuma unidade disponível para este usuário</CommandItem>
+                {unidades.length === 0 ? (
+                  <CommandItem disabled>Nenhuma unidade disponível.</CommandItem>
                 ) : (
-                  filteredUnidades.map((unidade) => ( // Use filteredUnidades
+                  unidades.map((unidade) => (
                     <CommandItem
                       key={unidade.id}
                       value={unidade.id}
@@ -88,7 +81,7 @@ const MenuUnidades: React.FC<MenuUnidadesProps> = ({ onUnidadeSelect, selectedUn
                       {unidade.nome}
                     </CommandItem>
                   ))
-                )}{" "}
+                )}
                 <CommandItem
                   key="add-new-unit"
                   value="add-new-unit"

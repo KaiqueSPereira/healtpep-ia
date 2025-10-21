@@ -1,102 +1,79 @@
+'use client';
 
-"use client";
-
-import { useState, useEffect } from 'react';
 import { MedicamentoComRelacoes } from "@/app/_components/types";
-import { DialogHeader, DialogTitle, DialogDescription } from "@/app/_components/ui/dialog";
-import { Badge } from "@/app/_components/ui/badge";
-import { Button } from "@/app/_components/ui/button";
-import { ExternalLink, Loader2, Pill, AlertCircle } from 'lucide-react';
-import { ScrollArea } from "@/app/_components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { format} from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { CalendarDays, Syringe, Clock, Link as LinkIcon, Info, User, Activity, MapPin } from 'lucide-react'; // REMOVED Badge and Pill
 
 interface MedicamentoDetailsProps {
-    medicamento: MedicamentoComRelacoes;
-    onEdit: (medicamento: MedicamentoComRelacoes) => void; // Função para mudar para o modo de edição
+  medicamento: MedicamentoComRelacoes;
 }
 
-export default function MedicamentoDetails({ medicamento, onEdit }: MedicamentoDetailsProps) {
-    const [adverseReactions, setAdverseReactions] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+const MedicamentoDetails = ({ medicamento }: MedicamentoDetailsProps) => {
 
-    useEffect(() => {
-        // Reseta o estado sempre que o medicamento mudar
-        setAdverseReactions([]);
-        setError(null);
-        setIsLoading(false);
+  const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: React.ReactNode }) => (
+    <div className="flex items-start">
+      <Icon className="h-5 w-5 text-gray-500 mt-1 mr-3 flex-shrink-0" />
+      <div>
+        <p className="font-semibold text-gray-800">{label}</p>
+        <p className="text-gray-600">{value || 'Não informado'}</p>
+      </div>
+    </div>
+  );
 
-        if (medicamento && medicamento.principioAtivo) {
-            const fetchEffects = async () => {
-                setIsLoading(true);
-                try {
-                    const response = await fetch(`/api/medicamentos/effects?principioAtivo=${encodeURIComponent(medicamento.principioAtivo!)}`);
-                    if (!response.ok) {
-                        throw new Error('Não foi possível buscar os efeitos colaterais.');
-                    }
-                    const data = await response.json();
-                    if (data.adverse_reactions && data.adverse_reactions.length > 0) {
-                        setAdverseReactions(data.adverse_reactions);
-                    } else {
-                        setAdverseReactions(["Nenhuma informação de efeito colateral encontrada para esta substância."]);
-                    }
-                } catch (err) {
-                    const message = (err as Error).message;
-                    setError(message);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
+  return (
+    <Card className="border-none shadow-none">
+      <CardHeader>
+        <CardTitle className="text-center text-2xl font-bold">{medicamento.nome}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <DetailItem icon={Info} label="Princípio Ativo" value={medicamento.principioAtivo} />
+        <DetailItem icon={Syringe} label="Forma Farmacêutica" value={medicamento.forma} />
+        <DetailItem icon={Activity} label="Tipo" value={medicamento.tipo.replace('_', ' ')} />
 
-            fetchEffects();
-        }
-    }, [medicamento]);
-
-    return (
-        <div>
-            <DialogHeader>
-                <DialogTitle className="text-2xl">{medicamento.nome}</DialogTitle>
-                {medicamento.principioAtivo && (
-                    <DialogDescription>Princípio Ativo: {medicamento.principioAtivo}</DialogDescription>
-                )}
-            </DialogHeader>
-
-            <div className="my-4 grid grid-cols-2 gap-4">
-                {medicamento.linkBula && (
-                    <a href={medicamento.linkBula} target="_blank" rel="noopener noreferrer">
-                        <Button className="w-full" variant="outline">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            Ver Bula Oficial (PDF)
-                        </Button>
-                    </a>
-                )}
-                <Button className="w-full" onClick={() => onEdit(medicamento)}>
-                    Editar Informações
-                </Button>
-            </div>
-
-            <div className="space-y-3">
-                <h3 className="font-semibold">Possíveis Efeitos Colaterais</h3>
-                <div className="border rounded-lg p-3 min-h-[150px]">
-                    {isLoading ? (
-                        <div className="flex justify-center items-center h-full">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                        </div>
-                    ) : error ? (
-                        <div className="flex flex-col items-center justify-center h-full text-destructive">
-                            <AlertCircle className="h-6 w-6 mb-2" />
-                            <p className="text-center">{error}</p>
-                        </div>
-                    ) : (
-                        <ScrollArea className="h-[200px] w-full">
-                           <div className="text-sm text-muted-foreground space-y-2">
-                             {adverseReactions.map((reaction, index) => (
-                                <p key={index}>{reaction}</p>
-                             ))}
-                           </div>
-                        </ScrollArea>
-                    )}
-                </div>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <DetailItem 
+                icon={CalendarDays} 
+                label="Início do Tratamento" 
+                value={format(new Date(medicamento.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
+            />
+            {medicamento.dataFim && (
+                 <DetailItem 
+                    icon={CalendarDays} 
+                    label="Fim do Tratamento" 
+                    value={format(new Date(medicamento.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
+                />
+            )}
         </div>
-    );
-}
+
+        {medicamento.posologia && <DetailItem icon={Clock} label="Posologia e Observações" value={medicamento.posologia} />}
+        
+        {medicamento.linkBula && (
+            <DetailItem 
+                icon={LinkIcon} 
+                label="Bula" 
+                value={<a href={medicamento.linkBula} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Acessar Bula</a>}
+            />
+        )}
+
+        <div className="border-t pt-4 space-y-4">
+            <h3 className="text-lg font-semibold text-center mb-2">Associações</h3>
+            {medicamento.profissional && <DetailItem icon={User} label="Profissional" value={medicamento.profissional.nome} />}
+            {medicamento.condicaoSaude && <DetailItem icon={Activity} label="Condição de Saúde" value={medicamento.condicaoSaude.nome} />}
+            {medicamento.consulta && (
+                 <DetailItem 
+                    icon={MapPin} 
+                    label="Consulta Relacionada" 
+                    value={`Consulta de ${medicamento.consulta.tipo} em ${format(new Date(medicamento.consulta.data), 'dd/MM/yyyy', { locale: ptBR })}`}
+                />
+            )}
+            { !medicamento.profissional && !medicamento.condicaoSaude && !medicamento.consulta && <p className="text-center text-gray-500">Nenhuma associação registrada.</p> }
+        </div>
+
+      </CardContent>
+    </Card>
+  );
+};
+
+export default MedicamentoDetails;

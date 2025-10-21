@@ -10,7 +10,14 @@ import {
   DialogTitle,
 } from "@/app/_components/ui/dialog";
 import { Button } from "@/app/_components/ui/button";
-import { Exame, Profissional, Unidade } from "@/app/_components/types";
+// CORREÇÃO: Importa os tipos corretos do Prisma, e cria um alias para UnidadeDeSaude
+import type { ResultadoExame, Profissional, UnidadeDeSaude as Unidade } from "@prisma/client";
+
+// CORREÇÃO: Define um tipo frontend para os resultados que inclui o campo temporário "outraUnidade"
+interface ResultadoExameFrontend extends Omit<ResultadoExame, 'exameId' | 'createdAt' | 'id'> {
+    id?: string;
+    outraUnidade?: string;
+}
 
 interface ConfirmarExameDialogProps {
   loadingSubmit: boolean;
@@ -19,7 +26,8 @@ interface ConfirmarExameDialogProps {
   selectedProfissional: Profissional | null;
   selectedUnidade: Unidade | null;
   anotacao: string;
-  exames: Exame["resultados"]; // Agora usamos apenas os resultados
+  // CORREÇÃO: Usa o novo tipo frontend para a prop exames
+  exames: ResultadoExameFrontend[];
   onSubmit: () => void;
   children: React.ReactNode;
 }
@@ -60,17 +68,20 @@ export const ConfirmarExameDialog = ({
           <p>
             <strong>Anotação:</strong> {anotacao || "Nenhuma"}
           </p>
-          {["Sangue", "Urina"].includes(tipo) && exames && (
+          {/* A lógica para exibir os exames permanece a mesma, mas agora o tipo está correto */}
+          {["Sangue", "Urina"].includes(tipo) && exames && exames.length > 0 && (
             <>
-              <p className="pt-2 font-semibold">Exames:</p>
+              <p className="pt-2 font-semibold">Resultados:</p>
               <ul className="list-disc pl-4">
-                {exames.map((exame, idx) => (
+                {exames.map((resultado, idx) => (
                   <li key={idx}>
-                    {exame.nome || "(sem nome)"} — {exame.valor || "-"}{" "}
-                    {exame.unidade === "Outro"
-                      ? exame.outraUnidade
-                      : exame.unidade || ""}{" "}
-                    — Ref: {exame.referencia || "-"}
+                    {resultado.nome || "(sem nome)"} — {resultado.valor || "-"}
+                    {" "}
+                    {resultado.unidade === "Outro"
+                      ? resultado.outraUnidade
+                      : resultado.unidade || ""}
+                    {" "}
+                    — Ref: {resultado.referencia || "-"}
                   </li>
                 ))}
               </ul>

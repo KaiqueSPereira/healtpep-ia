@@ -5,12 +5,20 @@ import { Loader2 } from "lucide-react";
 import { ExameFormWrapper } from "../../components/ExameFormWrapper";
 import { useParams } from "next/navigation";
 import { toast } from "@/app/_hooks/use-toast";
-import { ExameCompleto } from "@/app/_components/types";
+import { Exame, Profissional, UnidadeDeSaude, ResultadoExame } from "@prisma/client";
+
+
+type ExameComRelacoes = Exame & {
+  resultados?: ResultadoExame[];
+  profissional?: Profissional | null;
+  unidades?: UnidadeDeSaude | null;
+};
 
 export default function EditExamePage() {
   const params = useParams();
   const examId = params.id as string;
-  const [existingExamData, setExistingExamData] = useState<ExameCompleto | null>(null);
+  // CORREÇÃO: Usa o novo tipo para o estado
+  const [existingExamData, setExistingExamData] = useState<ExameComRelacoes | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +42,7 @@ export default function EditExamePage() {
         const data = await res.json();
 
         if (res.ok) {
-          setExistingExamData(data.exame); // Assuming the API returns { exame: {...} }
+          setExistingExamData(data.exame); // A API retorna { exame: {...} }
         } else {
           setError(data.error || "Erro ao carregar dados do exame.");
           toast({
@@ -85,10 +93,10 @@ export default function EditExamePage() {
       );
   }
 
-
   return (
     <div className="pb-20">
       <Suspense fallback={<Loader2 className="h-10 w-10 animate-spin text-gray-600" />}>
+        {/* O ExameFormWrapper agora recebe dados com o tipo correto */}
         <ExameFormWrapper existingExamData={existingExamData} />
       </Suspense>
     </div>

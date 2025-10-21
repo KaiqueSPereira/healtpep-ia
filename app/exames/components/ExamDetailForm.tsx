@@ -1,4 +1,4 @@
-// app/exames/components/ExamDetailsForm.tsx
+// app/exames/components/ExamDetailForm.tsx
 "use client";
 
 import { Label } from "../../_components/ui/label";
@@ -7,32 +7,33 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from ".
 import MenuUnidades from "../../unidades/_components/menuunidades";
 import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
-import MenuTratamentos from "@/app/tratamentos/_Components/menutratamentos";
-import { Consulta, Profissional, Unidade, Tratamento } from "../../_components/types";
+import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
+
+// CORREÇÃO: Importa os tipos diretamente do Prisma Client, usando os nomes corretos do schema
+import type { Consultas, Profissional, UnidadeDeSaude, CondicaoSaude } from "@prisma/client";
 import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
-import { toast } from "@/app/_hooks/use-toast";
 
+// CORREÇÃO: Atualiza a interface de props com os tipos corretos do Prisma
 interface ExamDetailsFormProps {
-    consultas: Consulta[];
-    selectedConsulta: Consulta | null;
-    onConsultaSelect: (consulta: Consulta | null) => void;
+    consultas: Consultas[];
+    selectedConsulta: Consultas | null;
+    onConsultaSelect: (consulta: Consultas | null) => void;
 
-    selectedUnidade: Unidade | null;
-    onUnidadeSelect: (unidade: Unidade | null) => void;
+    unidades: UnidadeDeSaude[];
+    selectedUnidade: UnidadeDeSaude | null;
+    onUnidadeSelect: (unidade: UnidadeDeSaude | null) => void;
 
     profissionais: Profissional[];
     selectedProfissional: Profissional | null;
     onProfissionalSelect: (profissional: Profissional | null) => void;
 
-    tratamentos: Tratamento[];
-    selectedTratamento: Tratamento | null;
-    onTratamentoSelect: (tratamento: Tratamento | null) => void;
+    condicoesSaude: CondicaoSaude[];
+    selectedCondicao: CondicaoSaude | null;
+    onCondicaoChange: (condicao: CondicaoSaude | null) => void;
 
     dataExame: string;
     onDataExameChange: (data: string) => void;
 
-    // NOVOS PROPS PARA HORA
     horaExame: string;
     onHoraExameChange: (hora: string) => void;
 
@@ -44,53 +45,32 @@ interface ExamDetailsFormProps {
 
 export function ExamDetailsForm({
     selectedConsulta, onConsultaSelect,
+    unidades,
     selectedUnidade, onUnidadeSelect,
     profissionais, selectedProfissional, onProfissionalSelect,
-    tratamentos, selectedTratamento, onTratamentoSelect,
+    condicoesSaude, selectedCondicao, onCondicaoChange,
     dataExame, onDataExameChange,
-    horaExame, onHoraExameChange, // Adicionado
+    horaExame, onHoraExameChange,
     tipo, onTipoChange,
     selectorsKey
 }: ExamDetailsFormProps) {
     const { data: session } = useSession();
-    const [unidadesList, setUnidadesList] = useState<Unidade[]>([]);
-
-    useEffect(() => {
-        const fetchUnidades = async () => {
-            if (!session?.user?.id) return;
-
-            try {
-                const response = await fetch(`/api/unidadesaude?userId=${session.user.id}`);
-                if (!response.ok) {
-                    throw new Error("Erro ao buscar unidades");
-                }
-                const data = await response.json();
-                setUnidadesList(data || []);
-            } catch (error) {
-                console.error("Erro ao buscar unidades:", error);
-                toast({
-                    title: "Erro ao carregar unidades.",
-                    variant: "destructive",
-                    duration: 5000,
-                });
-            }
-        };
-        fetchUnidades();
-    }, [session?.user?.id]);
 
     return (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                <Label>Consulta</Label>
+                <Label>Consulta Associada (Opcional)</Label>
                 <MenuConsultas
                     userId={session?.user?.id || ''}
                     selectedConsulta={selectedConsulta}
                     onConsultaSelect={(consulta) => {
                         onConsultaSelect(consulta);
                         if (consulta) {
+                            // Ao selecionar uma consulta, popula automaticamente o profissional e a unidade
                             onProfissionalSelect(consulta.profissional || null);
                             onUnidadeSelect(consulta.unidade || null);
                         } else {
+                            // Se a consulta for desmarcada, limpa os campos
                             onProfissionalSelect(null);
                             onUnidadeSelect(null);
                         }
@@ -98,62 +78,63 @@ export function ExamDetailsForm({
                 />
             </div>
 
-            {!selectedConsulta && (
-              <>
-                <div>
-                  <Label>Unidade</Label>
-                  <MenuUnidades
-                    key={`unidade-selector-${selectorsKey}`}
-                    unidades={unidadesList}
-                    selectedUnidade={selectedUnidade} 
-                    onUnidadeSelect={onUnidadeSelect}
-                  />
-                </div>
-                <div>
-                  <Label>Profissional</Label>
-                  <MenuProfissionais
-                     key={`profissional-selector-${selectorsKey}`}
-                    profissionais={profissionais}
-                    selectedProfissional={selectedProfissional}
-                    onProfissionalSelect={onProfissionalSelect}
-                    unidadeId={selectedUnidade?.id}
-                  />
-                </div>
-              </>
-            )}
-
             <div>
-              <Label>Tratamento</Label>
-              <MenuTratamentos
-                 key={`tratamento-selector-${selectorsKey}`}
-                tratamentos={tratamentos}
-                selectedTratamento={selectedTratamento}
-                onTratamentoSelect={onTratamentoSelect}
+              <Label>Condição de Saúde Associada (Opcional)</Label>
+              <MenuCondicoes
+                 key={`condicao-selector-${selectorsKey}`}
+                condicoes={condicoesSaude}
+                selectedCondicao={selectedCondicao}
+                onCondicaoSelect={onCondicaoChange}
               />
             </div>
 
-            {/* ATUALIZAÇÃO: Campo de data e hora juntos */}
             <div>
-              <Label>Data e Hora do Exame</Label>
+              <Label>Unidade de Saúde *</Label>
+              <MenuUnidades
+                key={`unidade-selector-${selectorsKey}`}
+                unidades={unidades}
+                selectedUnidade={selectedUnidade}
+                onUnidadeSelect={onUnidadeSelect}
+                // Desabilita se uma consulta já determinou a unidade
+                disabled={!!selectedConsulta?.unidadeId}
+              />
+            </div>
+            <div>
+              <Label>Profissional Solicitante *</Label>
+              <MenuProfissionais
+                key={`profissional-selector-${selectorsKey}`}
+                profissionais={profissionais}
+                selectedProfissional={selectedProfissional}
+                onProfissionalSelect={onProfissionalSelect}
+                unidadeId={selectedUnidade?.id}
+                // Desabilita se uma consulta já determinou o profissional
+                disabled={!!selectedConsulta?.profissionalId}
+              />
+            </div>
+
+            <div>
+              <Label>Data e Hora do Exame *</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="date"
                   value={dataExame}
                   onChange={(e) => onDataExameChange(e.target.value)}
                   className="flex-1"
+                  required
                 />
                 <Input
                   type="time"
                   value={horaExame}
                   onChange={(e) => onHoraExameChange(e.target.value)}
                   className="w-auto"
+                  required
                 />
               </div>
             </div>
 
             <div>
-              <Label>Tipo de Exame</Label>
-              <Select value={tipo} onValueChange={onTipoChange}>
+              <Label>Tipo de Exame *</Label>
+              <Select value={tipo} onValueChange={onTipoChange} required>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o tipo de exame" />
                 </SelectTrigger>
@@ -162,6 +143,8 @@ export function ExamDetailsForm({
                   <SelectItem value="Urina">Urina</SelectItem>
                   <SelectItem value="USG">USG</SelectItem>
                   <SelectItem value="Raio-X">Raio-X</SelectItem>
+                  <SelectItem value="Tomografia">Tomografia</SelectItem>
+                  <SelectItem value="Ressonancia">Ressonância Magnética</SelectItem>
                   <SelectItem value="outros">Outros</SelectItem>
                 </SelectContent>
               </Select>

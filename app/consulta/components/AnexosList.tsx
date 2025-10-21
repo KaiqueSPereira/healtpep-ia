@@ -32,7 +32,8 @@ export default function AnexosList({ anexos, onDeleteAnexo }: AnexosListProps) {
                             <div className="flex items-center gap-3">
                                 <FileText className="h-5 w-5 text-primary" />
                                 <div className="flex flex-col">
-                                     <Link href={anexo.urlArquivo} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline">
+                                     {/* CORREÇÃO: O link agora aponta para a rota da API que serve o ficheiro para download */}
+                                     <Link href={`/api/consultas/${anexo.consultaId}/anexos/${anexo.id}`} className="font-medium hover:underline">
                                         {anexo.nomeArquivo}
                                     </Link>
                                     <span className="text-sm text-muted-foreground">{formatTipo(anexo.tipo)}</span>

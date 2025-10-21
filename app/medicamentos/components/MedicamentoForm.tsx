@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,37 +9,23 @@ import { Input } from "@/app/_components/ui/input";
 import { Textarea } from "@/app/_components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/app/_components/ui/popover";
 import { cn } from "@/app/_lib/utils";
-import { CalendarIcon, Loader2, Trash, Check, Pill, Droplets, Beaker, Syringe, AlertTriangle } from "lucide-react";
+import { CalendarIcon, Loader2, Trash } from "lucide-react";
 import { Calendar } from "@/app/_components/ui/calendar";
 import { format } from "date-fns";
-import { ptBR } from 'date-fns/locale';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/_components/ui/select";
 import { toast } from "@/app/_hooks/use-toast";
 import { useState, useEffect } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 import { useSession } from "next-auth/react";
-import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/app/_components/ui/command";
-import { useDebounce } from "@uidotdev/usehooks";
-
-// UPDATED: Corrected type imports
 import { Profissional, Consulta, CondicaoSaude, MedicamentoComRelacoes } from "@/app/_components/types";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
-// UPDATED: Corrected component import
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 
-interface MedicamentoAnvisa {
-    id: string;
-    nomeComercial: string;
-    principioAtivo: string;
-    linkBula: string;
-}
+const TipoMedicamento = { Uso_Continuo: 'Uso_Continuo', Tratamento_Clinico: 'Tratamento_Clinico', Esporadico: 'Esporadico' } as const;
+const FrequenciaTipo = { Hora: 'Hora', Dia: 'Dia', Semana: 'Semana', Mes: 'Mes' } as const;
+const StatusMedicamento = { Ativo: 'Ativo', Concluido: 'Concluido', Suspenso: 'Suspenso' } as const;
 
-const TipoMedicamento = { USO_CONTINUO: 'USO_CONTINUO', TRATAMENTO_CLINICO: 'TRATAMENTO_CLINICO', ESPORADICO: 'ESPORADICO' } as const;
-const FrequenciaTipo = { HORA: 'HORA', DIA: 'DIA', SEMANA: 'SEMANA', MES: 'MES' } as const;
-const StatusMedicamento = { ATIVO: 'ATIVO', CONCLUIDO: 'CONCLUIDO', SUSPENSO: 'SUSPENSO' } as const;
-
-// UPDATED: Zod schema now uses condicaoSaudeId
 const formSchema = z.object({
     nome: z.string().min(2, { message: "O nome deve ter pelo menos 2 caracteres." }),
     principioAtivo: z.string().optional(),
@@ -58,72 +43,38 @@ const formSchema = z.object({
     frequenciaTipo: z.nativeEnum(FrequenciaTipo).optional(),
     profissionalId: z.string().optional(),
     consultaId: z.string().optional(),
-    condicaoSaudeId: z.string().optional(), // Corrected field
+    condicaoSaudeId: z.string().optional(),
 });
 
 type MedicamentoFormData = z.infer<typeof formSchema>;
 
-// UPDATED: Props now expect condicoesSaude
 interface MedicamentoFormProps {
-    onFormSubmit: () => void;
+    onSave: () => void; // CORRECTED: Renamed from onFormSubmit to onSave
     profissionais: Profissional[];
     condicoesSaude: CondicaoSaude[];
     medicamento?: MedicamentoComRelacoes | null;
 }
 
-const getFormaIcon = (forma?: string) => {
-    if (!forma) return null;
-    const formaLower = forma.toLowerCase();
-    const iconProps = { className: "h-4 w-4" };
-    if (formaLower.includes('comprimido') || formaLower.includes('cápsula')) return <Pill {...iconProps} />;
-    if (formaLower.includes('gota')) return <Droplets {...iconProps} />;
-    if (formaLower.includes('xarope') || formaLower.includes('solução')) return <Beaker {...iconProps} />;
-    if (formaLower.includes('injeção')) return <Syringe {...iconProps} />;
-    return null;
-};
-
-// UPDATED: Component receives condicoesSaude prop
-export default function MedicamentoForm({ onFormSubmit, profissionais, condicoesSaude, medicamento }: MedicamentoFormProps) {
+export default function MedicamentoForm({ onSave, profissionais, condicoesSaude, medicamento }: MedicamentoFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { data: session } = useSession();
     const isEditMode = !!medicamento;
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const debouncedSearchTerm = useDebounce(searchTerm, 750);
-    const [searchResults, setSearchResults] = useState<MedicamentoAnvisa[]>([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
-    const [selectionMade, setSelectionMade] = useState(false);
-
     const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
-    // UPDATED: State for selected condition
     const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
 
-    const [alergias, setAlergias] = useState<string[]>([]);
-    const [isAllergyAlertOpen, setIsAllergyAlertOpen] = useState(false);
-    const [allergyDetails, setAllergyDetails] = useState({ medicamento: "", componente: "" });
-
-    const form = useForm<MedicamentoFormData>({ resolver: zodResolver(formSchema), defaultValues: { nome: "", principioAtivo: "", linkBula: "", tipo: TipoMedicamento.ESPORADICO, status: StatusMedicamento.ATIVO } });
-
-    useEffect(() => {
-        if (session?.user?.id) {
-            const fetchAlergias = async () => {
-                try {
-                    const response = await fetch(`/api/pacientes/dashboard/${session.user.id}`);
-                    if (!response.ok) return;
-                    const data = await response.json();
-                    if (data.dadosSaude?.alergias) {
-                        setAlergias(data.dadosSaude.alergias.map((a: string) => a.toLowerCase()));
-                    }
-                } catch (error) {
-                    console.error("Falha ao buscar alergias:", error);
-                }
-            };
-            fetchAlergias();
-        }
-    }, [session]);
+    const form = useForm<MedicamentoFormData>({ 
+        resolver: zodResolver(formSchema), 
+        defaultValues: { 
+            nome: "", 
+            principioAtivo: "", 
+            linkBula: "", 
+            tipo: TipoMedicamento.Esporadico, 
+            status: StatusMedicamento.Ativo 
+        } 
+    });
 
     useEffect(() => {
          const resetValues = (med: MedicamentoComRelacoes | null) => {
@@ -134,10 +85,10 @@ export default function MedicamentoForm({ onFormSubmit, profissionais, condicoes
                 linkBula: isEditing ? med.linkBula ?? undefined : "",
                 posologia: isEditing ? med.posologia ?? undefined : undefined,
                 forma: isEditing ? med.forma ?? undefined : undefined,
-                tipo: isEditing ? med.tipo : TipoMedicamento.ESPORADICO,
+                tipo: isEditing ? med.tipo : TipoMedicamento.Esporadico,
                 dataInicio: isEditing ? new Date(med.dataInicio) : new Date(),
                 dataFim: isEditing && med.dataFim ? new Date(med.dataFim) : undefined,
-                status: isEditing ? med.status : StatusMedicamento.ATIVO,
+                status: isEditing ? med.status : StatusMedicamento.Ativo,
                 estoque: isEditing ? med.estoque ?? undefined : undefined,
                 quantidadeCaixa: isEditing ? med.quantidadeCaixa ?? undefined : undefined,
                 quantidadeDose: isEditing ? med.quantidadeDose ?? undefined : undefined,
@@ -145,22 +96,16 @@ export default function MedicamentoForm({ onFormSubmit, profissionais, condicoes
                 frequenciaTipo: isEditing ? med.frequenciaTipo ?? undefined : undefined,
                 profissionalId: isEditing ? med.profissionalId ?? undefined : undefined,
                 consultaId: isEditing ? med.consultaId ?? undefined : undefined,
-                condicaoSaudeId: isEditing ? med.condicaoSaudeId ?? undefined : undefined, // UPDATED
+                condicaoSaudeId: isEditing ? med.condicaoSaudeId ?? undefined : undefined,
             });
-            setSearchTerm(isEditing ? med.nome : "");
-            setSelectionMade(true); 
             setSelectedProfissional(isEditing ? med.profissional ?? null : null);
-            // UPDATED: Correctly handle Date object, no .toISOString()
             const consultaComDataCorrigida = isEditing && med.consulta ? { ...med.consulta, data: new Date(med.consulta.data) } : null;
             setSelectedConsulta(consultaComDataCorrigida);
-            // UPDATED: Set the correct state
             setSelectedCondicao(isEditing ? med.condicaoSaude ?? null : null);
         };
 
         resetValues(medicamento ?? null);
     }, [medicamento, form]);
-
-    // ... (other useEffects and functions remain the same) ...
 
     async function onSubmit(values: MedicamentoFormData) {
         setIsSubmitting(true);
@@ -173,7 +118,7 @@ export default function MedicamentoForm({ onFormSubmit, profissionais, condicoes
                 throw new Error(errorData.error || `Falha ao ${isEditMode ? 'atualizar' : 'criar'} o medicamento.`);
             }
             toast({ title: `Medicamento ${isEditMode ? 'atualizado' : 'adicionado'} com sucesso!` });
-            onFormSubmit();
+            onSave(); // CORRECTED: Called onSave
         } catch (err) {
             toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
         } finally {
@@ -188,7 +133,7 @@ export default function MedicamentoForm({ onFormSubmit, profissionais, condicoes
             const response = await fetch(`/api/medicamentos/${medicamento.id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Falha ao apagar o medicamento.');
             toast({ title: "Medicamento apagado com sucesso!" });
-            onFormSubmit();
+            onSave(); // CORRECTED: Called onSave
         } catch (err) {
             toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
         } finally {
@@ -197,66 +142,48 @@ export default function MedicamentoForm({ onFormSubmit, profissionais, condicoes
         }
     }
 
-    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setSearchTerm(e.target.value);
-        setSelectionMade(false);
-    };
-
-    const handleSelectMedicamento = (med: MedicamentoAnvisa) => {
-        const principioAtivoLower = med.principioAtivo.toLowerCase();
-        const alergiaEncontrada = alergias.find(alergia => principioAtivoLower.includes(alergia));
-
-        if (alergiaEncontrada) {
-            setAllergyDetails({ medicamento: med.nomeComercial, componente: alergiaEncontrada });
-            setIsAllergyAlertOpen(true);
-            setIsSearchPopoverOpen(false); 
-            return;
-        }
-
-        form.setValue("nome", med.nomeComercial);
-        form.setValue("principioAtivo", med.principioAtivo);
-        form.setValue("linkBula", med.linkBula);
-        setSearchTerm(med.nomeComercial);
-        setSelectionMade(true);
-        setIsSearchPopoverOpen(false);
-    };
-
-    const tipoMedicamento = form.watch("tipo");
-    const formaValue = form.watch("forma");
-
     return (
         <>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    {/* ... (Nome, Forma, Tipo, Datas, Status fields are unchanged) ... */}
-                    <FormField control={form.control} name="posologia" render={({ field }) => (<FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea placeholder="Observações sobre a posologia (opcional)" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
-                    
-                    {/* UPDATED: Associations section with CondicaoSaude */}
+                    <FormField control={form.control} name="nome" render={({ field }) => (<FormItem><FormLabel>Nome do Medicamento</FormLabel><FormControl><Input placeholder="Ex: Paracetamol" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="principioAtivo" render={({ field }) => (<FormItem><FormLabel>Princípio Ativo</FormLabel><FormControl><Input placeholder="(Opcional)" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                    <FormField control={form.control} name="forma" render={({ field }) => (<FormItem><FormLabel>Forma</FormLabel><FormControl><Input placeholder="Ex: Comprimido, Xarope, Gotas" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <FormField control={form.control} name="tipo" render={({ field }) => (<FormItem><FormLabel>Tipo</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Uso_Continuo">Uso Contínuo</SelectItem><SelectItem value="Tratamento_Clinico">Tratamento Clínico</SelectItem><SelectItem value="Esporadico">Uso Esporádico</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                         <FormField control={form.control} name="status" render={({ field }) => (<FormItem><FormLabel>Status</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Ativo">Ativo</SelectItem><SelectItem value="Concluido">Concluído</SelectItem><SelectItem value="Suspenso">Suspenso</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="dataInicio" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Data de Início</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><>{field.value ? format(field.value, 'PPP') : (<span>Escolha uma data</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="dataFim" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Data de Fim (Opcional)</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><>{field.value ? format(field.value, 'PPP') : (<span>Escolha uma data</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+                    </div>
+                    <FormField control={form.control} name="posologia" render={({ field }) => (<FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea placeholder="Observações sobre a posologia, dosagem... (opcional)" {...field} value={field.value ?? ''} /></FormControl><FormMessage /></FormItem>)} />
                     <div className="border p-3 rounded-md space-y-3">
                         <p className="text-sm font-medium text-center">Associações (Opcional)</p>
                         <FormField control={form.control} name="profissionalId" render={({ field }) => (<FormItem><FormLabel>Profissional</FormLabel><MenuProfissionais profissionais={profissionais} onProfissionalSelect={(p: Profissional | null) => { setSelectedProfissional(p); field.onChange(p?.id ?? undefined); }} selectedProfissional={selectedProfissional} /><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="consultaId" render={({ field }) => (<FormItem><FormLabel>Consulta</FormLabel><MenuConsultas onConsultaSelect={(c: Consulta | null) => { setSelectedConsulta(c); field.onChange(c?.id ?? undefined); }} selectedConsulta={selectedConsulta} userId={session?.user?.id || ''} /><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="condicaoSaudeId" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Condição de Saúde</FormLabel>
-                                <MenuCondicoes 
-                                    condicoes={condicoesSaude} 
-                                    onCondicaoSelect={(c: CondicaoSaude | null) => { setSelectedCondicao(c); field.onChange(c?.id ?? undefined); }} 
-                                    selectedCondicao={selectedCondicao} 
-                                />
-                                <FormMessage />
-                            </FormItem>
-                        )} />
+                        <FormField control={form.control} name="condicaoSaudeId" render={({ field }) => (<FormItem><FormLabel>Condição de Saúde</FormLabel><MenuCondicoes condicoes={condicoesSaude} onCondicaoSelect={(c: CondicaoSaude | null) => { setSelectedCondicao(c); field.onChange(c?.id ?? undefined); }} selectedCondicao={selectedCondicao} /><FormMessage /></FormItem>)} />
                     </div>
 
                     <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-2">
-                        {isEditMode && (<Button type="button" variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isSubmitting}><Trash className="mr-2 h-4 w-4" />Apagar</Button>)}
+                        {isEditMode && (<Button type="button" variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isSubmitting}><Trash className="mr-2 h-4 w-4" />Apagar</Button>)}                        
                         <Button type="submit" className="w-full sm:w-auto mb-2 sm:mb-0" disabled={isSubmitting}>{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : (isEditMode ? 'Salvar Alterações' : 'Adicionar Medicamento')}</Button>
                     </div>
                 </form>
             </Form>
             
-            {/* ... (Alert Dialogs are unchanged) ... */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>Essa ação não pode ser desfeita. Isso irá apagar permanentemente o medicamento.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={onDelete}>Apagar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -16,70 +16,71 @@ import {
   CommandItem,
   CommandList,
 } from "../../_components/ui/command";
-import { Profissional } from "@/app/_components/types";
+// CORREÇÃO: Importa o tipo correto do Prisma Client
+import { Profissional } from "@prisma/client";
+import { useRouter } from "next/navigation";
 
+// CORREÇÃO: Atualiza a interface para usar o tipo correto e aceitar a prop 'disabled'
 interface MenuProfissionaisProps {
-  profissionais: Profissional[]; // Lista completa de profissionais
-  onProfissionalSelect: (profissional: Profissional) => void; // Callback ao selecionar um profissional
-  selectedProfissional: Profissional | null; // Profissional atualmente selecionado
-  unidadeId?: string; // Agora o unidadeId é opcional
+  profissionais: Profissional[];
+  onProfissionalSelect: (profissional: Profissional | null) => void;
+  selectedProfissional: Profissional | null;
+  unidadeId?: string | null;
+  disabled?: boolean; // Adiciona a prop disabled
 }
 
 const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
   profissionais,
   onProfissionalSelect,
   selectedProfissional,
-  unidadeId,
+  disabled = false, // Define um valor padrão
 }) => {
   const [open, setOpen] = useState(false);
-  const [filteredProfissionais, setFilteredProfissionais] = useState<
-    Profissional[]
-  >([]);
+  const router = useRouter();
 
-  // Filtramos os profissionais caso unidadeId seja passado
-  useEffect(() => {
-    if (unidadeId) {
-      setFilteredProfissionais(
-        profissionais.filter((p) => p.unidades && Array.isArray(p.unidades) && p.unidades.some((u) => u.id === unidadeId)),
-      );
-    } else {
-      setFilteredProfissionais(profissionais); // Sem unidadeId, exibe todos os profissionais
-    }
-  }, [unidadeId, profissionais]);
+  const handleSelect = (profissional: Profissional) => {
+    onProfissionalSelect(profissional);
+    setOpen(false);
+  };
+
+  const handleAddNew = () => {
+    // CORREÇÃO: Leva para a página de criação, e não para um ID dinâmico
+    router.push("/profissionais/novo");
+  };
 
   return (
     <div className="w-full">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
+          {/* CORREÇÃO: Aplica a propriedade disabled ao botão */}
           <Button
             variant="outline"
             role="combobox"
             aria-expanded={open}
             className="w-full justify-between"
+            disabled={disabled}
           >
             {selectedProfissional
-              ? selectedProfissional.nome
-              : "Selecione um Especialista..."}
+              ? `${selectedProfissional.nome} - ${selectedProfissional.especialidade}`
+              : "Selecione um Profissional..."}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
 
         <PopoverContent className="w-full p-0">
           <Command>
-            <CommandInput placeholder="Buscar especialista..." />
+            <CommandInput placeholder="Buscar profissional..." />
             <CommandList>
-              <CommandEmpty>Nenhum especialista encontrado</CommandEmpty>
+              <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
               <CommandGroup>
-                {filteredProfissionais.length === 0 ? (
-                  <CommandItem disabled>
-                    Nenhum especialista disponível
-                  </CommandItem>
+                {profissionais.length === 0 ? (
+                  <CommandItem disabled>Nenhum profissional disponível.</CommandItem>
                 ) : (
-                  filteredProfissionais.map((profissional) => (
+                  profissionais.map((profissional) => (
                     <CommandItem
                       key={profissional.id}
                       value={profissional.id}
-                      onSelect={() => onProfissionalSelect(profissional)}
+                      onSelect={() => handleSelect(profissional)}
                     >
                       <Check
                         className={`mr-2 h-4 w-4 ${
@@ -93,16 +94,12 @@ const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
                   ))
                 )}
               </CommandGroup>
-              <CommandItem
-                key="add-new-unit"
-                value="add-new-unit"
-                onSelect={() => {
-                  window.location.href = "/profissionais/[profissionalId]";
-                }}
-              >
-                <Check className="mr-2 h-4 w-4 opacity-0" />
-                Adicionar Novo Especialista
-              </CommandItem>
+              <CommandGroup>
+                <CommandItem onSelect={handleAddNew}>
+                  <span className="mr-2 h-4 w-4">+</span>
+                  Adicionar Novo Profissional
+                </CommandItem>
+              </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>

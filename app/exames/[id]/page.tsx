@@ -2,32 +2,29 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Exame } from "@/app/_components/types";
+import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas } from "@prisma/client";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 
-interface ExameResultadoFrontend {
-  id: string;
-  nome: string;
-  valor: string;
-  unidade: string;
-  referencia?: string;
-}
-
-interface ExameComResultados extends Exame {
-  resultados?: ExameResultadoFrontend[];
-  analiseIA?: string | null;
-}
+type ExameComDetalhes = Exame & {
+  resultados: ResultadoExame[];
+  unidades: UnidadeDeSaude | null;
+  profissional: Profissional | null;
+  consulta: (Consultas & {
+    profissional: Profissional | null;
+    unidade: UnidadeDeSaude | null;
+  }) | null;
+};
 
 export default function ExameDetalhePage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
   const { data: session } = useSession();
-  const [exame, setExame] = useState<ExameComResultados | null>(null);
+  const [exame, setExame] = useState<ExameComDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +43,7 @@ export default function ExameDetalhePage() {
         if (!pollRes.ok) throw new Error('Falha na verificação da análise');
         
         const pollData = await pollRes.json();
-        const updatedExam = pollData?.exame;
+        const updatedExam: ExameComDetalhes = pollData?.exame;
 
         if (updatedExam && updatedExam.analiseIA) {
           console.log("Análise de IA recebida! Interrompendo a verificação.");
@@ -95,7 +92,7 @@ export default function ExameDetalhePage() {
         if (!resExame.ok) throw new Error(`Erro ao buscar detalhes do exame`);
         
         const dataExame = await resExame.json();
-        const examData = dataExame?.exame;
+        const examData: ExameComDetalhes = dataExame?.exame;
         setExame(examData);
 
         if (examData && !examData.analiseIA) {
@@ -138,7 +135,7 @@ export default function ExameDetalhePage() {
     return <p className="p-4 text-muted-foreground">Exame não encontrado.</p>;
   }
 
-  const formatarDataConsulta = (dataString: string | undefined) => {
+  const formatarDataConsulta = (dataString: Date | undefined) => {
     if (!dataString) return "Data não disponível";
     const date = new Date(dataString);
     return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
@@ -152,15 +149,18 @@ export default function ExameDetalhePage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">
+                {/* CORREÇÃO: Troca "dataExame" por "data" para corresponder ao schema do Prisma */}
                 Exame de {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString("pt-BR") : "Data não disponível"}
               </h1>
               <p className="text-sm text-muted-foreground">{exame.unidades?.nome && `Unidade: ${exame.unidades.nome}`}</p>
               <p className="text-sm text-muted-foreground">{exame.profissional?.nome && `Profissional: ${exame.profissional.nome}`}</p>
               {exame.anotacao && <p className="mt-2 text-sm italic text-muted-foreground">Anotação: {exame.anotacao}</p>}
             </div>
-            <Button variant="outline" size="sm" onClick={() => router.push(`/exames/${id}/editar`)}>
-              <Pencil className="mr-1 h-4 w-4" />
-              Editar
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/exames/${id}/editar`}>
+                <Pencil className="mr-1 h-4 w-4" />
+                Editar
+              </Link>
             </Button>
           </div>
 
@@ -189,7 +189,7 @@ export default function ExameDetalhePage() {
             <h2 className="mb-2 text-lg font-semibold">Resultados</h2>
             {exame.resultados && exame.resultados.length > 0 ? (
               <table className="w-full border text-sm">
-                <thead>
+                <thead className="bg-muted">
                   <tr className="bg-muted">
                     <th className="border p-2">Nome</th>
                     <th className="border p-2">Valor</th>
@@ -198,7 +198,7 @@ export default function ExameDetalhePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {exame.resultados.map((item: ExameResultadoFrontend) => {
+                  {exame.resultados.map((item: ResultadoExame) => {
                       const valor = parseFloat(item.valor);
                       const referencia = item.referencia || "";
                       const [minRef, maxRef] = referencia.split("-").map((v: string) => parseFloat(v.trim()));
@@ -236,7 +236,7 @@ export default function ExameDetalhePage() {
               <h2 className="mb-2 text-lg font-semibold">Consulta Relacionada</h2>
               <p><strong>Tipo:</strong> {exame.consulta.tipo}</p>
               <p><strong>Data:</strong> {formatarDataConsulta(exame.consulta.data)}</p>
-              {exame.consulta.queixas && <p><strong>Queixas:</strong> {exame.consulta.queixas}</p>}
+              {exame.consulta.motivo && <p><strong>Queixas:</strong> {exame.consulta.motivo}</p>}
               {exame.consulta.profissional?.nome && <p><strong>Profissional da Consulta:</strong> {exame.consulta.profissional.nome}</p>}
               {exame.consulta.unidade?.nome && <p><strong>Unidade da Consulta:</strong> {exame.consulta.unidade.nome}</p>}
             </div>

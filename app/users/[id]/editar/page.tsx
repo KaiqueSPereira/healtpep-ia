@@ -1,208 +1,137 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { toast } from '@/app/_hooks/use-toast';
+import { useSession } from 'next-auth/react';
 import Header from '@/app/_components/header';
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { Label } from "@/app/_components/ui/label";
-import { Button } from "@/app/_components/ui/button";
-import { Input } from "@/app/_components/ui/input";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/app/_components/ui/select";
+import { Button } from '@/app/_components/ui/button';
+import { Input } from '@/app/_components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/app/_components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { useToast } from "@/app/_hooks/use-toast";
-import { Textarea } from '@/app/_components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/app/_components/ui/popover';
+import { Calendar } from '@/app/_components/ui/calendar';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/app/_lib/utils';
+import { format } from 'date-fns';
 
-interface DadosSaudePayload {
-    CNS?: string | null;
-    tipoSanguineo?: string | null;
-    sexo?: string | null;
-    dataNascimento?: string | null;
-    altura?: string | null;
-    alergias?: string[];
-}
+const formSchema = z.object({
+  name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
+  email: z.string().email('Email inválido.'),
+  dataNascimento: z.date().optional(),
+  genero: z.string().optional(),
+  tipo_sanguineo: z.string().optional(),
+});
 
-interface UserData {
-    id: string;
-    name?: string | null;
-    email: string;
-    dadosSaude?: DadosSaudePayload | null;
-}
+type FormData = z.infer<typeof formSchema>;
 
-export default function UserEditPage() {
-    const params = useParams();
-    const id = params.id as string;
-    const router = useRouter();
-    const { toast } = useToast();
+const UserEditPage = () => {
+  const { id } = useParams();
+  const router = useRouter();
+  const { data: session, update } = useSession();
+  const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const [formData, setFormData] = useState<UserData | null>(null);
-    const [alergiasInput, setAlergiasInput] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { name: '', email: '' },
+  });
 
-    useEffect(() => {
-        if (!id) return;
+  useEffect(() => {
+    if (session?.user?.id !== id) {
+      router.push('/'); // Redirect if not the owner
+      return;
+    }
 
-        const fetchUserData = async () => {
-            setLoading(true);
-            try {
-                // CORREÇÃO: Busca dados da API unificada do dashboard
-                const response = await fetch(`/api/pacientes/dashboard/${id}`);
-                if (!response.ok) throw new Error('Erro ao carregar dados para edição.');
-                
-                const data = await response.json();
-                setFormData(data);
-                // Converte o array de alergias em uma string para o textarea
-                if (data.dadosSaude && Array.isArray(data.dadosSaude.alergias)) {
-                    setAlergiasInput(data.dadosSaude.alergias.join(', '));
-                }
-
-            } catch (err: any) {
-                toast({ variant: "destructive", title: "Erro", description: err.message || "Não foi possível carregar os dados." });
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUserData();
-    }, [id, toast]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { id, value } = e.target;
-        setFormData(prev => {
-            if (!prev) return null;
-            const newData = { ...prev };
-            if (!newData.dadosSaude) newData.dadosSaude = {};
-            (newData.dadosSaude as any)[id] = value === '' ? null : value;
-            return newData;
-        });
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch(`/api/users/${id}`);
+        if (!response.ok) throw new Error('Falha ao carregar dados do usuário');
+        // CORRECTED: Type assertion for user data
+        const user: { name: string; email: string; dataNascimento?: string; genero?: string; tipo_sanguineo?: string; } = await response.json();
+        form.setValue('name', user.name);
+        form.setValue('email', user.email);
+        if (user.dataNascimento) form.setValue('dataNascimento', new Date(user.dataNascimento));
+        if (user.genero) form.setValue('genero', user.genero);
+        if (user.tipo_sanguineo) form.setValue('tipo_sanguineo', user.tipo_sanguineo);
+      } catch (error) {
+        console.error(error);
+        toast({ title: "Erro", description: "Não foi possível carregar os dados.", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const handleSelectChange = (id: keyof DadosSaudePayload, value: string) => {
-        setFormData(prev => {
-            if (!prev) return null;
-            const newData = { ...prev };
-            if (!newData.dadosSaude) newData.dadosSaude = {};
-            (newData.dadosSaude as any)[id] = value === '' ? null : value;
-            return newData;
-        });
-    };
+    fetchUserData();
+  }, [id, session, router, form]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!formData || isSaving) return;
+  const onSubmit = async (data: FormData) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
 
-        setIsSaving(true);
+      if (!response.ok) {
+          // CORRECTED: Type assertion for error data
+          const errorData: { error: string } = await response.json();
+          throw new Error(errorData.error || 'Falha ao atualizar usuário.');
+      }
+      
+      // CORRECTED: Type assertion for success data
+      const updatedUser: { name?: string } = await response.json();
 
-        try {
-            // Converte a string de alergias de volta para um array
-            const alergiasArray = alergiasInput.split(',').map(item => item.trim()).filter(Boolean);
+      // Update the session if the name has changed
+      if (session && session.user.name !== updatedUser.name) {
+        await update({ ...session, user: { ...session.user, name: updatedUser.name } });
+      }
 
-            const payload = {
-                dadosSaude: {
-                    ...formData.dadosSaude,
-                    alergias: alergiasArray,
-                },
-            };
+      toast({ title: "Sucesso!", description: "Seus dados foram atualizados." });
+      router.push(`/users/${id}`);
+    } catch (error) {
+      console.error('Update error', error);
+       // CORRECTED: Type assertion for caught error
+      toast({ title: "Erro", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-            // CORREÇÃO: Usa o método PATCH para a API unificada
-            const response = await fetch(`/api/pacientes/dashboard/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+  }
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Erro ao salvar alterações.');
-            }
+  return (
+    <div className="flex flex-col h-screen">
+      <Header />
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <h1 className="text-2xl font-bold mb-4">Editar Perfil</h1>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-2xl mx-auto space-y-6">
+              <FormField name="name" control={form.control} render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField name="email" control={form.control} render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField name="dataNascimento" control={form.control} render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Data de Nascimento</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><>{field.value ? format(field.value, "PPP") : (<span>Escolha uma data</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} captionLayout="dropdown-buttons" fromYear={1920} toYear={new Date().getFullYear()} /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+              <FormField name="genero" control={form.control} render={({ field }) => (<FormItem><FormLabel>Gênero</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Masculino">Masculino</SelectItem><SelectItem value="Feminino">Feminino</SelectItem><SelectItem value="Outro">Outro</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+              <FormField name="tipo_sanguineo" control={form.control} render={({ field }) => (<FormItem><FormLabel>Tipo Sanguíneo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="A+">A+</SelectItem><SelectItem value="A-">A-</SelectItem><SelectItem value="B+">B+</SelectItem><SelectItem value="B-">B-</SelectItem><SelectItem value="AB+">AB+</SelectItem><SelectItem value="AB-">AB-</SelectItem><SelectItem value="O+">O+</SelectItem><SelectItem value="O-">O-</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+              <Button type="submit" disabled={isSubmitting} className="w-full">{isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Alterações'}</Button>
+          </form>
+        </Form>
+      </main>
+    </div>
+  );
+};
 
-            toast({ title: "Sucesso!", description: "Dados do paciente atualizados." });
-            router.push(`/users/${id}`);
-
-        } catch (err: any) {
-            toast({ variant: "destructive", title: "Erro ao Salvar", description: err.message });
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const formatarDataParaInput = (data: string | null | undefined) => {
-        if (!data) return '';
-        return new Date(data).toISOString().split('T')[0];
-    };
-
-    if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="h-10 w-10 animate-spin" /></div>;
-    if (!formData) return <div className="text-center p-4">Nenhum dado encontrado.</div>;
-
-    return (
-        <>
-            <Header />
-            <div className="container mx-auto p-4 max-w-2xl">
-                <Card>
-                    <CardHeader><CardTitle>Editar Perfil do Paciente</CardTitle></CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleSubmit} className="grid gap-6">
-                            <div className="grid gap-2">
-                                <Label htmlFor="name">Nome</Label>
-                                <Input id="name" value={formData.name || ''} readOnly className="bg-gray-100" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input id="email" type="email" value={formData.email} readOnly className="bg-gray-100"/>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="dataNascimento">Data de Nascimento</Label>
-                                    <Input id="dataNascimento" type="date" value={formatarDataParaInput(formData.dadosSaude?.dataNascimento)} onChange={handleChange} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="altura">Altura (cm)</Label>
-                                    <Input id="altura" type="number" step="1" value={formData.dadosSaude?.altura || ''} onChange={handleChange} placeholder="Ex: 175" />
-                                </div>
-                            </div>
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="sexo">Sexo</Label>
-                                    <Select onValueChange={(value) => handleSelectChange('sexo', value)} value={formData.dadosSaude?.sexo || ''}>
-                                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="Masculino">Masculino</SelectItem>
-                                            <SelectItem value="Feminino">Feminino</SelectItem>
-                                            <SelectItem value="Outro">Outro</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="tipoSanguineo">Tipo Sanguíneo</Label>
-                                    <Select onValueChange={(value) => handleSelectChange('tipoSanguineo', value)} value={formData.dadosSaude?.tipoSanguineo || ''}>
-                                        <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="A+">A+</SelectItem><SelectItem value="A-">A-</SelectItem>
-                                            <SelectItem value="B+">B+</SelectItem><SelectItem value="B-">B-</SelectItem>
-                                            <SelectItem value="AB+">AB+</SelectItem><SelectItem value="AB-">AB-</SelectItem>
-                                            <SelectItem value="O+">O+</SelectItem><SelectItem value="O-">O-</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            </div>
-                             <div className="grid gap-2">
-                                <Label htmlFor="CNS">CNS (Cartão Nacional de Saúde)</Label>
-                                <Input id="CNS" value={formData.dadosSaude?.CNS || ''} onChange={handleChange} placeholder="Digite o número do CNS" />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="alergias">Alergias (separadas por vírgula)</Label>
-                                <Textarea id="alergias" value={alergiasInput} onChange={(e) => setAlergiasInput(e.target.value)} placeholder="Ex: Penicilina, Frutos do mar, Pólen" />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSaving}>Cancelar</Button>
-                                <Button type="submit" disabled={isSaving}>
-                                    {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar Alterações
-                                </Button>
-                            </div>
-                        </form>
-                    </CardContent>
-                </Card>
-            </div>
-        </>
-    );
-}
+export default UserEditPage;

@@ -1,48 +1,29 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react"; // CORREÇÃO: Adicionado useCallback
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/app/_components/ui/dropdown-menu";
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from "@/app/_components/ui/dropdown-menu";
 import { Button } from "@/app/_components/ui/button";
 import { ListFilter } from "lucide-react";
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 
 interface ExameTypeFilterProps {
     allTypes: string[];
+    selectedTypes: string[];
+    onTypeChange: (types: string[]) => void;
 }
 
-export function ExameTypeFilter({ allTypes }: ExameTypeFilterProps) {
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const pathname = usePathname();
-
-    // CORREÇÃO: Função envolvida em useCallback para estabilizá-la
-    const getInitialSelectedTypes = useCallback(() => {
-        const typesFromUrl = searchParams.get('tipos');
-        return typesFromUrl ? new Set(typesFromUrl.split(',')) : new Set();
-    }, [searchParams]);
-
-    const [selectedTypes, setSelectedTypes] = useState(getInitialSelectedTypes);
-
-    // Update URL when selectedTypes change
-    useEffect(() => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (selectedTypes.size > 0) {
-            params.set('tipos', Array.from(selectedTypes).join(','));
-        } else {
-            params.delete('tipos');
-        }
-        // Using router.replace to avoid adding to history
-        router.replace(`${pathname}?${params.toString()}`);
-    }, [selectedTypes, pathname, router, searchParams]);
-    
+export function ExameTypeFilter({ allTypes, selectedTypes, onTypeChange }: ExameTypeFilterProps) {
 
     const handleSelectAll = () => {
-        if (selectedTypes.size === allTypes.length) {
-            // If all are selected, deselect all
-            setSelectedTypes(new Set());
+        if (selectedTypes.length === allTypes.length) {
+            onTypeChange([]); // Desmarca todos
         } else {
-            // Otherwise, select all
-            setSelectedTypes(new Set(allTypes));
+            onTypeChange([...allTypes]); // Marca todos
         }
     };
 
@@ -53,15 +34,8 @@ export function ExameTypeFilter({ allTypes }: ExameTypeFilterProps) {
         } else {
             newSelectedTypes.delete(type);
         }
-        setSelectedTypes(newSelectedTypes);
+        onTypeChange(Array.from(newSelectedTypes));
     };
-    
-    // Handle browser back/forward navigation
-    // CORREÇÃO: `getInitialSelectedTypes` adicionada como dependência
-    useEffect(() => {
-        setSelectedTypes(getInitialSelectedTypes());
-    }, [searchParams, getInitialSelectedTypes]);
-
 
     return (
         <DropdownMenu>
@@ -74,16 +48,17 @@ export function ExameTypeFilter({ allTypes }: ExameTypeFilterProps) {
             <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                 <DropdownMenuCheckboxItem
-                    checked={selectedTypes.size === allTypes.length}
-                    onSelect={() => handleSelectAll()} >
+                <DropdownMenuCheckboxItem
+                    checked={allTypes.length > 0 && selectedTypes.length === allTypes.length}
+                    onCheckedChange={handleSelectAll}
+                >
                     Selecionar Todos
                 </DropdownMenuCheckboxItem>
                 <DropdownMenuSeparator />
                 {allTypes.map((type) => (
                     <DropdownMenuCheckboxItem
                         key={type}
-                        checked={selectedTypes.has(type)}
+                        checked={selectedTypes.includes(type)}
                         onCheckedChange={(checked) => handleTypeChange(type, !!checked)}
                     >
                         {type}

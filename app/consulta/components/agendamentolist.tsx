@@ -2,93 +2,124 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
-import { Agendamento } from "@/app/_components/types";
-import { Button } from "@/app/_components/ui/button"; // Importando Button
+import { Button } from "@/app/_components/ui/button";
+import { Consultas, Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
+
+type ConsultaComRelacoes = Consultas & { 
+    profissional: Profissional | null; 
+    unidade: UnidadeDeSaude | null; 
+};
+type ExameComRelacoes = Exame & { 
+    profissional: Profissional | null; 
+    unidades: UnidadeDeSaude | null; 
+};
+
+export type AgendamentoUnificado = {
+  id: string;
+  data: Date;
+  nomeProfissional: string;
+  especialidade: string;
+  local: string;
+  tipo: 'Consulta' | 'Exame';
+  userId: string;
+};
 
 interface AgendamentosListProps {
   userId: string;
 }
 
 const AgendamentosList = ({ userId }: AgendamentosListProps) => {
-  const [agendamentosFuturos, setAgendamentosFuturos] = useState<Agendamento[]>(
-    [],
-  );
-  const [agendamentosPassados, setAgendamentosPassados] = useState<
-    Agendamento[]
-  >([]);
+  const [agendamentosFuturos, setAgendamentosFuturos] = useState<AgendamentoUnificado[]>([]);
+  const [agendamentosPassados, setAgendamentosPassados] = useState<AgendamentoUnificado[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchAgendamentos = useCallback(async () => { // Adicionado useCallback
+  const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
     try {
-      // ... corpo da sua função fetchAgendamentos existente ...
-      const res = await fetch(`/api/consultas?userId=${userId}`);
-      if (!res.ok) throw new Error("Erro ao buscar agendamentos");
+      const [consultasRes, examesRes] = await Promise.all([
+        fetch(`/api/consultas?userId=${userId}`),
+        fetch(`/api/exames?userId=${userId}`)
+      ]);
 
-      const { consultas } = await res.json();
+      if (!consultasRes.ok || !examesRes.ok) {
+        throw new Error("Erro ao buscar agendamentos");
+      }
+
+      const { consultas }: { consultas: ConsultaComRelacoes[] } = await consultasRes.json();
+      const { exames }: { exames: ExameComRelacoes[] } = await examesRes.json();
+
+      // CORREÇÃO: Mapeamento de Consultas usando os campos corretos do schema
+      const consultasMapeadas: AgendamentoUnificado[] = consultas.map(c => ({
+        id: c.id,
+        data: new Date(c.data),
+        nomeProfissional: c.profissional?.nome || 'Não especificado',
+        especialidade: c.profissional?.especialidade || 'Clínico Geral',
+        local: c.unidade?.nome || 'Local não especificado', // Usa c.unidade.nome
+        tipo: 'Consulta',
+        userId: c.userId,
+      }));
+
+      // CORREÇÃO: Mapeamento de Exames usando os campos corretos do schema
+      const examesMapeados: AgendamentoUnificado[] = exames.map(e => ({
+        id: e.id,
+        data: new Date(e.dataExame), // Usa e.dataExame
+        nomeProfissional: e.profissional?.nome || 'Não especificado',
+        especialidade: e.tipo || 'Exame', // Usa e.tipo com fallback
+        local: e.unidades?.nome || 'Local não especificado', // Usa e.unidades.nome
+        tipo: 'Exame',
+        userId: e.userId,
+      }));
+
+      const todosAgendamentos = [...consultasMapeadas, ...examesMapeados];
+
       const agora = new Date();
+      const futuros = todosAgendamentos.filter(ag => ag.data >= agora);
+      const passados = todosAgendamentos.filter(ag => ag.data < agora);
 
-      const futuros = consultas.filter(
-        (agendamento: Agendamento) => new Date(agendamento.data) >= agora,
-      );
-      const passados = consultas.filter(
-        (agendamento: Agendamento) => new Date(agendamento.data) < agora,
-      );
       const ultimos5Passados = passados
-        .sort(
-          (a: Agendamento, b: Agendamento) =>
-            new Date(b.data).getTime() - new Date(a.data).getTime(),
-        )
+        .sort((a, b) => b.data.getTime() - a.data.getTime())
         .slice(0, 5);
 
       setAgendamentosFuturos(futuros);
       setAgendamentosPassados(ultimos5Passados);
+
     } catch (error) {
-      console.error("Erro ao buscar consultas:", error);
-      toast({title: "Erro ao carregar as consultas.", variant: "destructive", duration: 5000});
+      console.error("Erro ao buscar agendamentos:", error);
+      toast({ title: "Erro ao carregar os agendamentos.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  }, [userId]); // Dependência: userId
-
-
+  }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
-    fetchAgendamentos(); // Busca inicial ao montar o componente ou mudar o userId
-  }, [userId, fetchAgendamentos]); // Dependência do userId
-
-  // Função para ser chamada pelo botão de atualização
-  const handleRefreshClick = () => {
-    fetchAgendamentos();
-  };
-
-
+    if (userId) {
+      fetchAgendamentos();
+    }
+  }, [userId, fetchAgendamentos]);
+  
   return (
     <div>
       {loading ? (
         <p className="text-gray-500">Carregando agendamentos...</p>
       ) : (
         <>
-           {/* Botão discreto para recarregar */}
-           <div className="flex justify-end mb-2"> {/* Posição ajustável */}
-              <Button
-                 variant="ghost" // Para ser discreto
-                 size="sm" // Tamanho pequeno
-                 onClick={handleRefreshClick}
-                 className="text-gray-500 hover:text-gray-700" // Estilo discreto
-              >
-                 Recarregar {/* Substitua por um ícone se preferir */}
-              </Button>
-           </div>
-
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchAgendamentos}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              Recarregar
+            </Button>
+          </div>
           <AgendamentoSection
-            title="Agendamentos"
+            title="Próximos Agendamentos"
             agendamentos={agendamentosFuturos}
           />
           <AgendamentoSection
-            title="Últimas Consultas"
-            agendamentos={agendamentosPassados} // Agora agendamentosPassados contém apenas os 5 mais recentes ordenados
+            title="Últimos Eventos de Saúde"
+            agendamentos={agendamentosPassados}
           />
         </>
       )}
@@ -98,22 +129,19 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
 
 interface AgendamentoSectionProps {
   title: string;
-  agendamentos: Agendamento[];
+  agendamentos: AgendamentoUnificado[];
 }
 
-const AgendamentoSection = ({
-  title,
-  agendamentos,
-}: AgendamentoSectionProps) => (
+const AgendamentoSection = ({ title, agendamentos }: AgendamentoSectionProps) => (
   <div className="mt-5">
     <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
-    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
+    <div className="flex gap-4 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden">
       {agendamentos.length > 0 ? (
         agendamentos.map((agendamento) => (
-          <AgendamentoItem key={agendamento.id} consultas={agendamento} />
+          <AgendamentoItem key={`${agendamento.tipo}-${agendamento.id}`} agendamento={agendamento} />
         ))
       ) : (
-        <p className="text-gray-500">Nenhum {title.toLowerCase()}.</p>
+        <p className="text-sm text-gray-500">Nenhum evento encontrado.</p>
       )}
     </div>
   </div>

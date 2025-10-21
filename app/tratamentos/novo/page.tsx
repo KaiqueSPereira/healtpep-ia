@@ -1,267 +1,136 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useSession, signIn } from 'next-auth/react';
-import { Form, useForm } from 'react-hook-form';
-import { Loader2 } from 'lucide-react';
-import AsyncSelect from 'react-select/async';
-import { useToast } from '@/app/_hooks/use-toast';
-import { Profissional } from '@/app/_components/types';
-import { Button } from '@/app/_components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
+import { useState, useEffect } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { toast } from '@/app/_hooks/use-toast';
+
 import Header from '@/app/_components/header';
-import { FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/app/_components/ui/form';
-import { Textarea } from '@/app/_components/ui/textarea';
-import MenuProfissionais from '@/app/profissionais/_components/menuprofissionais';
+import { Button } from '@/app/_components/ui/button';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/app/_components/ui/form';
 import { Input } from '@/app/_components/ui/input';
+import { Textarea } from '@/app/_components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/app/_components/ui/popover';
+import { Calendar } from '@/app/_components/ui/calendar';
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { cn } from '@/app/_lib/utils';
+import { format } from 'date-fns';
 
-type CondicaoSaudeForm = {
-  nome: string;
-  objetivo: string;
-  dataInicio: string;
-  observacoes: string;
-  cidCodigo: string;
-  cidDescricao: string;
-};
+import { Profissional } from '@/app/_components/types';
+import MenuProfissionais from '@/app/profissionais/_components/menuprofissionais';
 
-declare module 'next-auth' {
-  interface Session {
-    accessToken?: string;
-  }
-}
 
-interface CidOption {
-  value: string; // cidCodigo
-  label: string; // cidDescricao
-  codigo: string;
-  descricao: string;
-}
+const formSchema = z.object({
+  nome: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
+  objetivo: z.string().optional(),
+  dataInicio: z.date({ required_error: "A data de início é obrigatória." }),
+  cidCodigo: z.string().optional(),
+  cidDescricao: z.string().optional(),
+  observacoes: z.string().optional(),
+  profissionalId: z.string().optional(),
+});
 
-export default function NewCondicaoSaudePage() {
-  const { data: session, status } = useSession();
+type FormData = z.infer<typeof formSchema>;
+
+const NovoTratamentoPage = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const { toast } = useToast();
-
-  const userId = searchParams.get('userId');
-
+  const { data: session } = useSession();
+  const [loading, setLoading] = useState(false);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  const form = useForm<CondicaoSaudeForm>({
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       nome: '',
       objetivo: '',
-      dataInicio: '',
-      observacoes: '',
+      dataInicio: new Date(),
       cidCodigo: '',
       cidDescricao: '',
+      observacoes: '',
+      profissionalId: undefined,
     },
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      signIn();
-    }
-  }, [status]);
-
-  useEffect(() => {
-    async function fetchProfissionais() {
-      if (status !== 'authenticated') return;
+    const fetchProfissionais = async () => {
+      if (!session?.user?.id) return;
       try {
-        const response = await fetch('/api/profissionais');
-        if (!response.ok) throw new Error('Erro ao buscar profissionais.');
-        const data = await response.json();
-        setProfissionais(data || []);
-      } catch (error: any) {
-        toast({ title: 'Erro ao buscar profissionais', description: error.message, variant: 'destructive' });
-      } finally {
-        setLoading(false);
+        const response = await fetch(`/api/profissionais?userId=${session.user.id}`);
+        if (!response.ok) throw new Error('Falha ao carregar profissionais');
+        // CORRECTED: Type assertion for the fetched data
+        const data: Profissional[] = await response.json();
+        setProfissionais(data);
+      } catch (error) {
+        console.error(error);
+        toast({ title: "Erro ao carregar profissionais", variant: "destructive" });
       }
-    }
+    };
     fetchProfissionais();
-  }, [status, toast]);
+  }, [session]);
 
-  const loadCidOptions = async (inputValue: string): Promise<CidOption[]> => {
-    if (!inputValue || inputValue.length < 2) return [];
-    try {
-      const response = await fetch(`/api/cid/search?query=${inputValue}`);
-      const data = await response.json();
-      return data.map((cid: any) => ({
-        value: cid.codigo,
-        label: `${cid.codigo} - ${cid.descricao}`,
-        codigo: cid.codigo,
-        descricao: cid.descricao,
-      }));
-    } catch (error) {
-      console.error('Erro ao buscar CID', error);
-      return [];
-    }
-  };
-
-  const handleSubmit = async (data: CondicaoSaudeForm) => {
-    if (!session?.user || !userId) {
-      toast({ title: 'Erro', description: 'Autenticação ou ID do paciente em falta.', variant: 'destructive' });
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+    if (!session) {
+      toast({ title: "Você precisa estar logado.", variant: "destructive" });
       return;
     }
-
+    setLoading(true);
     try {
-        const condicaoData = {
-            ...data,
-            profissionalId: selectedProfissional?.id || null,
-        };
-
-      const response = await fetch(`/api/pacientes/dashboard/${userId}`, {
+      const response = await fetch('/api/tratamento', { // Ensure this API route exists and is correct
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.accessToken}`,
-        },
-        body: JSON.stringify(condicaoData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, userId: session.user.id }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erro ao criar condição de saúde.');
+        // CORRECTED: Type assertion for the error response
+        const errorData: { error: string } = await response.json();
+        throw new Error(errorData.error || 'Falha ao criar tratamento.');
       }
 
-      toast({ title: 'Sucesso', description: 'Condição de saúde salva com sucesso.' });
-      router.push(`/users/${userId}`);
-
-    } catch (error: any) {
-      toast({ title: 'Erro ao Salvar', description: error.message, variant: 'destructive' });
+      toast({ title: "Tratamento criado com sucesso!" });
+      router.push('/tratamentos'); // Ensure this route exists
+    } catch (error) {
+      console.error('Erro ao submeter formulário', error);
+      // CORRECTED: Type assertion for the caught error
+      toast({ title: "Erro", description: (error as Error).message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (status === 'loading' || loading) {
-    return <div className="flex justify-center items-center h-screen"><Loader2 className="h-10 w-10 animate-spin" /></div>;
-  }
-
-  if (!userId) {
-    return (
-        <div className="flex flex-col items-center justify-center h-screen">
-            <p className="text-red-600">ID do paciente não encontrado.</p>
-            <Button onClick={() => router.back()} className="mt-4">Voltar</Button>
-        </div>
-    );
-  }
-
   return (
-    <>
+    <div className="flex flex-col h-screen">
       <Header />
-      <div className="container mx-auto p-4 max-w-2xl">
-        <Card>
-          <CardHeader><CardTitle>Adicionar Nova Condição de Saúde</CardTitle></CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-6">
-                <FormField
-                  control={form.control}
-                  name="nome"
-                  rules={{ required: 'O nome é obrigatório.' }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome da Condição <span className="text-red-500">*</span></FormLabel>
-                      <FormControl><Input {...field} placeholder="Ex: Diabetes Tipo 2" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                 <FormItem>
-                  <FormLabel>Pesquisar CID</FormLabel>
-                  <AsyncSelect
-                    cacheOptions
-                    defaultOptions
-                    loadOptions={loadCidOptions}
-                    onChange={(option) => {
-                      const cidOption = option as CidOption;
-                      form.setValue('cidCodigo', cidOption.codigo);
-                      form.setValue('cidDescricao', cidOption.descricao);
-                    }}
-                    placeholder="Digite para buscar o CID..."
-                  />
-                </FormItem>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                        control={form.control}
-                        name="cidCodigo"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Código CID</FormLabel>
-                            <FormControl><Input {...field} readOnly className="bg-gray-100" /></FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                        />
-                    <FormField
-                        control={form.control}
-                        name="cidDescricao"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Descrição CID</FormLabel>
-                            <FormControl><Input {...field} readOnly className="bg-gray-100" /></FormControl>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="dataInicio"
-                  rules={{ required: 'A data de início é obrigatória.' }}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Início/Diagnóstico <span className="text-red-500">*</span></FormLabel>
-                      <FormControl><Input {...field} type="date" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="objetivo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Objetivo</FormLabel>
-                      <FormControl><Input {...field} placeholder="Ex: Controle glicêmico" /></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormItem>
-                  <FormLabel>Profissional Responsável (Opcional)</FormLabel>
-                  <FormControl>
-                    <MenuProfissionais
-                        profissionais={profissionais}
-                        selectedProfissional={selectedProfissional}
-                        onProfissionalSelect={setSelectedProfissional}
-                      />
-                  </FormControl>
-                </FormItem>
-                <FormField
-                  control={form.control}
-                  name="observacoes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Observações</FormLabel>
-                      <FormControl><Textarea {...field} placeholder="Notas relevantes sobre a condição..."/></FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex justify-end gap-2 pt-4">
-                    <Button type="button" variant="outline" onClick={() => router.back()} disabled={form.formState.isSubmitting}>Cancelar</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                      {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Salvar
-                    </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <h1 className="text-2xl font-bold mb-4">Adicionar Novo Tratamento</h1>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl mx-auto">
+            <FormField name="nome" control={form.control} render={({ field }) => (<FormItem><FormLabel>Nome do Tratamento</FormLabel><FormControl><Input placeholder="Ex: Fisioterapia para joelho" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField name="objetivo" control={form.control} render={({ field }) => (<FormItem><FormLabel>Objetivo</FormLabel><FormControl><Input placeholder="Ex: Recuperar mobilidade" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField name="dataInicio" control={form.control} render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Data de Início</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"} className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}><>{field.value ? format(field.value, "PPP") : (<span>Escolha uma data</span>)}<CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></></Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
+            <FormField name="profissionalId" control={form.control} render={({ field }) => (<FormItem><FormLabel>Profissional Responsável (Opcional)</FormLabel><MenuProfissionais profissionais={profissionais} onProfissionalSelect={(p) => { field.onChange(p?.id); setSelectedProfissional(p); }} selectedProfissional={selectedProfissional} /><FormMessage /></FormItem>)} />
+            <FormField name="cidCodigo" control={form.control} render={({ field }) => (<FormItem><FormLabel>Código CID (Opcional)</FormLabel><FormControl><Input placeholder="Ex: M23" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField name="cidDescricao" control={form.control} render={({ field }) => (<FormItem><FormLabel>Descrição do CID (Opcional)</FormLabel><FormControl><Input placeholder="Ex: Transtornos internos do joelho" {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <FormField name="observacoes" control={form.control} render={({ field }) => (<FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea placeholder="Detalhes adicionais sobre o tratamento..." {...field} /></FormControl><FormMessage /></FormItem>)} />
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Salvar Tratamento'}
+            </Button>
+          </form>
+        </Form>
+      </main>
+    </div>
   );
-}
+};
+
+export default NovoTratamentoPage;

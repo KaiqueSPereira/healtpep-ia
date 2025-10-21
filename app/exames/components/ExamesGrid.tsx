@@ -5,29 +5,12 @@ import { Card, CardContent } from "@/app/_components/ui/card";
 import { Button } from "@/app/_components/ui/button";
 import { Trash2, Pencil, FileText } from "lucide-react";
 import clsx from "clsx";
+// CORREÇÃO: Importa o tipo correto da página pai.
+import { ExameCompleto } from "../page";
 
-type Resultado = {
-  nome: string;
-  valor: string;
-  unidade?: string;
-  referencia?: string;
-};
-
-type Exame = {
-  id: string;
-  nome: string; 
-  dataExame: string;
-  nomeArquivo?: string;
-  profissional?: { nome: string };
-  unidades?: { nome: string };
-  tratamento?: { nome: string }; 
-  tipo?: string; 
-  anotacao?: string;
-  resultados?: Resultado[];
-};
-
+// CORREÇÃO: As props agora usam o tipo ExameCompleto importado.
 type Props = {
-  exames: Exame[];
+  exames: ExameCompleto[];
   onDeleteClick: (examId: string) => void;
 };
 
@@ -35,7 +18,7 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
   const router = useRouter();
 
   if (exames.length === 0) {
-    return <p className="text-muted-foreground">Nenhum exame encontrado.</p>;
+    return <p className="text-muted-foreground">Nenhum exame encontrado para os filtros selecionados.</p>;
   }
 
   const handleEdit = (id: string) => {
@@ -46,17 +29,21 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
     window.open(`/api/exames/arquivo?id=${examId}`, "_blank");
   };
 
-  const formatExameDate = (dateString: string) => {
-    const dataObj = dateString ? new Date(dateString) : null;
-    const mes = dataObj ? new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj) : "Mês não especificado";
-    const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
-    const horaFormatada = dataObj ? dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Hora não especificada";
+  // CORREÇÃO: A função agora recebe um objeto Date diretamente.
+  const formatExameDate = (dataObj: Date | null) => {
+    if (!dataObj) {
+        return { mes: "Mês inválido", dia: "-", horaFormatada: "--:--" };
+    }
+    const mes = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj);
+    const dia = dataObj.getDate().toString();
+    const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     return { mes, dia, horaFormatada };
   };
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exames.map((exame) => {
+        
         const { mes, dia, horaFormatada } = formatExameDate(exame.dataExame);
         const profissionalNome = exame.profissional?.nome || "Profissional não especificado";
         const unidadeNome = exame.unidades?.nome || "Unidade não especificada";

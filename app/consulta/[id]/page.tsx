@@ -18,7 +18,7 @@ import { toast } from "@/app/_hooks/use-toast";
 import { useParams, useRouter } from "next/navigation";
 
 import { Exame, Profissional, Unidade } from "@/app/_components/types"; 
-import { AnexoConsulta, Tratamento } from "@prisma/client";
+import { AnexoConsulta, CondicaoSaude } from "@prisma/client";
 import AnexoUploader from "../components/AnexoUploader";
 import AnexosList from "../components/AnexosList";
 
@@ -38,7 +38,7 @@ interface ConsultaData {
     profissional: Profissional | null;
     Anotacoes: Anotacao[];
     Exame: Exame[];
-    tratamento: Tratamento | null;
+    tratamento: CondicaoSaude | null;
     anexos: AnexoConsulta[];
 }
 

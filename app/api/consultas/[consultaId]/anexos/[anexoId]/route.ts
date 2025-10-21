@@ -1,18 +1,67 @@
-
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
-import { unlink } from 'fs/promises';
-import path from 'path';
+import { safeDecrypt } from '@/app/_lib/crypto';
 
+// GET: Handles downloading a specific attachment.
+export async function GET(
+  req: Request,
+  { params }: { params: { consultaId: string, anexoId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return new NextResponse('Não autorizado', { status: 401 });
+    }
+
+    const { consultaId, anexoId } = params;
+
+    const anexo = await db.anexoConsulta.findFirst({
+      where: {
+        id: anexoId,
+        consultaId: consultaId,
+        consulta: {
+          userId: session.user.id,
+        },
+      },
+    });
+
+    if (!anexo || !anexo.arquivo) {
+      return new NextResponse('Anexo não encontrado ou acesso negado', { status: 404 });
+    }
+
+    // CORREÇÃO: Converte o Uint8Array da BD para um Buffer do Node.js antes de chamar toString().
+    const encryptedString = Buffer.from(anexo.arquivo).toString('utf-8');
+    const decryptedBase64 = safeDecrypt(encryptedString);
+
+    if (!decryptedBase64) {
+        return new NextResponse('Falha ao obter o conteúdo do arquivo', { status: 500 });
+    }
+    
+    const fileBuffer = Buffer.from(decryptedBase64, 'base64');
+
+    const headers = new Headers();
+    headers.set('Content-Type', anexo.mimetype || 'application/octet-stream');
+    headers.set('Content-Disposition', `attachment; filename="${anexo.nomeArquivo}"`);
+
+    return new NextResponse(fileBuffer, { status: 200, headers });
+
+  } catch (error) {
+    console.error('[ANEXO_GET]', error);
+    return new NextResponse('Erro Interno do Servidor', { status: 500 });
+  }
+}
+
+
+// DELETE: Handles deleting a specific attachment.
 export async function DELETE(
   req: Request,
   { params }: { params: { consultaId: string, anexoId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return new NextResponse('Não autorizado', { status: 401 });
     }
 
@@ -21,39 +70,21 @@ export async function DELETE(
       return new NextResponse('IDs de Consulta ou Anexo não encontrados', { status: 400 });
     }
 
-    // 1. Encontrar o anexo na base de dados para obter o caminho do arquivo
-    const anexo = await db.anexoConsulta.findUnique({
+    const deleteResult = await db.anexoConsulta.deleteMany({
         where: {
             id: anexoId,
-            consultaId: consultaId, // Garante que o anexo pertence à consulta correta
+            consultaId: consultaId,
+            consulta: {
+                userId: session.user.id,
+            }
         }
     });
 
-    if (!anexo) {
-        return new NextResponse('Anexo não encontrado', { status: 404 });
+    if (deleteResult.count === 0) {
+        return new NextResponse("Anexo não encontrado ou acesso negado", { status: 404 });
     }
 
-    // 2. Apagar o arquivo físico do sistema de ficheiros
-    const filePath = path.join(process.cwd(), 'public', anexo.urlArquivo);
-
-    try {
-        await unlink(filePath);
-    } catch (error) { 
-        // Se o arquivo não existir, podemos continuar para apagar o registo da BD,
-        if ((error as { code: string })?.code !== 'ENOENT') {
-            console.error("Erro ao apagar o arquivo físico:", error);
-            // Dependendo da política, pode-se optar por parar aqui ou continuar
-        }
-    }
-
-    // 3. Apagar o registo do anexo da base de dados
-    await db.anexoConsulta.delete({
-        where: {
-            id: anexoId,
-        }
-    });
-
-    return new NextResponse(null, { status: 204 }); // 204 No Content - sucesso, sem corpo de resposta
+    return new NextResponse(null, { status: 204 });
 
   } catch (error) {
     console.error('[ANEXOS_DELETE]', error);
