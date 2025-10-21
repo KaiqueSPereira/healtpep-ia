@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/c
 import AgendamentoItem from '@/app/consulta/components/agendamentosItem';
 import Link from 'next/link';
 import CondicaoSaudeSelectorMultiple from '@/app/condicoes/_Components/TratamentoSelectorMultiple';
-import type { Prisma } from '@prisma/client';
+// CORREÇÃO: Importa CondicaoSaude diretamente para evitar o erro de lint.
+import type { Prisma, CondicaoSaude } from '@prisma/client';
 
+// Define os tipos complexos com base nos tipos do Prisma, garantindo consistência.
 type ProfissionalCompleto = Prisma.ProfissionalGetPayload<{
   include: {
     consultas: { include: { unidade: true } };
@@ -28,7 +30,8 @@ const ProfissionalDetalhesPage = () => {
   const [profissional, setProfissional] = useState<ProfissionalCompleto | null>(null);
   const [consultas, setConsultas] = useState<ConsultaComUnidade[]>([]);
   const [exames, setExames] = useState<ExameComDetalhes[]>([]);
-  const [condicoesSaude, setCondicoesSaude] = useState<Prisma.CondicaoSaudeGetPayload<{}>[]>([]);
+  // CORREÇÃO: Usa o tipo CondicaoSaude importado diretamente, resolvendo o erro do linter.
+  const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -57,7 +60,7 @@ const ProfissionalDetalhesPage = () => {
   }, [profissionalId]);
 
   const handleExameClick = (exameId: string) => { router.push(`/exames/${exameId}`); };
-  
+
   if (loading) return (<div className="flex min-h-screen items-center justify-center py-10"> <Loader2 className="h-8 w-8 animate-spin" /> </div>);
   if (error) return <div className="text-red-500 text-center py-10">{error}</div>;
   if (!profissional) return <div className="text-center py-10">Profissional não encontrado.</div>;
@@ -67,8 +70,8 @@ const ProfissionalDetalhesPage = () => {
       <Header />
       <div className="p-4 flex justify-between items-center">
          <Button variant="outline" onClick={() => router.back()} > <ChevronRight className="mr-2 h-4 w-4 transform rotate-180" /> Voltar </Button>
-        <Button variant="outline" size="icon" asChild> 
-            <Link href={`/profissionais/${profissional.id}/editar`}> <Edit className="h-4 w-4" /> </Link> 
+        <Button variant="outline" size="icon" asChild>
+            <Link href={`/profissionais/${profissional.id}/editar`}> <Edit className="h-4 w-4" /> </Link>
         </Button>
       </div>
 
@@ -99,7 +102,6 @@ const ProfissionalDetalhesPage = () => {
                       key={consulta.id}
                       agendamento={{
                         id: consulta.id,
-                        // CORREÇÃO: Adiciona a propriedade userId que era obrigatória.
                         userId: consulta.userId,
                         tipo: 'Consulta',
                         data: consulta.data,
@@ -121,8 +123,8 @@ const ProfissionalDetalhesPage = () => {
                       <div>
                         <p className="font-medium">{exame.tipo}</p>
                         <p className="text-sm text-gray-500">
-                          {/* CORREÇÃO: Substitui o 'dataExame' antigo pelo 'data' correto. */}
-                          {new Date(exame.dataExame).toLocaleDateString()} -{' '}                          {exame.tipo}
+                          {new Date(exame.dataExame).toLocaleDateString()} -{' '}
+                          {exame.tipo}
                         </p>
                         {exame.usuario?.name && (<p className="text-sm text-gray-500"> Usuário: {exame.usuario.name} </p>)}
                         {exame.unidades?.nome && (<p className="text-sm text-gray-500"> Unidade: {exame.unidades.nome} </p>)}

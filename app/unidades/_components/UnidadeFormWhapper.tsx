@@ -179,7 +179,7 @@ export function UnidadeFormWrapper() {
                   <FormItem>
                     <label>Nome da Unidade:</label>
                     <FormControl>
-                      <Input {...field} required />
+                      <Input {...field} value={field.value ?? ''} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -192,7 +192,7 @@ export function UnidadeFormWrapper() {
                   <FormItem>
                     <label>Tipo da Unidade:</label>
                     <FormControl>
-                      <Input {...field} required />
+                      <Input {...field} value={field.value ?? ''} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -205,7 +205,8 @@ export function UnidadeFormWrapper() {
                   <FormItem>
                     <label>Telefone da Unidade:</label>
                     <FormControl>
-                      <Input {...field} required />
+                      {/* CORREÇÃO: Garante que o valor nunca é nulo. */}
+                      <Input {...field} value={field.value ?? ''} required />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -179,7 +179,7 @@ const UnidadeDetalhesPage = () => {
             <label>Tipo:</label>
             <input
               type="text"
-              value={unidade.tipo}
+              value={unidade.tipo || ""}
               onChange={(e) => setUnidade({ ...unidade, tipo: e.target.value })}
               className="w-full rounded border p-2"
             />
