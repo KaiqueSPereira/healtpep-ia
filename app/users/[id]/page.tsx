@@ -1,58 +1,60 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight } from 'lucide-react';
+import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle } from 'lucide-react';
 import PesoHistoryChart from '../_components/PesoHistoryChart';
-import { format } from 'date-fns';
+import IMCChart from '../_components/IMCChart';
 
 interface UserData {
     id: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
-    dataNascimento?: string | null;
-    genero?: string | null;
-    tipo_sanguineo?: string | null;
-    historicoPeso: { id: string; peso: number; data: string }[];
+    dadosSaude?: { dataNascimento?: string | null; sexo?: string | null; tipoSanguineo?: string | null; altura?: string | null; } | null;
+    historicoPeso: { id: string; peso: string; data: string }[];
+    condicoesSaude: { id: string; nome: string; dataInicio: string }[];
 }
 
 const UserProfilePage = () => {
   const { id } = useParams();
+  const router = useRouter();
   const { data: session } = useSession();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchUser = async () => {
     if (typeof id !== 'string') return;
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/pacientes/dashboard/${id}`);
+      if (!response.ok) throw new Error('Usuário não encontrado');
+      const data: UserData = await response.json();
+      setUser(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fetchUser = async () => {
-      try {
-        const response = await fetch(`/api/users/${id}`);
-        if (!response.ok) {
-          throw new Error('Usuário não encontrado');
-        }
-        const data: UserData = await response.json();
-        setUser(data);
-      } catch (error) {
-        console.error(error);
-        // Handle error (e.g., redirect to a not-found page)
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     fetchUser();
   }, [id]);
 
+  const handleDataChange = () => {
+    fetchUser();
+  };
+
+  const userHeightForIMC = user?.dadosSaude?.altura ? parseFloat(user.dadosSaude.altura) : null;
   const canEdit = session?.user?.id === id;
 
-  if (loading) {
+  if (loading && !user) {
     return <div className="flex h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
   }
 
@@ -63,40 +65,63 @@ const UserProfilePage = () => {
   return (
     <div className="flex flex-col h-screen">
       <Header />
-      <main className="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-6">
+      <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold">Perfil do Usuário</h1>
             {canEdit && (
-              <Button asChild variant="outline">
-                <Link href={`/users/${id}/editar`}>
-                  <Edit className="mr-2 h-4 w-4" /> Editar Perfil
-                </Link>
-              </Button>
+              <Button asChild variant="outline"><Link href={`/users/${id}/editar`}><Edit className="mr-2 h-4 w-4" /> Editar Perfil</Link></Button>
             )}
           </div>
 
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Informações Pessoais</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoItem icon={UserIcon} label="Nome" value={user.name} />
-                <InfoItem icon={Calendar} label="Data de Nascimento" value={user.dataNascimento ? format(new Date(user.dataNascimento), 'dd/MM/yyyy') : null} />
-                <InfoItem icon={UserIcon} label="Gênero" value={user.genero} />
-                <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.tipo_sanguineo} />
+              <InfoItem icon={UserIcon} label="Nome" value={user.name} />
+              {/* ATUALIZAÇÃO: Corrige o problema de fuso horário na data de nascimento */}
+              <InfoItem icon={Calendar} label="Data de Nascimento" value={user.dadosSaude?.dataNascimento ? new Date(user.dadosSaude.dataNascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : null} />
+              <InfoItem icon={UserIcon} label="Gênero" value={user.dadosSaude?.sexo} />
+              <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.dadosSaude?.tipoSanguineo} />
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center"><HeartPulse className="mr-2" /> Condições de Saúde</CardTitle>
+                {canEdit && (
+                  <Button asChild variant="outline" size="sm"><Link href={`/users/${id}/condicoes/nova`}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Link></Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {user.condicoesSaude?.length > 0 ? (
+                <ul className="list-disc pl-5 space-y-2">{user.condicoesSaude.map(cond => <li key={cond.id}>{cond.nome}</li>)}</ul>
+              ) : <p className="text-muted-foreground">Nenhuma condição de saúde registrada.</p>}
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Weight className="mr-2" /> Histórico de Peso
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* CORRECTED: Type assertion for peso history data */}
-              <PesoHistoryChart data={user.historicoPeso as { data: string | Date; peso: number }[]} />
+            <CardHeader><CardTitle className="flex items-center"><Weight className="mr-2" /> Análise de Peso</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <div className="col-span-1">
+                <IMCChart 
+                  userId={user.id}
+                  userHeight={userHeightForIMC}
+                  historicoPeso={user.historicoPeso}
+                  loadingHistorico={loading}
+                  errorHistorico={null}
+                />
+              </div>
+              <div className="col-span-1">
+                 <PesoHistoryChart 
+                    userId={user.id}
+                    historicoPeso={user.historicoPeso}
+                    loading={loading}
+                    error={null}
+                    onDataChange={handleDataChange}
+                 />
+              </div>
             </CardContent>
           </Card>
 
@@ -108,9 +133,9 @@ const UserProfilePage = () => {
 
 const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) => (
     <div className="flex items-center space-x-3">
-        <Icon className="h-5 w-5 text-gray-400" />
+        <Icon className="h-5 w-5 text-muted-foreground" />
         <div>
-            <p className="text-sm font-medium text-gray-500">{label}</p>
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
             <p className="font-semibold">{value || 'Não informado'}</p>
         </div>
     </div>

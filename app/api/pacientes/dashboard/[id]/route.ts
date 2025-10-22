@@ -23,7 +23,7 @@ export async function GET(
       include: {
         dadosSaude: true,
         historicoPeso: { orderBy: { data: 'asc' } },
-        condicoesSaude: { // UPDATED from tratamentos
+        condicoesSaude: { 
           include: { profissional: true },
           orderBy: { createdAt: 'desc' },
         },
@@ -37,7 +37,21 @@ export async function GET(
       });
     }
 
-    // Descriptografa os dados do histórico de peso antes de retornar
+    // Descriptografa os dados de saúde, se existirem
+    if (userDashboardData.dadosSaude) {
+        const decryptedDadosSaude = {
+            ...userDashboardData.dadosSaude,
+            CNS: userDashboardData.dadosSaude.CNS ? safeDecrypt(userDashboardData.dadosSaude.CNS) : '',
+            dataNascimento: userDashboardData.dadosSaude.dataNascimento ? safeDecrypt(userDashboardData.dadosSaude.dataNascimento) : '',
+            sexo: userDashboardData.dadosSaude.sexo ? safeDecrypt(userDashboardData.dadosSaude.sexo) : '',
+            tipoSanguineo: userDashboardData.dadosSaude.tipoSanguineo ? safeDecrypt(userDashboardData.dadosSaude.tipoSanguineo) : '',
+            altura: userDashboardData.dadosSaude.altura ? safeDecrypt(userDashboardData.dadosSaude.altura) : '',
+            // Mantém outros campos que não são criptografados
+        };
+        userDashboardData.dadosSaude = decryptedDadosSaude;
+    }
+
+    // Descriptografa os dados do histórico de peso, se existirem
     if (userDashboardData.historicoPeso) {
       userDashboardData.historicoPeso = userDashboardData.historicoPeso.map(registro => ({
         ...registro,
@@ -70,11 +84,11 @@ export async function PATCH(
   try {
     const { dadosSaude } = await request.json();
     const basePayload = {
-        CNS: dadosSaude.CNS || null,
-        tipoSanguineo: dadosSaude.tipoSanguineo || null,
-        sexo: dadosSaude.sexo || null,
-        dataNascimento: dadosSaude.dataNascimento || null,
-        altura: dadosSaude.altura || null,
+        CNS: dadosSaude.CNS ? encryptString(dadosSaude.CNS) : null,
+        tipoSanguineo: dadosSaude.tipoSanguineo ? encryptString(dadosSaude.tipoSanguineo) : null,
+        sexo: dadosSaude.sexo ? encryptString(dadosSaude.sexo) : null,
+        dataNascimento: dadosSaude.dataNascimento ? encryptString(dadosSaude.dataNascimento) : null,
+        altura: dadosSaude.altura ? encryptString(dadosSaude.altura) : null,
     };
     const alergiasArray = Array.isArray(dadosSaude.alergias) ? dadosSaude.alergias : [];
     const createPayload = { ...basePayload, alergias: alergiasArray };
@@ -114,7 +128,6 @@ export async function POST(
   try {
     const body = await request.json();
 
-    // Se o corpo da requisição tiver 'peso' e 'data', cria um registro de peso.
     if (body.peso && body.data) {
       const { peso, data: dataPeso } = body;
       
@@ -132,7 +145,6 @@ export async function POST(
       return NextResponse.json(novoPeso, { status: 201 });
     }
 
-    // Se o corpo tiver 'nome' e 'dataInicio', cria uma condição de saúde.
     if (body.nome && body.dataInicio) {
         const { nome, objetivo, dataInicio, profissionalId, observacoes, cidCodigo, cidDescricao } = body;
         
@@ -152,7 +164,6 @@ export async function POST(
         return NextResponse.json(novaCondicao, { status: 201 });
     }
 
-    // Se o corpo não corresponder a nenhum dos casos acima.
     return new NextResponse(JSON.stringify({ error: 'Corpo da requisição inválido. Forneça os dados para peso ou para condição de saúde.' }), { status: 400 });
 
   } catch (error) {
