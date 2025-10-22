@@ -23,7 +23,6 @@ if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
 const key = process.env.ENCRYPTION_KEY as string;
 
 function encrypt(text: string): string {
-  if (!text) return text;
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(key), iv);
   let encrypted = cipher.update(text, 'utf8', 'hex');
@@ -32,7 +31,6 @@ function encrypt(text: string): string {
 }
 
 function decrypt(text: string): string {
-  if (!text || !text.includes(':')) return text; // Retorna o texto se for nulo, vazio ou não parece encriptado
   try {
     const textParts = text.split(':');
     const iv = Buffer.from(textParts.shift()!, 'hex');
@@ -48,19 +46,14 @@ function decrypt(text: string): string {
 }
 // --- Fim das Funções de Criptografia ---
 
-// Zod schema para validação
-const exameSchema = z.object({
-  nome: z.string().min(1, 'O nome do exame é obrigatório.'),
-  dataExame: z.string().transform((str) => new Date(str)),
-  horaExame: z.string().optional(),
-  tipo: z.string().optional(),
-  userId: z.string(),
-  profissionalId: z.string().optional(),
-  unidadesId: z.string().optional(),
-  condicaoSaudeId: z.string().optional(),
+// Zod schema para validação da criação
+const condicaoCreateSchema = z.object({
+  nome: z.string().min(1, 'O nome é obrigatório.'),
+  userId: z.string().min(1, 'O ID do usuário é obrigatório.'),
+  dataInicio: z.string().optional(), // Adicionado para validação
 });
 
-// GET handler para buscar e DECRIPTAR exames
+// GET handler para buscar e DECRIPTAR condições
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -70,67 +63,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
     }
 
-    const exames = await prisma.exame.findMany({
+    const condicoes = await prisma.condicaoSaude.findMany({
       where: { userId: userId },
-      include: { unidades: true, profissional: true },
-      orderBy: { dataExame: 'desc' },
+      orderBy: { nome: 'asc' },
     });
 
     // Decripta os dados antes de os enviar para o cliente
-    const decryptedExames = exames.map(exame => ({
-      ...exame,
-      nome: decrypt(exame.nome),
-      tipo: exame.tipo ? decrypt(exame.tipo) : exame.tipo,
+    const decryptedCondicoes = condicoes.map(cond => ({
+      ...cond,
+      nome: decrypt(cond.nome),
     }));
 
-    return NextResponse.json(decryptedExames, { status: 200 });
+    return NextResponse.json(decryptedCondicoes, { status: 200 });
   } catch (error) {
-    console.error("Erro ao buscar exames:", error);
-    return NextResponse.json({ error: 'Falha ao buscar exames' }, { status: 500 });
+    console.error("Erro ao buscar condições de saúde:", error);
+    return NextResponse.json({ error: 'Falha ao buscar condições de saúde' }, { status: 500 });
   }
 }
 
-// POST handler para criar e ENCRIPTAR um novo exame
+// POST handler para criar e ENCRIPTAR condições
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const parsedBody = exameSchema.safeParse(body);
+    const validation = condicaoCreateSchema.safeParse(body);
 
-    if (!parsedBody.success) {
-      return NextResponse.json({ errors: parsedBody.error.flatten().fieldErrors }, { status: 400 });
+    if (!validation.success) {
+      return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { dataExame, horaExame, nome, tipo, ...restOfData } = parsedBody.data;
+    const { nome, userId } = validation.data;
 
-    if (horaExame) {
-      const [hours, minutes] = horaExame.split(':').map(Number);
-      dataExame.setHours(hours, minutes, 0, 0);
-    }
-
-    // Encripta os dados sensíveis
+    // Encripta o dado sensível antes de o guardar
     const encryptedNome = encrypt(nome);
-    const encryptedTipo = tipo ? encrypt(tipo) : tipo;
 
-    const newExame = await prisma.exame.create({
+    const newCondicao = await prisma.condicaoSaude.create({
       data: {
-        ...restOfData,
         nome: encryptedNome,
-        tipo: encryptedTipo,
-        dataExame: dataExame,
+        userId: userId,
+        dataInicio: new Date(), // CORREÇÃO: Adiciona o campo obrigatório
       },
-      include: { unidades: true, profissional: true },
     });
 
-    // Decripta a resposta para a confirmação
+    // Decripta o nome antes de o devolver como confirmação
     const decryptedResponse = {
-        ...newExame,
-        nome: decrypt(newExame.nome),
-        tipo: newExame.tipo ? decrypt(newExame.tipo) : newExame.tipo
+        ...newCondicao,
+        nome: decrypt(newCondicao.nome)
     };
 
     return NextResponse.json(decryptedResponse, { status: 201 });
   } catch (error) {
-    console.error("Erro ao criar exame:", error);
-    return NextResponse.json({ error: 'Falha ao criar exame' }, { status: 500 });
+    console.error("Erro ao criar condição de saúde:", error);
+    return NextResponse.json({ error: 'Falha ao criar condição de saúde' }, { status: 500 });
   }
 }
