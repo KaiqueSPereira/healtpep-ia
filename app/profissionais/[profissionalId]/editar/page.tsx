@@ -39,7 +39,7 @@ const EditarProfissionalPage = () => {
         setLoading(true);
         // Buscar o profissional. Certifique-se que o endpoint GET /api/profissional/[id]
         // inclui as unidades (`include: { unidades: true }`) para popular currentUnidades.
-        const profRes = await fetch(`/api/profissional/${profissionalId}`);
+        const profRes = await fetch(`/api/profissionais/${profissionalId}`);
 
         if (!profRes.ok) {
           const errorData = await profRes.json();
@@ -79,7 +79,7 @@ const EditarProfissionalPage = () => {
         // Não inclua dados de unidade aqui, a menos que o PATCH endpoint principal também gerencie isso (o que não recomendamos)
       };
 
-      const res = await fetch(`/api/profissional/${profissionalId}`, {
+      const res = await fetch(`/api/profissionais/${profissionalId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToUpdate),

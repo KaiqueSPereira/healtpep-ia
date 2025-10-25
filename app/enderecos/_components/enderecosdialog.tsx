@@ -29,21 +29,21 @@ interface Endereco {
     id: string;
     rua: string;
     numero: string;
-    complemento?: string | null;
     bairro: string;
     cidade: string;
     estado: string;
     cep: string;
+    nome: string;
 }
 
 const formSchema = z.object({
   rua: z.string().min(1, 'Rua é obrigatória'),
   numero: z.string().min(1, 'Número é obrigatório'),
-  complemento: z.string().optional(),
   bairro: z.string().min(1, 'Bairro é obrigatório'),
   cidade: z.string().min(1, 'Cidade é obrigatória'),
   estado: z.string().min(2, 'Estado deve ter 2 caracteres').max(2),
   cep: z.string().min(8, 'CEP deve ter 8 caracteres'),
+  nome: z.string().min(1, 'Nome é obrigatório'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -64,11 +64,11 @@ export const EnderecosDialog = ({ isOpen, onClose, onSave, unidadeId, userId }: 
         defaultValues: {
             rua: '',
             numero: '',
-            complemento: '',
             bairro: '',
             cidade: '',
             estado: '',
             cep: '',
+            nome: '',
         }
     });
     
@@ -96,10 +96,22 @@ export const EnderecosDialog = ({ isOpen, onClose, onSave, unidadeId, userId }: 
     const onSubmit = async (data: FormData) => {
         setLoading(true);
         try {
+            const payload = {
+                CEP: data.cep,
+                rua: data.rua,
+                numero: data.numero,
+                bairro: data.bairro,
+                municipio: data.cidade,
+                UF: data.estado,
+                nome: data.nome,
+                unidadeId,
+                userId
+            };
+
             const response = await fetch('/api/enderecos', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...data, unidadeId, userId }),
+                body: JSON.stringify(payload),
             });
             const newEndereco = await response.json();
             if (!response.ok) {
@@ -124,14 +136,14 @@ export const EnderecosDialog = ({ isOpen, onClose, onSave, unidadeId, userId }: 
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField name="nome" control={form.control} render={({ field }) => (<FormItem><FormLabel>Nome da Clinica</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="flex items-end gap-2">
                             <FormField name="cep" control={form.control} render={({ field }) => (<FormItem className='flex-grow'><FormLabel>CEP</FormLabel><FormControl><Input placeholder="00000-000" {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <Button type="button" onClick={handleViaCepSearch} disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buscar'}</Button>
                         </div>
-                        <FormField name="rua" control={form.control} render={({ field }) => (<FormItem><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-end gap-2">
+                            <FormField name="rua" control={form.control} render={({ field }) => (<FormItem className='flex-grow'><FormLabel>Rua</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                             <FormField name="numero" control={form.control} render={({ field }) => (<FormItem><FormLabel>Número</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                            <FormField name="complemento" control={form.control} render={({ field }) => (<FormItem><FormLabel>Complemento</FormLabel><FormControl><Input placeholder="(Opcional)" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         </div>
                         <FormField name="bairro" control={form.control} render={({ field }) => (<FormItem><FormLabel>Bairro</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
                         <div className="grid grid-cols-2 gap-4">

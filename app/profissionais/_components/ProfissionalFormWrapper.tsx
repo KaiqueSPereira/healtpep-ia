@@ -43,7 +43,7 @@ export function ProfissionalFormWrapper() {
 
   const fetchProfissionalById = async (profissionalid: string) => {
     try {
-      const response = await fetch(`/api/profissional/${profissionalid}`);
+      const response = await fetch(`/api/profissionais/${profissionalid}`);
       if (!response.ok) throw new Error("Erro ao buscar dados do profissional");
 
       // Ajustar tipagem da resposta se a API não retornar mais a unidade única neste endpoint
@@ -71,7 +71,7 @@ export function ProfissionalFormWrapper() {
 
   const createProfissional = async (data: FormData) => {
     try {
-      const response = await fetch("/api/profissional", {
+      const response = await fetch("/api/profissionais", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,7 +101,7 @@ export function ProfissionalFormWrapper() {
 
   const updateProfissional = async (data: FormData) => {
     try {
-      const response = await fetch(`/api/profissional/${profissionalid}`, {
+      const response = await fetch(`/api/profissionais/${profissionalid}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

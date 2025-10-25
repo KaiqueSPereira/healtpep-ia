@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback } from 'react';
+import { useParams} from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Header from '@/app/_components/header';
@@ -23,12 +23,11 @@ interface UserData {
 
 const UserProfilePage = () => {
   const { id } = useParams();
-  const router = useRouter();
   const { data: session } = useSession();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     if (typeof id !== 'string') return;
     setLoading(true);
     try {
@@ -41,11 +40,11 @@ const UserProfilePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchUser();
-  }, [id]);
+  }, [fetchUser]);
 
   const handleDataChange = () => {
     fetchUser();
@@ -78,7 +77,6 @@ const UserProfilePage = () => {
             <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InfoItem icon={UserIcon} label="Nome" value={user.name} />
-              {/* ATUALIZAÇÃO: Corrige o problema de fuso horário na data de nascimento */}
               <InfoItem icon={Calendar} label="Data de Nascimento" value={user.dadosSaude?.dataNascimento ? new Date(user.dadosSaude.dataNascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : null} />
               <InfoItem icon={UserIcon} label="Gênero" value={user.dadosSaude?.sexo} />
               <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.dadosSaude?.tipoSanguineo} />
@@ -90,7 +88,7 @@ const UserProfilePage = () => {
               <div className="flex justify-between items-center">
                 <CardTitle className="flex items-center"><HeartPulse className="mr-2" /> Condições de Saúde</CardTitle>
                 {canEdit && (
-                  <Button asChild variant="outline" size="sm"><Link href={`/users/${id}/condicoes/nova`}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Link></Button>
+                  <Button asChild variant="outline" size="sm"><Link href={`/condicoes/novo?userId=${id}`}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Link></Button>
                 )}
               </div>
             </CardHeader>

@@ -2,6 +2,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/app/_lib/prisma';
 import { safeDecrypt, encryptString } from '@/app/_lib/crypto';
+import type { PesoHistorico, CondicaoSaude, Profissional } from '@prisma/client';
+
+// Define um tipo mais específico para a Condição de Saúde que inclui o profissional
+type CondicaoSaudeComProfissional = CondicaoSaude & { profissional: Profissional | null };
 
 // GET para buscar todos os dados do dashboard
 export async function GET(
@@ -22,7 +26,7 @@ export async function GET(
       where: { id: userId },
       include: {
         dadosSaude: true,
-        historicoPeso: { orderBy: { data: 'asc' } },
+        historicoPeso: { orderBy: { data: 'asc' } }, // Este é o nome da relação, está correto
         condicoesSaude: { 
           include: { profissional: true },
           orderBy: { createdAt: 'desc' },
@@ -46,18 +50,27 @@ export async function GET(
             sexo: userDashboardData.dadosSaude.sexo ? safeDecrypt(userDashboardData.dadosSaude.sexo) : '',
             tipoSanguineo: userDashboardData.dadosSaude.tipoSanguineo ? safeDecrypt(userDashboardData.dadosSaude.tipoSanguineo) : '',
             altura: userDashboardData.dadosSaude.altura ? safeDecrypt(userDashboardData.dadosSaude.altura) : '',
-            // Mantém outros campos que não são criptografados
         };
         userDashboardData.dadosSaude = decryptedDadosSaude;
     }
 
     // Descriptografa os dados do histórico de peso, se existirem
     if (userDashboardData.historicoPeso) {
-      userDashboardData.historicoPeso = userDashboardData.historicoPeso.map(registro => ({
+      userDashboardData.historicoPeso = userDashboardData.historicoPeso.map((registro: PesoHistorico) => ({
         ...registro,
         peso: safeDecrypt(registro.peso) || '',
         data: safeDecrypt(registro.data) || '',
       }));
+    }
+
+    // Descriptografa os dados das condições de saúde, se existirem
+    if (userDashboardData.condicoesSaude) {
+        userDashboardData.condicoesSaude = userDashboardData.condicoesSaude.map((condicao: CondicaoSaudeComProfissional) => ({
+            ...condicao,
+            nome: safeDecrypt(condicao.nome) || condicao.nome,
+            objetivo: condicao.objetivo ? safeDecrypt(condicao.objetivo) : null,
+            observacoes: condicao.observacoes ? safeDecrypt(condicao.observacoes) : null,
+        }));
     }
 
     return NextResponse.json(userDashboardData);

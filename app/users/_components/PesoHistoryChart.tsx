@@ -12,14 +12,13 @@ import { Line } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
-// ATUALIZAÇÃO: Campos que não são usados diretamente neste componente tornam-se opcionais
 interface PesoRegistro {
   id: string;
-  userId?: string; // Opcional
+  userId?: string;
   peso: string;
   data: string;
-  createdAt?: string; // Opcional
-  updatedAt?: string; // Opcional
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface PesoHistoryChartProps {
@@ -67,8 +66,10 @@ export default function PesoHistoryChart({
       setNovoPeso('');
       setNovaDataPeso('');
       toast({ title: "Sucesso!", description: "Registro de peso adicionado." });
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Erro", description: err.message || "Não foi possível adicionar o registro." });
+    } catch (err) {
+      // Correção: Trata o erro de forma segura
+      const message = err instanceof Error ? err.message : "Não foi possível adicionar o registro.";
+      toast({ variant: "destructive", title: "Erro", description: message });
     } finally {
       setIsSaving(false);
     }

@@ -7,7 +7,6 @@ export async function POST(req: Request) {
     const { CEP, numero, rua, bairro, municipio, UF, nome, unidadeId } =
       await req.json();
 
-    // ValidaĂ§ĂŁo de dados
     if (
       !CEP ||
       !numero ||

@@ -1,0 +1,17 @@
+
+[
+  { "codigo": "H52.1", "descricao": "Miopia" },
+  { "codigo": "H52.0", "descricao": "Hipermetropia" },
+  { "codigo": "H52.2", "descricao": "Astigmatismo" },
+  { "codigo": "E10", "descricao": "Diabetes mellitus insulino-dependente" },
+  { "codigo": "E11", "descricao": "Diabetes mellitus não-insulino-dependente" },
+  { "codigo": "I10", "descricao": "Hipertensão essencial (primária)" },
+  { "codigo": "J45", "descricao": "Asma" },
+  { "codigo": "J01", "descricao": "Sinusite aguda" },
+  { "codigo": "F32", "descricao": "Episódios depressivos" },
+  { "codigo": "F41.1", "descricao": "Ansiedade generalizada" },
+  { "codigo": "M54.5", "descricao": "Dor lombar baixa" },
+  { "codigo": "G43", "descricao": "Enxaqueca" },
+  { "codigo": "L20", "descricao": "Dermatite atópica" },
+  { "codigo": "K21", "descricao": "Doença de refluxo gastroesofágico" }
+]

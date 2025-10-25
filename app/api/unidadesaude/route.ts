@@ -64,81 +64,53 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
 
 export async function POST(req: Request) {
   try {
-    // 1. Obter a sessão do usuário logado
     const session = await getServerSession(authOptions);
 
-    // 2. Validar a autenticação
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
     }
 
     const body = await req.json();
-    const nome = body.nome;
-    const telefone = body.telefone;
-    const { tipo, enderecoId } = body;
+    const { nome, tipo, telefone, endereco } = body;
 
-    // Validação dos campos obrigatórios
-    if (!nome || typeof nome !== "string") {
-      return NextResponse.json(
-        { error: "O campo 'nome' é obrigatorio e deve ser uma string valida" },
-        { status: 400 },
-      );
-    }
-    if (!telefone || typeof telefone !== "string") {
-      return NextResponse.json(
-        { error: "O campo 'telefone' é obrigatorio e deve ser uma string valida" },
-        { status: 400 },
-      );
+    // --- Validation ---
+    if (!nome || !tipo || !telefone || !endereco) {
+        return NextResponse.json({ error: "Campos da unidade de saúde são obrigatórios." }, { status: 400 });
     }
 
-    // Validar e tipar o campo 'tipo' se ele tiver um tipo específico no seu schema Prisma
-    // Exemplo: Se 'tipo' for uma string
-    if (tipo !== undefined && typeof tipo !== "string") {
-       return NextResponse.json({ error: "O campo 'tipo' deve ser uma string" }, { status: 400 });
+    const { rua, numero, bairro, cidade, estado, cep } = endereco;
+    if (!rua || !numero || !bairro || !cidade || !estado || !cep) {
+        return NextResponse.json({ error: "Todos os campos do endereço são obrigatórios." }, { status: 400 });
     }
-
-
-    if (!enderecoId || typeof enderecoId !== "string") {
-      return NextResponse.json(
-        { error: "O campo 'enderecoId' é obrigatorio e deve ser um ID valido" },
-        { status: 400 },
-      );
+    
+    if (isNaN(parseInt(numero, 10))) {
+        return NextResponse.json({ error: "O número do endereço deve ser um valor numérico." }, { status: 400 });
     }
+    // --- End Validation ---
 
-    // Verificar se o endereço existe e está disponível
-    const enderecoExistente = await db.endereco.findUnique({
-      where: { id: enderecoId },
-    });
-
-    if (!enderecoExistente) {
-      return NextResponse.json(
-        { error: `Endereco com ID '${enderecoId}' nao encontrado` },
-        { status: 404 },
-      );
-    }
-
-    if (enderecoExistente.unidadeId) {
-      return NextResponse.json(
-        {
-          error: `Endereço com ID '${enderecoId}' já está associado a uma unidade de saúde`,
-        },
-        { status: 400 },
-      );
-    }
-
-    // 3. Criar nova unidade de saúde associada ao endereço e ao usuário
     const novaUnidade = await db.unidadeDeSaude.create({
-      data: {
-        nome,
-        tipo: tipo as string | undefined, // Adicione uma asserção de tipo ou trate undefined se o campo for opcional
-        telefone,
-        endereco: {
-          connect: { id: enderecoId }, // Associa o endereço ao criar a unidade
+        data: {
+            nome,
+            tipo,
+            telefone,
+            usuario: {
+                connect: { id: session.user.id },
+            },
+            endereco: {
+                create: {
+                    nome: nome, // Use o nome da unidade como nome do endereço
+                    rua,
+                    numero: parseInt(numero, 10),
+                    bairro,
+                    municipio: cidade,
+                    UF: estado,
+                    CEP: cep,
+                }
+            }
         },
-        usuario: { // <-- Usando o nome do campo de relacionamento 'usuario'
-          connect: { id: session.user.id },
-        },
-      },
+        include: {
+            endereco: true
+        }
     });
 
     return NextResponse.json(novaUnidade, { status: 201 });

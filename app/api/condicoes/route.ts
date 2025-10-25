@@ -3,11 +3,10 @@ import { NextResponse, NextRequest } from 'next/server';
 import { z } from 'zod';
 import crypto from 'crypto';
 
-// --- Funções de Criptografia ---
+// --- Funções de Criptografia (Ultra-Robustas) ---
 const ALGORITHM = 'aes-256-cbc';
 const IV_LENGTH = 16;
 
-// Chave de encriptação tem de ser uma string de 32 bytes (256 bits)
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 
 if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
@@ -19,7 +18,6 @@ if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
   }
 }
 
-// Assegura que a chave é uma string para as funções crypto
 const key = process.env.ENCRYPTION_KEY as string;
 
 function encrypt(text: string): string {
@@ -30,30 +28,49 @@ function encrypt(text: string): string {
   return iv.toString('hex') + ':' + encrypted;
 }
 
-function decrypt(text: string): string {
-  try {
+function decrypt(text: string | null | undefined): string {
+    // 1. Retorna imediatamente se o valor for nulo, indefinido ou não for uma string.
+    if (typeof text !== 'string' || !text.includes(':')) {
+        return text || '';
+    }
+
     const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(key), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-  } catch (error) {
-    console.error("Falha ao decriptar, retornando valor original.", error);
-    return text;
-  }
+    const ivHex = textParts.shift();
+    const encryptedHex = textParts.join(':');
+    const hexRegex = /^[0-9a-fA-F]+$/;
+
+    // 2. Validação rigorosa da estrutura e do conteúdo.
+    // Verifica se o IV e o texto encriptado existem, se o IV tem o tamanho correto,
+    // e se ambos contêm apenas caracteres hexadecimais.
+    if (!ivHex || ivHex.length !== IV_LENGTH * 2 || !hexRegex.test(ivHex) || !hexRegex.test(encryptedHex)) {
+        console.warn(`Valor suspeito de não estar encriptado ou corrompido foi detectado. Retornando valor original: "${text}"`);
+        return text;
+    }
+
+    // 3. Tentativa de desencriptação apenas se todas as validações passarem.
+    try {
+        const iv = Buffer.from(ivHex, 'hex');
+        const encryptedText = Buffer.from(encryptedHex, 'hex');
+        const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(key), iv);
+        let decrypted = decipher.update(encryptedText);
+        decrypted = Buffer.concat([decrypted, decipher.final()]);
+        return decrypted.toString();
+    } catch (error) {
+        console.error(`Falha crítica ao decriptar um valor que parecia válido: "${text}"`, error);
+        return text; // Retorna o texto original como último recurso.
+    }
 }
 // --- Fim das Funções de Criptografia ---
 
-// Zod schema para validação da criação
 const condicaoCreateSchema = z.object({
-  nome: z.string().min(1, 'O nome é obrigatório.'),
   userId: z.string().min(1, 'O ID do usuário é obrigatório.'),
-  dataInicio: z.string().optional(), // Adicionado para validação
+  nome: z.string().min(2, "O nome da condição é obrigatório."),
+  dataInicio: z.coerce.date({ required_error: "A data de início é obrigatória." }),
+  cidCodigo: z.string().optional(),
+  cidDescricao: z.string().optional(),
+  observacoes: z.string().optional(),
 });
 
-// GET handler para buscar e DECRIPTAR condições
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -65,13 +82,13 @@ export async function GET(request: NextRequest) {
 
     const condicoes = await prisma.condicaoSaude.findMany({
       where: { userId: userId },
-      orderBy: { nome: 'asc' },
+      orderBy: { dataInicio: 'desc' },
     });
 
-    // Decripta os dados antes de os enviar para o cliente
     const decryptedCondicoes = condicoes.map(cond => ({
       ...cond,
       nome: decrypt(cond.nome),
+      observacoes: decrypt(cond.observacoes),
     }));
 
     return NextResponse.json(decryptedCondicoes, { status: 200 });
@@ -81,7 +98,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST handler para criar e ENCRIPTAR condições
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -91,23 +107,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
     }
 
-    const { nome, userId } = validation.data;
+    const { userId, nome, dataInicio, cidCodigo, cidDescricao, observacoes } = validation.data;
 
-    // Encripta o dado sensível antes de o guardar
     const encryptedNome = encrypt(nome);
+    const encryptedObservacoes = observacoes ? encrypt(observacoes) : undefined;
 
     const newCondicao = await prisma.condicaoSaude.create({
       data: {
+        userId,
         nome: encryptedNome,
-        userId: userId,
-        dataInicio: new Date(), // CORREÇÃO: Adiciona o campo obrigatório
+        dataInicio,
+        cidCodigo,
+        cidDescricao,
+        observacoes: encryptedObservacoes,
       },
     });
 
-    // Decripta o nome antes de o devolver como confirmação
     const decryptedResponse = {
         ...newCondicao,
-        nome: decrypt(newCondicao.nome)
+        nome: decrypt(newCondicao.nome),
+        observacoes: decrypt(newCondicao.observacoes),
     };
 
     return NextResponse.json(decryptedResponse, { status: 201 });
