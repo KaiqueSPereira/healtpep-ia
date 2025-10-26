@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { ApiRouteHandler } from "../../types"; // Certifique-se que esta importação está correta
 import { z } from "zod"; // Importar Zod para validação no PATCH
 import { Prisma } from "@prisma/client";
-import { safeDecrypt } from "@/app/_lib/crypto";
+import { decryptString } from "@/app/_lib/crypto";
 
 type ProfissionalParams = {
   profissionalId: string;
@@ -59,8 +59,8 @@ export const GET: ApiRouteHandler<ProfissionalParams> = async (
       ...profissional,
       exames: profissional.exames?.map(exame => ({
           ...exame,
-          anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) ?? '' : '',
-          nome: safeDecrypt(exame.nome) ?? '',
+          anotacao: exame.anotacao ? decryptString(exame.anotacao) : null,
+          nome: exame.nome ? decryptString(exame.nome) : null,
       }))
   };
 

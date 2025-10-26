@@ -2,7 +2,7 @@ import { authOptions } from "@/app/_lib/auth";
 import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
+import { encryptString, decryptString } from "@/app/_lib/crypto";
 import { Anotacoes, Prisma } from '@prisma/client';
 import { Session } from "next-auth";
 
@@ -62,12 +62,12 @@ export async function GET(req: Request) {
     });
 
     const decryptedConsultas = consultas.map(consulta => {
-      const decryptedMotivo = consulta.motivo ? safeDecrypt(consulta.motivo) : null;
+      const decryptedMotivo = consulta.motivo ? decryptString(consulta.motivo) : null;
       const decryptedAnotacoes = consulta.Anotacoes.map((anotacao: Anotacoes) => ({
         ...anotacao,
-        anotacao: safeDecrypt(anotacao.anotacao),
+        anotacao: decryptString(anotacao.anotacao),
       }));
-      const decryptedTipoExame = typeof consulta.tipodeexame === 'string' && consulta.tipodeexame ? safeDecrypt(consulta.tipodeexame) : null;
+      const decryptedTipoExame = typeof consulta.tipodeexame === 'string' && consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null;
 
       return {
         ...consulta,
@@ -129,7 +129,6 @@ export async function POST(req: Request) {
     const encryptedMotivo = encryptString(motivoParaCriptografar);
     const encryptedTipoExame = tipo === "Exame" && tipoexame !== undefined && tipoexame !== null ? encryptString(tipoexame) : null;
 
-    // CORRECTED: 'create' call now connects using the correct relation name 'condicoes'
     const novaConsulta = await db.consultas.create({
       data: {
         userId: userId,

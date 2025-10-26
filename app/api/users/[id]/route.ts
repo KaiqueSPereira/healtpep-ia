@@ -1,6 +1,6 @@
 import { prisma } from '@/app/_lib/prisma';
 import { NextResponse, NextRequest } from 'next/server';
-import { encryptString, safeDecrypt } from '@/app/_lib/crypto';
+import { encryptString, decryptString } from '@/app/_lib/crypto';
 
 interface Params {
   id: string;
@@ -22,18 +22,16 @@ export async function GET(request: NextRequest, context: { params: Params }) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     }
 
-    const responseData = {
-      ...user,
-      ...(user.dadosSaude && {
-        cns: user.dadosSaude.CNS ? safeDecrypt(user.dadosSaude.CNS) : null,
-        dataNascimento: user.dadosSaude.dataNascimento ? safeDecrypt(user.dadosSaude.dataNascimento) : null,
-        genero: user.dadosSaude.sexo ? safeDecrypt(user.dadosSaude.sexo) : null,
-        tipo_sanguineo: user.dadosSaude.tipoSanguineo ? safeDecrypt(user.dadosSaude.tipoSanguineo) : null,
-        altura: user.dadosSaude.altura ? safeDecrypt(user.dadosSaude.altura) : null,
-      }),
-    };
+    // Decrypt sensitive data before sending
+    if (user.dadosSaude) {
+      user.dadosSaude.CNS = user.dadosSaude.CNS ? decryptString(user.dadosSaude.CNS) : null;
+      user.dadosSaude.dataNascimento = user.dadosSaude.dataNascimento ? decryptString(user.dadosSaude.dataNascimento) : null;
+      user.dadosSaude.sexo = user.dadosSaude.sexo ? decryptString(user.dadosSaude.sexo) : null;
+      user.dadosSaude.tipoSanguineo = user.dadosSaude.tipoSanguineo ? decryptString(user.dadosSaude.tipoSanguineo) : null;
+      user.dadosSaude.altura = user.dadosSaude.altura ? decryptString(user.dadosSaude.altura) : null;
+    }
 
-    return NextResponse.json(responseData, { status: 200 });
+    return NextResponse.json(user, { status: 200 });
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
@@ -76,15 +74,22 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
       include: { dadosSaude: true },
     });
 
+    // Decrypt sensitive data before sending
+    if (updatedUser.dadosSaude) {
+      updatedUser.dadosSaude.CNS = updatedUser.dadosSaude.CNS ? decryptString(updatedUser.dadosSaude.CNS) : null;
+      updatedUser.dadosSaude.dataNascimento = updatedUser.dadosSaude.dataNascimento ? decryptString(updatedUser.dadosSaude.dataNascimento) : null;
+      updatedUser.dadosSaude.sexo = updatedUser.dadosSaude.sexo ? decryptString(updatedUser.dadosSaude.sexo) : null;
+      updatedUser.dadosSaude.tipoSanguineo = updatedUser.dadosSaude.tipoSanguineo ? decryptString(updatedUser.dadosSaude.tipoSanguineo) : null;
+      updatedUser.dadosSaude.altura = updatedUser.dadosSaude.altura ? decryptString(updatedUser.dadosSaude.altura) : null;
+    }
+
     return NextResponse.json(updatedUser, { status: 200 });
 
   } catch (error) {
-    // ATUALIZAÇÃO: Adiciona verificação de tipo para o erro
     console.error("Erro ao atualizar usuário:", error);
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
       return NextResponse.json({ error: 'Erro de validação nos dados enviados.', details: error.message }, { status: 400 });
     }
-    // Garante que uma mensagem de erro genérica é enviada
     const errorMessage = error instanceof Error ? error.message : 'Falha ao atualizar dados';
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }

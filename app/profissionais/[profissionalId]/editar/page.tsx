@@ -194,8 +194,6 @@ const EditarProfissionalPage = () => {
           </div>
         </div>
 
-        {/* Seções de Relacionamentos (Consultas e Exames) REMOVIDAS */}
-
       </main>
     </div>
   );

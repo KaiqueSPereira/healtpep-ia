@@ -1,6 +1,7 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo } from "react"; // Import useMemo
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "../_components/ui/button";
 import {
   Dialog,
@@ -10,7 +11,7 @@ import {
 } from "../_components/ui/dialog";
 import { Label } from "../_components/ui/label";
 import {
-  Select, // Import Select
+  Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
@@ -19,7 +20,6 @@ import {
 import { Loader2 } from "lucide-react";
 import Header from "../_components/header";
 import Link from "next/link";
-
 
 interface Profissional {
   id: string;
@@ -30,11 +30,12 @@ interface Profissional {
 }
 
 const ProfissionaisPage = () => {
+  const router = useRouter();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
     useState<Profissional | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filterSpecialty, setFilterSpecialty] = useState<string>(""); // State for filter
+  const [filterSpecialty, setFilterSpecialty] = useState<string>("");
 
   useEffect(() => {
     const fetchProfissionais = async () => {
@@ -62,10 +63,9 @@ const ProfissionaisPage = () => {
     }
   };
 
-  // Memoize filtered and sorted professionals for performance
   const filteredAndSortedProfissionais = useMemo(() => {
     let filtered = profissionais;
-    if (filterSpecialty && filterSpecialty !== "all") { // Check if filterSpecialty is not "all" or empty
+    if (filterSpecialty && filterSpecialty !== "all") {
       filtered = profissionais.filter(
         (profissional) => profissional.especialidade === filterSpecialty
       );
@@ -74,10 +74,9 @@ const ProfissionaisPage = () => {
     return filtered.sort((a, b) => a.nome.localeCompare(b.nome));
   }, [profissionais, filterSpecialty]);
 
-  // Extract unique specialties for the filter dropdown
   const uniqueSpecialties = useMemo(() => {
-    const specialties = profissionais.map(p => p.especialidade).filter(Boolean); // Get all specialties, remove empty
-    return Array.from(new Set(specialties)).sort(); // Get unique and sort
+    const specialties = profissionais.map(p => p.especialidade).filter(Boolean);
+    return Array.from(new Set(specialties)).sort();
   }, [profissionais]);
 
 
@@ -92,7 +91,6 @@ const ProfissionaisPage = () => {
           </Button>
         </div>
 
-        {/* Filter Section */}
         <div className="mb-6">
             <Label htmlFor="specialtyFilter" className="mr-2">Filtrar por Especialidade:</Label>
             <Select onValueChange={setFilterSpecialty} value={filterSpecialty}>
@@ -100,7 +98,7 @@ const ProfissionaisPage = () => {
                     <SelectValue placeholder="Todas as Especialidades" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="all">Todas as Especialidades</SelectItem> {/* Changed value to "all" */}
+                    <SelectItem value="all">Todas as Especialidades</SelectItem>
                     {uniqueSpecialties.map(specialty => (
                         <SelectItem key={specialty} value={specialty}>{specialty}</SelectItem>
                     ))}
@@ -118,7 +116,8 @@ const ProfissionaisPage = () => {
             {filteredAndSortedProfissionais.map((profissional) => (
               <li
                 key={profissional.id}
-                className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center justify-between p-4 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+                onClick={() => router.push(`/profissionais/${profissional.id}`)}
               >
                 <div>
                   <p className="font-semibold text-red-600">{profissional.nome}</p>
@@ -126,7 +125,7 @@ const ProfissionaisPage = () => {
                 </div>
                 <div className="flex space-x-2">
                   <Link href={`/profissionais/${profissional.id}/editar`} passHref>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
                       Editar
                     </Button>
                   </Link>
@@ -135,7 +134,10 @@ const ProfissionaisPage = () => {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => setSelectedProfissional(profissional)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedProfissional(profissional);
+                        }}
                       >
                         Apagar
                       </Button>

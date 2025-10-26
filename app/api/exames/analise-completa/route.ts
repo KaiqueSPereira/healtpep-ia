@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import OpenAI from "openai";
-import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
+import { encryptString, decryptString } from "@/app/_lib/crypto";
 
 // Configuração do OpenAI
 const openai = new OpenAI({
@@ -65,10 +65,10 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     // 2. Descriptografar e formatar os dados para o prompt
     // Usa o tipo local correto agora
     const resultadosFormatados = exame.resultados.map((r: LocalResultadoExame) => {
-        const nome = r.nome ? safeDecrypt(r.nome) : "";
-        const valor = r.valor ? safeDecrypt(r.valor) : "";
-        const unidade = r.unidade ? safeDecrypt(r.unidade) : "";
-        const referencia = r.referencia ? safeDecrypt(r.referencia) : "N/A";
+        const nome = r.nome ? decryptString(r.nome) : "";
+        const valor = r.valor ? decryptString(r.valor) : "";
+        const unidade = r.unidade ? decryptString(r.unidade) : "";
+        const referencia = r.referencia ? decryptString(r.referencia) : "N/A";
         return `- ${nome || 'N/A'}: ${valor || 'N/A'} ${unidade || ''} (Ref: ${referencia || 'N/A'})`;
     }).join('\n');
 
@@ -91,7 +91,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     `;
     }
 
-    const anotacaoExame = exame.anotacao ? safeDecrypt(exame.anotacao) : "Nenhuma anotação fornecida.";
+    const anotacaoExame = exame.anotacao ? decryptString(exame.anotacao) : "Nenhuma anotação fornecida.";
 
     // 3. Construir o prompt detalhado para a IA
     const prompt = `

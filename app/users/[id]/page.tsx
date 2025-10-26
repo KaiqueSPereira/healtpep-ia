@@ -7,9 +7,20 @@ import Link from 'next/link';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle } from 'lucide-react';
-import PesoHistoryChart from '../_components/PesoHistoryChart';
+import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope } from 'lucide-react';
+import EditCondicaoSaudeDialog from './_components/EditCondicaoSaudeDialog';
+import { Profissional } from '@prisma/client';
 import IMCChart from '../_components/IMCChart';
+import PesoHistoryChart from '../_components/PesoHistoryChart';
+
+interface CondicaoSaude {
+  id: string;
+  nome: string;
+  dataInicio: string;
+  objetivo?: string | null;
+  observacoes?: string | null;
+  profissional?: Profissional | null;
+}
 
 interface UserData {
     id: string;
@@ -18,7 +29,7 @@ interface UserData {
     image?: string | null;
     dadosSaude?: { dataNascimento?: string | null; sexo?: string | null; tipoSanguineo?: string | null; altura?: string | null; } | null;
     historicoPeso: { id: string; peso: string; data: string }[];
-    condicoesSaude: { id: string; nome: string; dataInicio: string }[];
+    condicoesSaude: CondicaoSaude[];
 }
 
 const UserProfilePage = () => {
@@ -29,6 +40,7 @@ const UserProfilePage = () => {
 
   const fetchUser = useCallback(async () => {
     if (typeof id !== 'string') return;
+    // A lógica de `!loading` foi removida para permitir o recarregamento
     setLoading(true);
     try {
       const response = await fetch(`/api/pacientes/dashboard/${id}`);
@@ -43,12 +55,11 @@ const UserProfilePage = () => {
   }, [id]);
 
   useEffect(() => {
-    fetchUser();
-  }, [fetchUser]);
+    if (id) { // Garante que o ID exista antes de buscar
+        fetchUser();
+    }
+  }, [id, fetchUser]);
 
-  const handleDataChange = () => {
-    fetchUser();
-  };
 
   const userHeightForIMC = user?.dadosSaude?.altura ? parseFloat(user.dadosSaude.altura) : null;
   const canEdit = session?.user?.id === id;
@@ -94,7 +105,22 @@ const UserProfilePage = () => {
             </CardHeader>
             <CardContent>
               {user.condicoesSaude?.length > 0 ? (
-                <ul className="list-disc pl-5 space-y-2">{user.condicoesSaude.map(cond => <li key={cond.id}>{cond.nome}</li>)}</ul>
+                <ul className="space-y-4">
+                  {user.condicoesSaude.map(cond => (
+                    <li key={cond.id} className="flex justify-between items-start p-3 rounded-md border">
+                        <div className="flex-1">
+                            <p className="font-semibold">{cond.nome}</p>
+                            {cond.profissional && (
+                                <div className="text-sm text-muted-foreground flex items-center mt-1">
+                                    <Stethoscope className="h-4 w-4 mr-2" />
+                                    <span>{cond.profissional.nome} - {cond.profissional.especialidade}</span>
+                                </div>
+                            )}
+                        </div>
+                        {canEdit && <EditCondicaoSaudeDialog condicao={cond} onCondicaoUpdated={fetchUser} />}
+                    </li>
+                  ))}
+                </ul>
               ) : <p className="text-muted-foreground">Nenhuma condição de saúde registrada.</p>}
             </CardContent>
           </Card>
@@ -102,7 +128,7 @@ const UserProfilePage = () => {
           <Card>
             <CardHeader><CardTitle className="flex items-center"><Weight className="mr-2" /> Análise de Peso</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-              <div className="col-span-1">
+               <div className="col-span-1">
                 <IMCChart 
                   userId={user.id}
                   userHeight={userHeightForIMC}
@@ -117,7 +143,7 @@ const UserProfilePage = () => {
                     historicoPeso={user.historicoPeso}
                     loading={loading}
                     error={null}
-                    onDataChange={handleDataChange}
+                    onDataChange={fetchUser}
                  />
               </div>
             </CardContent>

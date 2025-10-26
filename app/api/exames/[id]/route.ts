@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma"; 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { safeDecrypt, encryptString } from "@/app/_lib/crypto"; 
+import { decryptString, encryptString } from "@/app/_lib/crypto"; 
 import { Prisma, ResultadoExame } from "@prisma/client"; 
 
 
@@ -56,18 +56,18 @@ export async function GET(
 
     const descriptografarResultados = (r: ResultadoExame) => ({
       ...r,
-      nome: safeDecrypt(r.nome) ?? '',
-      valor: safeDecrypt(r.valor) ?? '',
-      unidade: safeDecrypt(r.unidade ?? "") ?? '',
-      referencia: safeDecrypt(r.referencia ?? "") ?? '',
+      nome: decryptString(r.nome) ?? '',
+      valor: decryptString(r.valor) ?? '',
+      unidade: decryptString(r.unidade ?? "") ?? '',
+      referencia: decryptString(r.referencia ?? "") ?? '',
     });
 
     const exameDescriptografado = {
       ...exame,
-      nome: exame.nome ? safeDecrypt(exame.nome) : null,
-      nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
-      anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
-      analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
+      nome: exame.nome ? decryptString(exame.nome) : null,
+      nomeArquivo: exame.nomeArquivo ? decryptString(exame.nomeArquivo) : null,
+      anotacao: exame.anotacao ? decryptString(exame.anotacao) : null,
+      analiseIA: exame.analiseIA ? decryptString(exame.analiseIA) : null,
       tipo: exame.tipo || null,
       consulta: exame.consulta || null,
       profissional: exame.profissional || null,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, ChevronRight, Edit } from 'lucide-react';
+import { Loader2, ChevronRight } from 'lucide-react';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
@@ -71,7 +71,7 @@ const ProfissionalDetalhesPage = () => {
       <div className="p-4 flex justify-between items-center">
          <Button variant="outline" onClick={() => router.back()} > <ChevronRight className="mr-2 h-4 w-4 transform rotate-180" /> Voltar </Button>
         <Button variant="outline" size="icon" asChild>
-            <Link href={`/profissionais/${profissional.id}/editar`}> <Edit className="h-4 w-4" /> </Link>
+            <Link href={`/profissionais/`}> </Link>
         </Button>
       </div>
 

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
-import { safeDecrypt } from '@/app/_lib/crypto';
+import { decryptString } from '@/app/_lib/crypto';
 
 // GET: Handles downloading a specific attachment.
 export async function GET(
@@ -33,7 +33,7 @@ export async function GET(
 
     // CORREÇÃO: Converte o Uint8Array da BD para um Buffer do Node.js antes de chamar toString().
     const encryptedString = Buffer.from(anexo.arquivo).toString('utf-8');
-    const decryptedBase64 = safeDecrypt(encryptedString);
+    const decryptedBase64 = decryptString(encryptedString);
 
     if (!decryptedBase64) {
         return new NextResponse('Falha ao obter o conteúdo do arquivo', { status: 500 });

@@ -80,7 +80,7 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/profissional/${profissionalId}/unidades`, {
+      const response = await fetch(`/api/profissionais/${profissionalId}/unidades`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unidadeId: unidade.id }),
@@ -120,7 +120,7 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
   const handleRemoveUnidade = async (unidadeId: string) => {
      setLoading(true);
     try {
-      const response = await fetch(`/api/profissional/${profissionalId}/unidades/${unidadeId}`, {
+      const response = await fetch(`/api/profissionais/${profissionalId}/unidades/${unidadeId}`, {
         method: "DELETE",
       });
 

@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server";
-import { encryptString } from "@/app/_lib/crypto";
+import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { db } from "@/app/_lib/prisma";
 
 // Interface para os parâmetros da URL
@@ -31,7 +31,12 @@ export async function PATCH(
       data: { anotacao: encryptedAnotacao },
     });
 
-    return NextResponse.json(updatedAnotacao, { status: 200 });
+    const decryptedAnotacao = {
+        ...updatedAnotacao,
+        anotacao: decryptString(updatedAnotacao.anotacao),
+    };
+
+    return NextResponse.json(decryptedAnotacao, { status: 200 });
 
   } catch (error) {
     console.error("Erro ao atualizar anotação:", error);

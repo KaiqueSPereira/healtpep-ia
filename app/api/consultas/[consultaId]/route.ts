@@ -1,6 +1,6 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { safeDecrypt, encryptString } from "@/app/_lib/crypto";
+import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Consultas, Anotacoes, Exame, AnexoConsulta } from '@prisma/client';
@@ -58,18 +58,18 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
     // Decrypt sensitive fields e incluir os anexos na resposta
     const decryptedConsulta = {
       ...consulta,
-      motivo: consulta.motivo ? safeDecrypt(consulta.motivo) : null,
-      tipodeexame: consulta.tipodeexame ? safeDecrypt(consulta.tipodeexame) : null,
+      motivo: consulta.motivo ? decryptString(consulta.motivo) : null,
+      tipodeexame: consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null,
       Anotacoes: consulta.Anotacoes ? consulta.Anotacoes.map((anotacao: Anotacoes) => ({
         ...anotacao,
-        anotacao: safeDecrypt(anotacao.anotacao),
+        anotacao: decryptString(anotacao.anotacao),
       })) : [],
 
       Exame: consulta.Exame ? consulta.Exame.map((exame: Exame) => {
       return {
         ...exame,
-        tipo: typeof exame.tipo === 'string' ? safeDecrypt(exame.tipo) : exame.tipo,
-        anotacao: typeof exame.anotacao === 'string' ? safeDecrypt(exame.anotacao) : exame.anotacao,
+        tipo: typeof exame.tipo === 'string' ? decryptString(exame.tipo) : exame.tipo,
+        anotacao: typeof exame.anotacao === 'string' ? decryptString(exame.anotacao) : exame.anotacao,
         dataExame: typeof exame.dataExame === 'object' ? exame.dataExame.toISOString() : exame.dataExame,
       };
      }) : [],

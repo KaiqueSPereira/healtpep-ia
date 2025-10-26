@@ -1,13 +1,13 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/app/_lib/prisma';
-import { safeDecrypt, encryptString } from '@/app/_lib/crypto';
+import { decryptString, encryptString } from '@/app/_lib/crypto';
 import type { PesoHistorico, CondicaoSaude, Profissional } from '@prisma/client';
 
-// Define um tipo mais específico para a Condição de Saúde que inclui o profissional
+// Tipo estendido para incluir o profissional associado à condição de saúde
 type CondicaoSaudeComProfissional = CondicaoSaude & { profissional: Profissional | null };
 
-// GET para buscar todos os dados do dashboard
+// --- GET: Busca todos os dados do dashboard do paciente ---
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -26,7 +26,7 @@ export async function GET(
       where: { id: userId },
       include: {
         dadosSaude: true,
-        historicoPeso: { orderBy: { data: 'asc' } }, // Este é o nome da relação, está correto
+        historicoPeso: { orderBy: { data: 'asc' } },
         condicoesSaude: { 
           include: { profissional: true },
           orderBy: { createdAt: 'desc' },
@@ -41,35 +41,34 @@ export async function GET(
       });
     }
 
-    // Descriptografa os dados de saúde, se existirem
+    // Descriptografa os Dados de Saúde (se existirem)
     if (userDashboardData.dadosSaude) {
-        const decryptedDadosSaude = {
+        userDashboardData.dadosSaude = {
             ...userDashboardData.dadosSaude,
-            CNS: userDashboardData.dadosSaude.CNS ? safeDecrypt(userDashboardData.dadosSaude.CNS) : '',
-            dataNascimento: userDashboardData.dadosSaude.dataNascimento ? safeDecrypt(userDashboardData.dadosSaude.dataNascimento) : '',
-            sexo: userDashboardData.dadosSaude.sexo ? safeDecrypt(userDashboardData.dadosSaude.sexo) : '',
-            tipoSanguineo: userDashboardData.dadosSaude.tipoSanguineo ? safeDecrypt(userDashboardData.dadosSaude.tipoSanguineo) : '',
-            altura: userDashboardData.dadosSaude.altura ? safeDecrypt(userDashboardData.dadosSaude.altura) : '',
+            CNS: userDashboardData.dadosSaude.CNS ? decryptString(userDashboardData.dadosSaude.CNS) : null,
+            dataNascimento: userDashboardData.dadosSaude.dataNascimento ? decryptString(userDashboardData.dadosSaude.dataNascimento) : null,
+            sexo: userDashboardData.dadosSaude.sexo ? decryptString(userDashboardData.dadosSaude.sexo) : null,
+            tipoSanguineo: userDashboardData.dadosSaude.tipoSanguineo ? decryptString(userDashboardData.dadosSaude.tipoSanguineo) : null,
+            altura: userDashboardData.dadosSaude.altura ? decryptString(userDashboardData.dadosSaude.altura) : null,
         };
-        userDashboardData.dadosSaude = decryptedDadosSaude;
     }
 
-    // Descriptografa os dados do histórico de peso, se existirem
+    // Descriptografa o Histórico de Peso (se existir)
     if (userDashboardData.historicoPeso) {
       userDashboardData.historicoPeso = userDashboardData.historicoPeso.map((registro: PesoHistorico) => ({
         ...registro,
-        peso: safeDecrypt(registro.peso) || '',
-        data: safeDecrypt(registro.data) || '',
+        peso: decryptString(registro.peso),
+        data: decryptString(registro.data),
       }));
     }
 
-    // Descriptografa os dados das condições de saúde, se existirem
+    // Descriptografa as Condições de Saúde (se existirem)
     if (userDashboardData.condicoesSaude) {
         userDashboardData.condicoesSaude = userDashboardData.condicoesSaude.map((condicao: CondicaoSaudeComProfissional) => ({
             ...condicao,
-            nome: safeDecrypt(condicao.nome) || condicao.nome,
-            objetivo: condicao.objetivo ? safeDecrypt(condicao.objetivo) : null,
-            observacoes: condicao.observacoes ? safeDecrypt(condicao.observacoes) : null,
+            nome: decryptString(condicao.nome),
+            objetivo: condicao.objetivo ? decryptString(condicao.objetivo) : null,
+            observacoes: condicao.observacoes ? decryptString(condicao.observacoes) : null,
         }));
     }
 
@@ -77,14 +76,14 @@ export async function GET(
 
   } catch (error) {
     console.error('Erro ao buscar dados do dashboard do paciente:', error);
-    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor ao buscar dados do dashboard' }), {
+    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
   }
 }
 
-// PATCH para atualizar os dados de saúde do paciente
+// --- PATCH: Atualiza os dados de saúde do paciente ---
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -96,22 +95,23 @@ export async function PATCH(
 
   try {
     const { dadosSaude } = await request.json();
-    const basePayload = {
+    const encryptedPayload = {
         CNS: dadosSaude.CNS ? encryptString(dadosSaude.CNS) : null,
         tipoSanguineo: dadosSaude.tipoSanguineo ? encryptString(dadosSaude.tipoSanguineo) : null,
         sexo: dadosSaude.sexo ? encryptString(dadosSaude.sexo) : null,
         dataNascimento: dadosSaude.dataNascimento ? encryptString(dadosSaude.dataNascimento) : null,
         altura: dadosSaude.altura ? encryptString(dadosSaude.altura) : null,
+        alergias: Array.isArray(dadosSaude.alergias) ? dadosSaude.alergias : [],
     };
-    const alergiasArray = Array.isArray(dadosSaude.alergias) ? dadosSaude.alergias : [];
-    const createPayload = { ...basePayload, alergias: alergiasArray };
-    const updatePayload = { ...basePayload, alergias: { set: alergiasArray } };
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         dadosSaude: {
-          upsert: { create: createPayload, update: updatePayload },
+          upsert: { 
+            create: encryptedPayload,
+            update: { ...encryptedPayload, alergias: { set: encryptedPayload.alergias } },
+          },
         },
       },
       include: { dadosSaude: true },
@@ -120,15 +120,12 @@ export async function PATCH(
     return NextResponse.json(updatedUser.dadosSaude);
 
   } catch (error) {
-    console.error('Erro ao atualizar dados de saúde do paciente:', error);
-    return new NextResponse(JSON.stringify({ 
-        error: 'Erro interno do servidor ao atualizar dados',
-        prismaError: error instanceof Error ? error.message : String(error)
-    }), { status: 500 });
+    console.error('Erro ao atualizar dados de saúde:', error);
+    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), { status: 500 });
   }
 }
 
-// POST para adicionar um novo registro (peso OU condição de saúde)
+// --- POST: Adiciona um novo registro de peso ---
 export async function POST(
   request: Request,
   { params }: { params: { id: string } }
@@ -141,46 +138,25 @@ export async function POST(
   try {
     const body = await request.json();
 
+    // Apenas para adicionar peso, a criação de condição de saúde foi removida.
     if (body.peso && body.data) {
-      const { peso, data: dataPeso } = body;
+      const { peso, data } = body;
       
-      const encryptedPeso = encryptString(peso);
-      const encryptedDataPeso = encryptString(dataPeso);
-
       const novoPeso = await prisma.pesoHistorico.create({
         data: {
           userId: userId,
-          peso: encryptedPeso,
-          data: encryptedDataPeso,
+          peso: encryptString(peso),
+          data: encryptString(data),
         },
       });
 
       return NextResponse.json(novoPeso, { status: 201 });
     }
 
-    if (body.nome && body.dataInicio) {
-        const { nome, objetivo, dataInicio, profissionalId, observacoes, cidCodigo, cidDescricao } = body;
-        
-        const novaCondicao = await prisma.condicaoSaude.create({
-            data: {
-                userId,
-                nome,
-                objetivo,
-                dataInicio: new Date(dataInicio),
-                profissionalId: profissionalId || null,
-                observacoes,
-                cidCodigo,
-                cidDescricao,
-            },
-        });
-
-        return NextResponse.json(novaCondicao, { status: 201 });
-    }
-
-    return new NextResponse(JSON.stringify({ error: 'Corpo da requisição inválido. Forneça os dados para peso ou para condição de saúde.' }), { status: 400 });
+    return new NextResponse(JSON.stringify({ error: 'Requisição inválida. Forneça peso e data.' }), { status: 400 });
 
   } catch (error) {
-    console.error('Erro no POST para o dashboard:', error);
+    console.error('Erro ao adicionar registro de peso:', error);
     return new NextResponse(JSON.stringify({ error: 'Erro interno ao processar a requisição' }), { status: 500 });
   }
 }
