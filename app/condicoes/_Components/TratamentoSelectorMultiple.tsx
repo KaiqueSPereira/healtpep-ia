@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react"; // Importa o hook para obter a sessão
 import { Check, XCircle, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/app/_components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/app/_components/ui/command";
@@ -21,16 +22,20 @@ const CondicaoSaudeSelectorMultiple: React.FC<CondicaoSaudeSelectorMultipleProps
   currentCondicoes,
   onCondicoesChange,
 }) => {
+  const { data: session } = useSession(); // Obtém a sessão do usuário
   const [allCondicoes, setAllCondicoes] = useState<CondicaoSaude[]>([]);
   const [selectedCondicoes, setSelectedCondicoes] = useState<CondicaoSaude[]>(currentCondicoes);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // A função só será executada se a sessão e o ID do usuário estiverem disponíveis
+    if (!session?.user?.id) return;
+
     const fetchAllCondicoes = async () => {
       try {
-        // CORRECTED: API endpoint to fetch all conditions
-        const response = await fetch("/api/condicoessaude"); 
+        // Envia o userId como query param para a API
+        const response = await fetch(`/api/condicoes?userId=${session.user.id}`); 
         if (!response.ok) throw new Error("Erro ao buscar condições de saúde disponíveis");
         const data: CondicaoSaude[] = await response.json();
         setAllCondicoes(data);
@@ -40,7 +45,7 @@ const CondicaoSaudeSelectorMultiple: React.FC<CondicaoSaudeSelectorMultipleProps
       }
     };
     fetchAllCondicoes();
-  }, []);
+  }, [session]); // Adiciona a sessão como dependência do useEffect
 
   useEffect(() => {
     setSelectedCondicoes(currentCondicoes);
@@ -53,7 +58,6 @@ const CondicaoSaudeSelectorMultiple: React.FC<CondicaoSaudeSelectorMultipleProps
     }
     setLoading(true);
     try {
-      // CORRECTED: API endpoint to associate a condition
       const response = await fetch(`/api/profissionais/${profissionalId}/condicoes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,7 +85,6 @@ const CondicaoSaudeSelectorMultiple: React.FC<CondicaoSaudeSelectorMultipleProps
   const handleRemoveCondicao = async (condicaoId: string) => {
     setLoading(true);
     try {
-      // CORRECTED: API endpoint to disassociate a condition
       const response = await fetch(`/api/profissionais/${profissionalId}/condicoes/${condicaoId}`, {
         method: "DELETE",
       });

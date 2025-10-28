@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
@@ -14,9 +14,10 @@ type ExameComRelacoes = Exame & {
     unidades: UnidadeDeSaude | null; 
 };
 
+// CORREÇÃO: A data será passada como string para evitar problemas de serialização
 export type AgendamentoUnificado = {
   id: string;
-  data: Date;
+  data: string; // Alterado de Date para string
   nomeProfissional: string;
   especialidade: string;
   local: string;
@@ -45,43 +46,44 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         throw new Error("Erro ao buscar agendamentos");
       }
 
-      const { consultas }: { consultas: ConsultaComRelacoes[] } = await consultasRes.json();
-      const { exames }: { exames: ExameComRelacoes[] } = await examesRes.json();
+      const consultas: ConsultaComRelacoes[] = await consultasRes.json();
+      const exames: ExameComRelacoes[] = await examesRes.json();
 
-      // CORREÇÃO: Mapeamento de Consultas usando os campos corretos do schema
+      // CORREÇÃO: Passa a string de data diretamente, sem criar um objeto Date
       const consultasMapeadas: AgendamentoUnificado[] = consultas.map(c => ({
         id: c.id,
-        data: new Date(c.data),
+        data: c.data as unknown as string, // Mantém a string da API
         nomeProfissional: c.profissional?.nome || 'Não especificado',
         especialidade: c.profissional?.especialidade || 'Clínico Geral',
-        local: c.unidade?.nome || 'Local não especificado', // Usa c.unidade.nome
+        local: c.unidade?.nome || 'Local não especificado',
         tipo: 'Consulta',
         userId: c.userId,
       }));
 
-      // CORREÇÃO: Mapeamento de Exames usando os campos corretos do schema
       const examesMapeados: AgendamentoUnificado[] = exames.map(e => ({
         id: e.id,
-        data: new Date(e.dataExame), // Usa e.dataExame
+        data: e.dataExame as unknown as string, // Mantém a string da API
         nomeProfissional: e.profissional?.nome || 'Não especificado',
-        especialidade: e.tipo || 'Exame', // Usa e.tipo com fallback
-        local: e.unidades?.nome || 'Local não especificado', // Usa e.unidades.nome
+        especialidade: e.tipo || 'Exame', 
+        local: e.unidades?.nome || 'Local não especificado', 
         tipo: 'Exame',
         userId: e.userId,
       }));
 
       const todosAgendamentos = [...consultasMapeadas, ...examesMapeados];
-
       const agora = new Date();
-      const futuros = todosAgendamentos.filter(ag => ag.data >= agora);
-      const passados = todosAgendamentos.filter(ag => ag.data < agora);
 
-      const ultimos5Passados = passados
-        .sort((a, b) => b.data.getTime() - a.data.getTime())
-        .slice(0, 5);
+      // CORREÇÃO: Cria o objeto Date apenas para a comparação e ordenação
+      const futuros = todosAgendamentos
+        .filter(ag => new Date(ag.data) >= agora)
+        .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
+
+      const passados = todosAgendamentos
+        .filter(ag => new Date(ag.data) < agora)
+        .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
       setAgendamentosFuturos(futuros);
-      setAgendamentosPassados(ultimos5Passados);
+      setAgendamentosPassados(passados.slice(0, 5));
 
     } catch (error) {
       console.error("Erro ao buscar agendamentos:", error);

@@ -2,7 +2,7 @@
 
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
 import MenuUnidades from "@/app/unidades/_components/menuunidades";
-import { Profissional, Unidade, CondicaoSaude } from "@/app/_components/types"; 
+import { Profissional, Unidade, CondicaoSaude, Consulta } from "@/app/_components/types"; 
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
 import {
@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/app/_components/ui/select";
 import { Label } from "@/app/_components/ui/label";
+import MenuConsultas from "./menuconsultas";
 
 const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
   const { data: session } = useSession();
@@ -50,78 +51,83 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
   const [allProfissionais, setAllProfissionais] = useState<Profissional[]>([]);
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
-  const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]); // UPDATED
-  const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null); // UPDATED
-  const form = useForm({ defaultValues: { queixas: "", tipoexame: "", anotacaoExame: "" } });
+  const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
+  const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
+  const [selectedConsultaOrigem, setSelectedConsultaOrigem] = useState<Consulta | null>(null);
 
+  const form = useForm({ defaultValues: { queixas: "", tipoexame: "", anotacaoExame: "" } });
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
 
+  // CORREÇÃO: Hook para buscar todos os dados iniciais da API com os endpoints corretos
   useEffect(() => {
-    const fetchUnidades = async () => {
-      if (!session?.user?.id) {
-        setUnidades([]);
-        return;
-      }
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/unidadesaude?userId=${session.user.id}`);
-        if (!response.ok) throw new Error("Erro ao buscar unidades");
-        const data = await response.json();
-        setUnidades(data || []);
+        const [unidadesRes, profissionaisRes, condicoesRes] = await Promise.all([
+          fetch("/api/unidades"), // Endpoint corrigido
+          fetch("/api/profissionais"),
+          fetch("/api/condicoessaude"), // Endpoint corrigido
+        ]);
+
+        if (!unidadesRes.ok) throw new Error("Falha ao buscar unidades");
+        if (!profissionaisRes.ok) throw new Error("Falha ao buscar profissionais");
+        if (!condicoesRes.ok) throw new Error("Falha ao buscar condições de saúde");
+
+        const unidadesData = await unidadesRes.json();
+        const profissionaisData = await profissionaisRes.json();
+        const condicoesData = await condicoesRes.json();
+
+        setUnidades(unidadesData);
+        setAllProfissionais(profissionaisData);
+        setCondicoesSaude(condicoesData);
+
       } catch (error) {
-        console.error("Erro ao buscar unidades:", error);
-        toast({ title: "Erro ao carregar unidades.", variant: "destructive" });
+        console.error("Erro ao carregar dados do formulário:", error);
+        toast({
+          title: "Erro ao carregar dados",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
       }
     };
-    fetchUnidades();
-  }, [session?.user?.id]);
 
-  useEffect(() => {
-    const fetchAllProfissionais = async () => {
-      if (!session?.user?.id) return;
-      try {
-        const response = await fetch(`/api/profissionais?userId=${session.user.id}`);
-        if (!response.ok) throw new Error("Erro ao buscar profissionais");
-        const data: Profissional[] = await response.json();
-        setAllProfissionais(data || []);
-      } catch (error) {
-        console.error("Erro ao buscar os profissionais:", error);
-        toast({ title: "Erro ao carregar profissionais.", variant: "destructive" });
-      }
-    };
-    fetchAllProfissionais();
-  }, [session?.user?.id]);
+    fetchData();
+  }, []); // Array de dependências vazio para executar apenas uma vez
 
+  // Efeito para filtrar profissionais quando a unidade muda
   useEffect(() => {
     if (selectedUnidade) {
-      const profissionaisDaUnidade = allProfissionais.filter(p => p.unidades?.some(u => u.id === selectedUnidade.id));
-      setFilteredProfissionais(profissionaisDaUnidade);
+      const profissionaisFiltrados = allProfissionais.filter(profissional => 
+        profissional.unidades?.some(unidade => unidade.id === selectedUnidade.id)
+      );
+      setFilteredProfissionais(profissionaisFiltrados);
     } else {
       setFilteredProfissionais(allProfissionais);
     }
+    setSelectedProfissional(null); // Limpa o profissional selecionado ao trocar de unidade
   }, [selectedUnidade, allProfissionais]);
 
-  // Buscar Condições de Saúde (ex-Tratamentos)
-  useEffect(() => {
-    const fetchCondicoesSaude = async () => {
-      if (!session?.user?.id) return;
-      try {
-        // UPDATED API endpoint
-        const response = await fetch(`/api/condicoes?userId=${session.user.id}`);
-        if (!response.ok) throw new Error("Erro ao buscar condições de saúde");
-        const data = await response.json();
-        setCondicoesSaude(data || []);
-      } catch (error) {
-        console.error("Erro ao buscar condições de saúde:", error);
-        toast({ title: "Erro ao carregar condições de saúde.", variant: "destructive" });
-      }
-    };
-    fetchCondicoesSaude();
-  }, [session?.user?.id]);
+  const handleConsultaOrigemSelect = (consulta: Consulta) => {
+    setSelectedConsultaOrigem(consulta);
+    if (consulta.unidade) {
+      setSelectedUnidade(consulta.unidade);
+    }
+    if (consulta.profissional) {
+      setSelectedProfissional(consulta.profissional);
+    }
+    if (consulta.condicaoSaude) {
+        setSelectedCondicao(consulta.condicaoSaude);
+    }
+  };
 
   const handleSaveConsulta = async () => {
     if (!selectedDay || !manualTime || !selectedTipo) {
       toast({ title: "Preencha a data, horário e tipo.", variant: "destructive" });
       return;
+    }
+
+    if (selectedTipo === 'Retorno' && !selectedConsultaOrigem) {
+        toast({ title: "Para Retorno, selecione a consulta original.", variant: "destructive" });
+        return;
     }
 
     const [hour, minute] = manualTime.split(":").map(Number);
@@ -133,8 +139,9 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
           data: newDate,
           unidadeId: selectedUnidade?.id || null,
           profissionalId: selectedProfissional?.id || null,
-          condicaoSaudeId: selectedCondicao?.id || null, // UPDATED
+          condicaoSaudeId: selectedCondicao?.id || null,
           queixas: form.getValues("queixas") || null,
+          consultaOrigemId: selectedConsultaOrigem?.id || null,
         };
 
         if (selectedTipo === "Emergencia" && (!consultaData.queixas || !consultaData.unidadeId)) {
@@ -178,7 +185,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       formData.append("unidadesId", selectedUnidade.id);
       formData.append("profissionalId", selectedProfissional.id);
       if (selectedCondicao?.id) { 
-        formData.append("condicaoSaudeId", selectedCondicao.id); // UPDATED
+        formData.append("condicaoSaudeId", selectedCondicao.id);
       }
       formData.append("nome", tipoExameValue);
       formData.append("anotacao", anotacaoExameValue || "");
@@ -206,57 +213,75 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         </SheetTrigger>
         <SheetContent className="flex h-full w-full flex-col overflow-y-auto p-3 md:p-5">
           <SheetHeader><SheetTitle>Novo Agendamento</SheetTitle></SheetHeader>
-          <Calendar mode="single" locale={ptBR} selected={selectedDay} onSelect={setSelectedDay} className="w-full mt-2 md:mt-5" />
-          <div className="flex flex-col gap-3 p-3 md:p-5">
-            <input type="time" className="rounded border bg-black p-2 text-white" onChange={(e) => setManualTime(e.target.value)} value={manualTime} />
-          </div>
-          <ConsultaTipoSelector selectedTipo={selectedTipo} onTipoSelect={setSelectedTipo} />
-          {selectedTipo && <MenuUnidades unidades={unidades} onUnidadeSelect={(u) => { setSelectedUnidade(u); setSelectedProfissional(null); }} selectedUnidade={selectedUnidade} />}
-          {selectedTipo && <MenuProfissionais profissionais={filteredProfissionais} onProfissionalSelect={setSelectedProfissional} selectedProfissional={selectedProfissional} />}
-          {selectedTipo && ["Rotina", "Tratamento", "Retorno", "Exame"].includes(selectedTipo) && (
-            <MenuCondicoes
-              condicoes={condicoesSaude}
-              onCondicaoSelect={setSelectedCondicao}
-              selectedCondicao={selectedCondicao}
-            />
-          )}
-          {selectedTipo && ["Emergencia", "Rotina", "Tratamento", "Retorno"].includes(selectedTipo) && (
-            <Form {...form}>_components
-              <FormField control={form.control} name="queixas" render={({ field }) => (
-                <FormItem className="w-full"><FormControl><Textarea placeholder="O que te levou ao médico?" {...field} className="mt-2 w-full" /></FormControl><FormMessage /></FormItem>
-              )} />
-            </Form>
-          )}
-          {selectedTipo === "Exame" && (
-            <div className="flex flex-col gap-4">
-              <Form {...form}>
-                <FormField control={form.control} name="tipoexame" render={({ field }) => (
-                  <FormItem className="w-full">
-                    <Label>Tipo de Exame</Label>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo de exame" /></SelectTrigger></FormControl>
-                      <SelectContent>
-                        <SelectItem value="Sangue">Sangue</SelectItem>
-                        <SelectItem value="Urina">Urina</SelectItem>
-                        <SelectItem value="USG">USG</SelectItem>
-                        <SelectItem value="Raio-X">Raio-X</SelectItem>
-                        <SelectItem value="Outros">Outros</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="anotacaoExame" render={({ field }) => (
-                  <FormItem className="w-full">
-                    <Label>Anotação do Exame</Label>
-                    <FormControl><Textarea placeholder="Adicione anotações sobre o exame..." {...field} className="mt-2 w-full" /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-              </Form>
+          <div className="space-y-4 flex-1 pr-2 overflow-y-auto">
+            <Calendar mode="single" locale={ptBR} selected={selectedDay} onSelect={setSelectedDay} className="w-full mt-2 md:mt-5" />
+            <div className="flex flex-col gap-3">
+              <input type="time" className="rounded border bg-background p-2 text-foreground w-full" onChange={(e) => setManualTime(e.target.value)} value={manualTime} />
             </div>
-          )}
-          <SheetFooter>
+            <ConsultaTipoSelector selectedTipo={selectedTipo} onTipoSelect={setSelectedTipo} />
+            
+            {selectedTipo === 'Retorno' && session?.user?.id && (
+              <div className="space-y-2">
+                  <Label>Consulta de Origem</Label>
+                  <MenuConsultas 
+                    userId={session.user.id}
+                    onConsultaSelect={handleConsultaOrigemSelect}
+                    selectedConsulta={selectedConsultaOrigem}
+                  />
+              </div>
+            )}
+
+            {selectedTipo && <MenuUnidades unidades={unidades} onUnidadeSelect={setSelectedUnidade} selectedUnidade={selectedUnidade} />}
+            {selectedTipo && <MenuProfissionais profissionais={filteredProfissionais} onProfissionalSelect={setSelectedProfissional} selectedProfissional={selectedProfissional} />}
+            
+            {selectedTipo && ["Rotina", "Tratamento", "Retorno", "Exame"].includes(selectedTipo) && (
+                <MenuCondicoes
+                condicoes={condicoesSaude}
+                onCondicaoSelect={setSelectedCondicao}
+                selectedCondicao={selectedCondicao}
+                />
+            )}
+
+            {selectedTipo && ["Emergencia", "Rotina", "Tratamento", "Retorno"].includes(selectedTipo) && (
+                <Form {...form}>
+                <FormField control={form.control} name="queixas" render={({ field }) => (
+                    <FormItem className="w-full"><FormControl><Textarea placeholder="O que te levou ao médico?" {...field} className="mt-2 w-full" /></FormControl><FormMessage /></FormItem>
+                )} />
+                </Form>
+            )}
+
+            {selectedTipo === "Exame" && (
+              <div className="flex flex-col gap-4">
+                <Form {...form}>
+                  <FormField control={form.control} name="tipoexame" render={({ field }) => (
+                    <FormItem className="w-full">
+                      <Label>Tipo de Exame</Label>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione o tipo de exame" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                          <SelectItem value="Sangue">Sangue</SelectItem>
+                          <SelectItem value="Urina">Urina</SelectItem>
+                          <SelectItem value="USG">USG</SelectItem>
+                          <SelectItem value="Raio-X">Raio-X</SelectItem>
+                          <SelectItem value="Outros">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                  <FormField control={form.control} name="anotacaoExame" render={({ field }) => (
+                    <FormItem className="w-full">
+                      <Label>Anotação do Exame</Label>
+                      <FormControl><Textarea placeholder="Adicione anotações sobre o exame..." {...field} className="mt-2 w-full" /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )} />
+                </Form>
+              </div>
+            )}
+          </div>
+          
+          <SheetFooter className="mt-4">
             <SheetClose asChild><Button className="w-full" onClick={handleSaveConsulta}>Salvar</Button></SheetClose>
           </SheetFooter>
         </SheetContent>

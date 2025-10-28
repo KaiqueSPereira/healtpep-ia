@@ -34,9 +34,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "10", 10);
-
     type ConsultaWithRelations = Prisma.ConsultasGetPayload<{
       include: {
         usuario: { select: { name: true, email: true } };
@@ -77,7 +74,7 @@ export async function GET(req: Request) {
       };
     });
 
-    return NextResponse.json({ consultas: decryptedConsultas, page, limit });
+    return NextResponse.json(decryptedConsultas);
   } catch (error) {
     let errorMessage = "Erro ao buscar os dados";
     if (error instanceof Error) {

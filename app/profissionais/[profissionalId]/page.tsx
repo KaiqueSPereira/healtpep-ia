@@ -7,7 +7,6 @@ import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import AgendamentoItem from '@/app/consulta/components/agendamentosItem';
-import Link from 'next/link';
 import CondicaoSaudeSelectorMultiple from '@/app/condicoes/_Components/TratamentoSelectorMultiple';
 // CORREÇÃO: Importa CondicaoSaude diretamente para evitar o erro de lint.
 import type { Prisma, CondicaoSaude } from '@prisma/client';
@@ -68,10 +67,9 @@ const ProfissionalDetalhesPage = () => {
   return (
     <div className="flex flex-col">
       <Header />
-      <div className="p-4 flex justify-between items-center">
-         <Button variant="outline" onClick={() => router.back()} > <ChevronRight className="mr-2 h-4 w-4 transform rotate-180" /> Voltar </Button>
-        <Button variant="outline" size="icon" asChild>
-            <Link href={`/profissionais/`}> </Link>
+      <div className="p-4">
+        <Button variant="outline" onClick={() => router.push('/profissionais')} >
+            <ChevronRight className="mr-2 h-4 w-4 transform rotate-180" /> Voltar
         </Button>
       </div>
 
@@ -104,15 +102,14 @@ const ProfissionalDetalhesPage = () => {
                         id: consulta.id,
                         userId: consulta.userId,
                         tipo: 'Consulta',
-                        data: consulta.data,
+                        data: new Date(consulta.data).toISOString(),
                         nomeProfissional: profissional.nome || '',
-                        especialidade: profissional.especialidade || 'Clínico Geral',
+                        especialidade: profissional.especialidade || 'Não especificado',
                         local: consulta.unidade?.nome || 'Não especificado',
                       }}
                     />
                   ))
-                ) : (<p className="text-center text-gray-500">Nenhuma consulta encontrada.</p>)}
-            </div> </CardContent>
+                ) : (<p className="text-center text-gray-500">Nenhuma consulta encontrada.</p>)}</div> </CardContent>
           </Card>
 
           <Card className="md:col-span-2"> <CardHeader><CardTitle>Últimos Exames</CardTitle></CardHeader>
@@ -132,8 +129,7 @@ const ProfissionalDetalhesPage = () => {
                       <ChevronRight className="h-5 w-5 text-gray-400" />
                     </div>
                   ))
-                ) : (<p className="text-center text-gray-500">Nenhum exame encontrado.</p>)}
-            </div> </CardContent>
+                ) : (<p className="text-center text-gray-500">Nenhum exame encontrado.</p>)}</div> </CardContent>
           </Card>
 
         </div>

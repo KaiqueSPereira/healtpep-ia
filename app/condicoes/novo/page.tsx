@@ -8,8 +8,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from '@/app/_hooks/use-toast';
 import { useDebounce } from '@/app/_hooks/use-debounce';
-import { DayPicker } from 'react-day-picker';
-import 'react-day-picker/dist/style.css';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
@@ -18,26 +16,26 @@ import { Input } from '@/app/_components/ui/input';
 import { Textarea } from '@/app/_components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/app/_components/ui/popover';
 import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem, CommandList } from '@/app/_components/ui/command';
+import { Calendar } from '@/app/_components/ui/calendar';
 import { CalendarIcon, Loader2, Check, ArrowLeft } from 'lucide-react';
 import { cn } from '@/app/_lib/utils';
-import { format, parse } from 'date-fns';
+import { format, parse } from 'date-fns'; // Adicionado o 'parse'
 import { ptBR } from 'date-fns/locale';
 import { Profissional } from '@prisma/client';
-import MenuProfissionais from '@/app/profissionais/_components/menuprofissionais'; // Importa o componente
+import MenuProfissionais from '@/app/profissionais/_components/menuprofissionais';
 
 interface CidSearchResult {
   codigo: string;
   descricao: string;
 }
 
-// Atualiza o schema para incluir o ID do profissional (opcional)
 const formSchema = z.object({
   nome: z.string().min(2, "O nome da condição é obrigatório."),
   dataInicio: z.date({ required_error: "A data de início é obrigatória." }),
   cidCodigo: z.string().optional(),
   cidDescricao: z.string().optional(),
   observacoes: z.string().optional(),
-  profissionalId: z.string().optional(), // Campo adicionado
+  profissionalId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -54,7 +52,6 @@ const NovaCondicaoDeSaudePage = () => {
   const [isCidPopoverOpen, setIsCidPopoverOpen] = useState(false);
   const debouncedCidQuery = useDebounce(cidQuery, 300);
   
-  // Estado para a lista de profissionais e o profissional selecionado
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
 
@@ -63,7 +60,6 @@ const NovaCondicaoDeSaudePage = () => {
     defaultValues: { nome: '', dataInicio: new Date(), cidCodigo: '', cidDescricao: '', observacoes: '', profissionalId: '' },
   });
 
-  // Busca a lista de profissionais ao carregar a página
   useEffect(() => {
     const fetchProfissionais = async () => {
       try {
@@ -100,7 +96,6 @@ const NovaCondicaoDeSaudePage = () => {
     fetchCid();
   }, [debouncedCidQuery]);
 
-  // Atualiza o onSubmit para enviar o ID do profissional
   const onSubmit: SubmitHandler<FormData> = async (data) => {
     if (!userId) {
       toast({ title: "Erro", description: "ID do usuário não fornecido.", variant: "destructive" });
@@ -111,7 +106,7 @@ const NovaCondicaoDeSaudePage = () => {
       const response = await fetch('/api/condicoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, userId: userId }), // O profissionalId já está em `data`
+        body: JSON.stringify({ ...data, userId: userId }),
       });
       if (!response.ok) throw new Error((await response.json()).error || 'Falha ao criar condição.');
       toast({ title: "Condição de saúde criada com sucesso!" });
@@ -125,7 +120,7 @@ const NovaCondicaoDeSaudePage = () => {
     }
   };
   
-  if (!userId) { /* ... (código existente) ... */ }
+  if (!userId) { return <div>Carregando...</div>; }
 
   return (
     <div className="flex flex-col h-screen">
@@ -145,12 +140,10 @@ const NovaCondicaoDeSaudePage = () => {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-4">
-                  {/* ... (campo Nome da Condição) ... */}
                   <FormField control={form.control} name="nome" render={({ field }) => ( 
                     <FormItem className="flex flex-col"><FormLabel>Nome da Condição (pesquisável)</FormLabel><Popover open={isCidPopoverOpen} onOpenChange={setIsCidPopoverOpen}><PopoverTrigger asChild><FormControl><Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>{field.value || "Selecione ou digite o nome da condição"}</Button></FormControl></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] max-h-[--radix-popover-content-available-height] p-0"><Command shouldFilter={false}><CommandInput placeholder="Digite para pesquisar (Ex: Asma, Diabetes...)" onValueChange={setCidQuery} /><CommandList><CommandEmpty>{isCidLoading ? 'Pesquisando...' : 'Nenhum resultado encontrado.'}</CommandEmpty><CommandGroup>{cidResults.map((result) => (<CommandItem key={result.codigo} value={result.descricao} onSelect={() => {form.setValue("nome", result.descricao); form.setValue("cidCodigo", result.codigo); form.setValue("cidDescricao", result.descricao); setIsCidPopoverOpen(false);}}><Check className={cn("mr-2 h-4 w-4", result.descricao === field.value ? "opacity-100" : "opacity-0")} /><div><p className="font-semibold">{result.descricao}</p><p className="text-xs text-muted-foreground">{result.codigo}</p></div></CommandItem>))}</CommandGroup></CommandList></Command></PopoverContent></Popover><FormMessage /></FormItem>
                   )} />
                   
-                  {/* --- Campo para vincular profissional --- */}
                   <FormField
                     control={form.control}
                     name="profissionalId"
@@ -162,7 +155,7 @@ const NovaCondicaoDeSaudePage = () => {
                           selectedProfissional={selectedProfissional}
                           onProfissionalSelect={(prof) => {
                             setSelectedProfissional(prof);
-                            field.onChange(prof ? prof.id : ''); // Atualiza o valor do formulário
+                            field.onChange(prof ? prof.id : '');
                           }}
                         />
                         <FormMessage />
@@ -170,7 +163,6 @@ const NovaCondicaoDeSaudePage = () => {
                     )}
                   />
                   
-                  {/* ... (outros campos: Data, CID, Observações) ... */}
                    <FormField
                     name="dataInicio"
                     control={form.control}
@@ -197,7 +189,7 @@ const NovaCondicaoDeSaudePage = () => {
                             </FormControl>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
-                          <DayPicker
+                            <Calendar
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
@@ -210,7 +202,7 @@ const NovaCondicaoDeSaudePage = () => {
                             <div className="p-2 border-t">
                               <Input
                                 type="text"
-                                placeholder="Digite a data (dd/mm/aaaa)"
+                                placeholder="Ou digite: dd/mm/aaaa"
                                 onChange={(e) => {
                                   const date = parse(e.target.value, 'dd/MM/yyyy', new Date());
                                   if (!isNaN(date.getTime())) {

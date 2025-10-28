@@ -169,7 +169,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
               // CORREÇÃO: Mapeia o objeto 'consulta' para o formato 'AgendamentoUnificado'
               const agendamento: AgendamentoUnificado = {
                 id: consulta.id,
-                data: new Date(consulta.data),
+                data: consulta.data.toISOString(),
                 nomeProfissional: consulta.profissional?.nome || 'Não especificado',
                 especialidade: consulta.profissional?.especialidade || 'Clínico Geral',
                 local: consulta.unidade?.nome || 'Local não especificado',

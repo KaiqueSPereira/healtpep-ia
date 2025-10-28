@@ -1,4 +1,4 @@
-'use client'; // Marcando como Client Component
+'use client'; 
 
 import { Button } from "@/app/_components/ui/button";
 import { Textarea } from "@/app/_components/ui/textarea";
@@ -13,20 +13,32 @@ import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
 import Header from "@/app/_components/header";
 import BotaoEditarConsulta from "../components/buttoneditConsulta";
-import { useState, useEffect, useCallback } from "react"; // CORREÇÃO: Adicionado useCallback
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import { useParams, useRouter } from "next/navigation";
 
 import { Exame, Profissional, Unidade } from "@/app/_components/types"; 
-import { AnexoConsulta, CondicaoSaude } from "@prisma/client";
+import { AnexoConsulta, CondicaoSaude} from "@prisma/client";
 import AnexoUploader from "../components/AnexoUploader";
 import AnexosList from "../components/AnexosList";
+import ExameItem from "@/app/exames/components/ExameItem";
 
-// Tipagens locais para evitar complexidade desnecessária no estado
 interface Anotacao {
     id: string;
     anotacao: string;
     createdAt: Date;
+}
+
+type ExameComRelacoes = Exame & {
+  profissional: Profissional | null;
+  unidades: Unidade | null;
+};
+
+// Interface para os dados simplificados das consultas relacionadas
+interface ConsultaRelacionada {
+    id: string;
+    data: string;
+    tipo: string;
 }
 
 interface ConsultaData {
@@ -37,9 +49,12 @@ interface ConsultaData {
     unidade: Unidade | null;
     profissional: Profissional | null;
     Anotacoes: Anotacao[];
-    Exame: Exame[];
+    Exame: ExameComRelacoes[]; 
     tratamento: CondicaoSaude | null;
     anexos: AnexoConsulta[];
+    // Campos para as consultas relacionadas
+    consultaOrigem?: ConsultaRelacionada | null;
+    consultasDeRetorno?: ConsultaRelacionada[];
 }
 
 const ConsultaPage = () => {
@@ -55,7 +70,6 @@ const ConsultaPage = () => {
 
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
-  // CORREÇÃO: A função foi envolvida em useCallback para estabilizá-la
   const fetchConsulta = useCallback(async () => {
       setLoading(true);
       try {
@@ -75,7 +89,6 @@ const ConsultaPage = () => {
       }
   }, [consultaId]);
 
-  // CORREÇÃO: `fetchConsulta` foi adicionada como dependência
   useEffect(() => {
     if (consultaId) {
       fetchConsulta();
@@ -88,8 +101,8 @@ const ConsultaPage = () => {
             const response = await fetch(`/api/consultas/${consultaId}/anexos/${anexoId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(await response.text() || 'Falha ao apagar o anexo.');
             toast({ title: "Anexo apagado com sucesso!" });
-            fetchConsulta(); // Re-busca os dados para atualizar a lista
-        } catch (err) { // CORREÇÃO: removido ':any'
+            fetchConsulta();
+        } catch (err) {
             const message = (err as Error).message;
             toast({ title: "Erro ao apagar anexo", description: message, variant: "destructive" });
         }
@@ -100,14 +113,13 @@ const ConsultaPage = () => {
     setDeleting(true);
     try {
       const response = await fetch(`/api/consultas/${consultaId}`, { method: "DELETE" });
-      // CORREÇÃO: Gestão de erro melhorada, usando .text() para segurança
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || "Falha ao apagar a consulta.");
       }
       toast({ title: "Consulta apagada com sucesso!" });
       router.push("/consulta");
-    } catch (err) { // CORREÇÃO: removido ':any'
+    } catch (err) {
       const message = (err as Error).message;
       toast({ title: `Erro ao apagar consulta: ${message}`, variant: "destructive" });
       setDeleting(false);
@@ -140,6 +152,27 @@ const ConsultaPage = () => {
 
       <main className="container mx-auto px-5 py-6 space-y-6">
 
+        {/* Seção de Consultas Vinculadas */}
+        {(consulta.consultaOrigem || (consulta.consultasDeRetorno && consulta.consultasDeRetorno.length > 0)) && (
+            <Card>
+                <CardHeader><CardTitle>Consultas Vinculadas</CardTitle></CardHeader>
+                <CardContent className="grid gap-2 text-sm">
+                    {consulta.consultaOrigem && (
+                        <Link href={`/consulta/${consulta.consultaOrigem.id}`} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                            <span>Consulta de Origem ({consulta.consultaOrigem.tipo})</span>
+                            <span>{new Date(consulta.consultaOrigem.data).toLocaleDateString('pt-BR')}</span>
+                        </Link>
+                    )}
+                    {consulta.consultasDeRetorno && consulta.consultasDeRetorno.map(retorno => (
+                        <Link key={retorno.id} href={`/consulta/${retorno.id}`} className="flex justify-between items-center p-2 rounded-md hover:bg-muted">
+                            <span>Retorno ({retorno.tipo})</span>
+                            <span>{new Date(retorno.data).toLocaleDateString('pt-BR')}</span>
+                        </Link>
+                    ))}
+                </CardContent>
+            </Card>
+        )}
+
         {/* Detalhes da Consulta */}
         <Card>
           <CardHeader>
@@ -169,11 +202,15 @@ const ConsultaPage = () => {
         {consulta.Exame && consulta.Exame.length > 0 && (
           <Card>
             <CardHeader><CardTitle>Exames Relacionados</CardTitle></CardHeader>
-            <CardContent><ul>{consulta.Exame.map((exame) => (<li key={exame.id}><Link href={`/exames/${exame.id}`} className="text-blue-500 hover:underline">{exame.tipo} - {new Date(exame.dataExame).toLocaleDateString()}</Link></li>))}</ul></CardContent>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {consulta.Exame.map((exame) => (
+                <ExameItem key={exame.id} exame={exame} />
+              ))}
+            </CardContent>
           </Card>
         )}
 
-        {/* Seção de Anotações (Simplificado para visualização) */}
+        {/* Seção de Anotações */}
         {consulta.Anotacoes && consulta.Anotacoes.length > 0 && (
           <Card>
             <CardHeader><CardTitle>Anotações</CardTitle></CardHeader>
@@ -181,7 +218,7 @@ const ConsultaPage = () => {
           </Card>
         )}
 
-        {/* Adicionar Nova Anotação (Corrigido) */}
+        {/* Adicionar Nova Anotação */}
         <Card>
           <CardHeader><CardTitle>Adicionar Nova Anotação</CardTitle></CardHeader>
           <CardContent className="grid gap-4">

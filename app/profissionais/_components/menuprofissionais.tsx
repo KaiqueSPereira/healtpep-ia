@@ -16,24 +16,22 @@ import {
   CommandItem,
   CommandList,
 } from "../../_components/ui/command";
-// CORREÇÃO: Importa o tipo correto do Prisma Client
 import { Profissional } from "@prisma/client";
 import { useRouter } from "next/navigation";
 
-// CORREÇÃO: Atualiza a interface para usar o tipo correto e aceitar a prop 'disabled'
 interface MenuProfissionaisProps {
   profissionais: Profissional[];
   onProfissionalSelect: (profissional: Profissional | null) => void;
   selectedProfissional: Profissional | null;
   unidadeId?: string | null;
-  disabled?: boolean; // Adiciona a prop disabled
+  disabled?: boolean; 
 }
 
 const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
   profissionais,
   onProfissionalSelect,
   selectedProfissional,
-  disabled = false, // Define um valor padrão
+  disabled = false, 
 }) => {
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -44,7 +42,6 @@ const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
   };
 
   const handleAddNew = () => {
-    // CORREÇÃO: Leva para a página de criação, e não para um ID dinâmico
     router.push("/profissionais/novo");
   };
 
@@ -52,7 +49,6 @@ const MenuProfissionais: React.FC<MenuProfissionaisProps> = ({
     <div className="w-full">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          {/* CORREÇÃO: Aplica a propriedade disabled ao botão */}
           <Button
             variant="outline"
             role="combobox"

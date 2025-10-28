@@ -151,6 +151,12 @@ model Consultas {
   userId         String
   profissionalId String?
   unidadeId      String?
+
+  // Self-relation for "Retorno"
+  consultaOrigemId String?
+  consultaOrigem   Consultas?      @relation("ConsultaRetorno", fields: [consultaOrigemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  retornos         Consultas[]     @relation("ConsultaRetorno")
+
   profissional   Profissional?   @relation(fields: [profissionalId], references: [id])
   unidade        UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario        User            @relation(fields: [userId], references: [id], onDelete: Cascade)

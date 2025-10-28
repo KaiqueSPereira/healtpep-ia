@@ -1,10 +1,9 @@
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
-import { AgendamentoUnificado } from "./agendamentolist"; // 1. IMPORTA O TIPO CORRETO
+import { AgendamentoUnificado } from "./agendamentolist";
 import { Badge } from "@/app/_components/ui/badge";
 
-// 2. MUDA A PROPRIEDADE E O TIPO
 interface AgendamentoItemProps {
   agendamento: AgendamentoUnificado;
 }
@@ -14,7 +13,6 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
     return null;
   }
 
-  // 3. USA AS PROPRIEDADES DO NOVO TIPO
   const {
     id,
     tipo,
@@ -29,14 +27,14 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
   const dia = dataObj.getDate().toString();
   const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  // 4. CRIA O LINK DINÂMICO
-  const linkHref = `/${tipo.toLowerCase()}/${id}`;
+  const linkHref = `/${tipo.toLowerCase()}s/${id}`;
 
   return (
     <div className="w-full md:w-auto">
       <Card className="min-w-[280px] max-w-[320px] h-48">
         <CardContent className="flex p-0 overflow-hidden h-full">
-          <div className="flex flex-col gap-1 py-4 px-5 flex-grow">
+          {/* CORREÇÃO: Adicionado `min-w-0` para permitir que o `truncate` funcione corretamente em um container flex */}
+          <div className="flex flex-col gap-1 py-4 px-5 flex-grow min-w-0">
             <Badge 
               variant={tipo === 'Consulta' ? 'default' : 'secondary'} 
               className="w-fit mb-2"
@@ -44,7 +42,8 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
               {tipo}
             </Badge>
             <h3 className="text-md font-bold truncate">{especialidade}</h3>
-            <p className="text-sm font-semibold">{nomeProfissional}</p>
+            {/* CORREÇÃO: Adicionada a classe `truncate` para evitar quebra de linha */}
+            <p className="text-sm font-semibold truncate">{nomeProfissional}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{local}</p>
             <div className="flex-grow" /> {/* Spacer */}
             <Button variant="secondary" className="mt-2 w-28" asChild>
