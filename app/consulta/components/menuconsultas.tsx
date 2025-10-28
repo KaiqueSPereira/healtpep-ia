@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import {
   Popover,
@@ -18,47 +18,23 @@ import {
 } from "../../_components/ui/command";
 import { Consulta } from "@/app/_components/types";
 
+// CORREÇÃO: Receber 'consultas' como prop e remover 'userId'
 interface MenuConsultasProps {
-  onConsultaSelect: (consulta: Consulta) => void; // Usar o seu tipo Consulta
-  selectedConsulta: Consulta | null; // Usar o seu tipo Consulta
-  userId: string;
+  consultas: Consulta[];
+  onConsultaSelect: (consulta: Consulta | null) => void;
+  selectedConsulta: Consulta | null;
 }
 
 const MenuConsultas: React.FC<MenuConsultasProps> = ({
+  consultas = [], // Usar a lista de consultas vinda das props
   onConsultaSelect,
   selectedConsulta,
-  userId,
 }) => {
-  const [consultas, setConsultas] = useState<Consulta[]>([]); // Usar o seu tipo Consulta
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  useEffect(() => {
-    if (!userId) return;
+  // REMOÇÃO: O useEffect que buscava os dados foi removido.
 
-    const fetchConsultas = async () => {
-      try {
-        const res = await fetch(`/api/consultas?userId=${userId}`);
-        if (!res.ok) {
-          throw new Error("Erro ao carregar as consultas");
-        }
-        const data = await res.json();
-        // Assumindo que a API retorna { consultas: [...] } com a estrutura de profissional e unidade
-        setConsultas(data.consultas || []);
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          console.error("Erro ao buscar consultas:", err.message);
-        } else {
-          console.error("Erro ao buscar consultas:", err);
-        }
-        setConsultas([]);
-      }
-    };
-
-    fetchConsultas();
-  }, [userId]);
-
-  // Filtrar as consultas no frontend com base no searchValue
   const filteredConsultas = consultas.filter(consulta =>
     consulta.tipo.toLowerCase().includes(searchValue.toLowerCase()) ||
     new Date(consulta.data).toLocaleDateString().includes(searchValue) ||
@@ -66,8 +42,7 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
     consulta.unidade?.nome?.toLowerCase().includes(searchValue.toLowerCase())
   );
 
-  // Função auxiliar para formatar o texto exibido
-  const formatConsultaText = (consulta: Consulta): string => { // Usar o seu tipo Consulta
+  const formatConsultaText = (consulta: Consulta): string => {
       const dataFormatada = new Date(consulta.data).toLocaleDateString();
       const profissionalNome = consulta.profissional?.nome || "Sem profissional";
       const unidadeNome = consulta.unidade?.nome || "Sem unidade";
@@ -102,12 +77,21 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
             <CommandList>
               <CommandEmpty>Nenhuma consulta encontrada.</CommandEmpty>
               <CommandGroup>
+                 {/* Adicionado um item para desmarcar a seleção */}
+                <CommandItem
+                    onSelect={() => {
+                        onConsultaSelect(null);
+                        setOpen(false);
+                    }}
+                >
+                    <Check className={`mr-2 h-4 w-4 ${!selectedConsulta ? "opacity-100" : "opacity-0"}`} />
+                    Nenhuma (limpar seleção)
+                </CommandItem>
                 {consultas.length === 0 && searchValue === "" ? (
                    <CommandItem disabled>Carregando consultas...</CommandItem>
                 ) : filteredConsultas.map((consulta) => (
                     <CommandItem
                       key={consulta.id}
-                       // Valor para busca: incluir todos os campos relevantes e converter para lowercase
                       value={formatConsultaText(consulta).toLowerCase()}
                       onSelect={() => {
                         onConsultaSelect(consulta);
@@ -115,7 +99,6 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
                         setSearchValue("");
                       }}
                     >
-                       {/* Exibir data, tipo, profissional e unidade */}
                       <Check
                         className={`mr-2 h-4 w-4 ${
                           selectedConsulta?.id === consulta.id

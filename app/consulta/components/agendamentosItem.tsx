@@ -16,6 +16,7 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
   const {
     id,
     tipo,
+    tipoConsulta,
     data,
     nomeProfissional,
     especialidade,
@@ -33,19 +34,17 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
     <div className="w-full md:w-auto">
       <Card className="min-w-[280px] max-w-[320px] h-48">
         <CardContent className="flex p-0 overflow-hidden h-full">
-          {/* CORREÇÃO: Adicionado `min-w-0` para permitir que o `truncate` funcione corretamente em um container flex */}
           <div className="flex flex-col gap-1 py-4 px-5 flex-grow min-w-0">
             <Badge 
               variant={tipo === 'Consulta' ? 'default' : 'secondary'} 
               className="w-fit mb-2"
             >
-              {tipo}
+              {tipo === 'Consulta' && tipoConsulta ? tipoConsulta : tipo}
             </Badge>
             <h3 className="text-md font-bold truncate">{especialidade}</h3>
-            {/* CORREÇÃO: Adicionada a classe `truncate` para evitar quebra de linha */}
             <p className="text-sm font-semibold truncate">{nomeProfissional}</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{local}</p>
-            <div className="flex-grow" /> {/* Spacer */}
+            <div className="flex-grow" />
             <Button variant="secondary" className="mt-2 w-28" asChild>
               <Link href={linkHref}>Ver Detalhes</Link>
             </Button>

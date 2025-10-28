@@ -10,29 +10,26 @@ import { Input } from "../../_components/ui/input";
 import { Label } from "../../_components/ui/label";
 import { Textarea } from "../../_components/ui/textarea";
 import { toast } from "../../_hooks/use-toast";
-
-// CORREÇÃO: Importa todos os tipos necessários diretamente do Prisma Client
+// CORREÇÃO: Usa o tipo Consulta do arquivo de tipos centralizado e remove o tipo antigo
 import {
-  Consultas,
+  Consulta,
   Profissional,
-  UnidadeDeSaude,
   CondicaoSaude,
   ResultadoExame,
   Exame
-} from "@prisma/client";
+} from "@/app/_components/types"; 
 import { ExamDetailsForm } from "./ExamDetailForm";
+import { UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: Define tipos locais para os dados com relações, baseados nos tipos do Prisma
+// CORREÇÃO: Usa o tipo Consulta enriquecido
 type ExameComRelacoes = Exame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
   unidades?: UnidadeDeSaude | null;
-  consulta?: Consultas | null;
+  consulta?: Consulta | null; 
   condicaoSaude?: CondicaoSaude | null;
 };
 
-// A API de análise retorna um tipo específico
-// (Mantive os nomes que você usou, pois parecem vir de uma API externa)
 type ApiExameResult = {
   nome: string;
   valor: string;
@@ -48,12 +45,11 @@ type AnaliseApiResponse = {
 export function ExameFormWrapper({
   existingExamData,
 }: {
-  // CORREÇÃO: Usa o novo tipo para a prop
   existingExamData?: ExameComRelacoes | null;
 }) {
-  // CORREÇÃO: Usa os tipos corretos do Prisma para o estado
-  const [consultas, setConsultas] = useState<Consultas[]>([]);
-  const [selectedConsulta, setSelectedConsulta] = useState<Consultas | null>(null);
+  // CORREÇÃO: Usa o tipo Consulta para o estado
+  const [consultas, setConsultas] = useState<Consulta[]>([]);
+  const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
   const [unidades, setUnidades] = useState<UnidadeDeSaude[]>([]);
   const [selectedUnidade, setSelectedUnidade] = useState<UnidadeDeSaude | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
@@ -77,29 +73,28 @@ export function ExameFormWrapper({
   const { data: session } = useSession();
   const userId = session?.user?.id;
 
-  // Busca dados iniciais (consultas, condições, unidades)
   useEffect(() => {
     if (!userId) return;
 
     const fetchData = async () => {
       try {
         const [consultasRes, condicoesRes, unidadesRes] = await Promise.all([
-          fetch(`/api/consultas?userId=${userId}`),
-          fetch(`/api/condicaosaude?userId=${userId}`),
-          fetch(`/api/unidadesaude?userId=${userId}`),
+          fetch(`/api/consultas`),
+          fetch(`/api/condicoessaude`),
+          fetch(`/api/unidadesaude`),
         ]);
 
         if (consultasRes.ok) {
           const data = await consultasRes.json();
-          setConsultas(data.consultas || []);
+          setConsultas(Array.isArray(data) ? data : data.consultas || []);
         }
         if (condicoesRes.ok) {
           const data = await condicoesRes.json();
-          setCondicoesSaude(data.condicoes || []);
+          setCondicoesSaude(Array.isArray(data) ? data : data.condicoes || []);
         }
         if (unidadesRes.ok) {
           const data = await unidadesRes.json();
-          setUnidades(data.unidades || []);
+          setUnidades(Array.isArray(data) ? data : data.unidades || []);
         }
       } catch {
         toast({ title: "Erro ao carregar dados iniciais.", variant: "destructive" });
@@ -109,22 +104,27 @@ export function ExameFormWrapper({
     fetchData();
   }, [userId]);
 
-  // Busca profissionais quando uma unidade é selecionada
   useEffect(() => {
     if (!selectedUnidade?.id) {
       setProfissionais([]);
       return;
     }
-    // Supondo que a API de unidades retorne os profissionais associados
-    const unidadeCompleta = unidades.find(u => u.id === selectedUnidade.id);
-    if (unidadeCompleta) {
-       // Esta parte precisa de ajuste se a API /api/unidadesaude?userId não trouxer profissionais
-       // Por agora, vamos assumir que precisamos de outra chamada ou que os dados já estão lá.
+    
+    const fetchProfissionais = async () => {
+      try {
+        const res = await fetch(`/api/profissionais?unidadeId=${selectedUnidade.id}`);
+        if(res.ok) {
+          const data = await res.json();
+          setProfissionais(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        toast({ title: "Erro ao buscar profissionais.", variant: "destructive" });
+      }
     }
 
-  }, [selectedUnidade, unidades]);
+    fetchProfissionais();
+  }, [selectedUnidade]);
 
-  // Popula o formulário com dados existentes
   useEffect(() => {
     if (existingExamData) {
       setTipo(existingExamData.tipo || "");
@@ -269,7 +269,6 @@ export function ExameFormWrapper({
           className="space-y-6"
           onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
         >
-          {/* CORREÇÃO: Passa os dados corretos para o ExamDetailsForm */}
           <ExamDetailsForm
             consultas={consultas}
             selectedConsulta={selectedConsulta}

@@ -7,19 +7,18 @@ import {
     Exame as PrismaExame,
     ResultadoExame as PrismaResultadoExame,
     Endereco as PrismaEndereco,
-    User as PrismaUsuario // Added Usuario
+    User as PrismaUsuario
 } from '@prisma/client';
 
 // --- Base Entity Types ---
 
 export type Endereco = PrismaEndereco;
-export type Usuario = PrismaUsuario; // Exporting base user type
+export type Usuario = PrismaUsuario;
 
 export type Unidade = PrismaUnidade & {
     endereco?: Endereco;
 };
 
-// CORRECTED: Profissional type now includes relations for consultas, exames, and condicoesSaude.
 export type Profissional = PrismaProfissional & {
   unidades?: Unidade[];
   consultas?: Consulta[];
@@ -31,8 +30,9 @@ export type CondicaoSaude = PrismaCondicaoSaude & {
   profissional?: Profissional | null;
 };
 
+// CORREÇÃO: O campo 'data' agora aceita string ou Date.
 export type Consulta = Omit<PrismaConsulta, 'data'> & {
-  data: Date;
+  data: Date | string; // Permite que a data seja string (do JSON) ou Date
   profissional?: Profissional | null;
   unidade?: Unidade | null;
   condicaoSaude?: CondicaoSaude | null;
@@ -40,14 +40,13 @@ export type Consulta = Omit<PrismaConsulta, 'data'> & {
 
 export type ResultadoExame = PrismaResultadoExame;
 
-// CORRECTED: Exame type now includes the 'usuario' relation.
 export type Exame = PrismaExame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
   unidades?: Unidade | null; 
   consulta?: Consulta | null;
   condicaoSaude?: CondicaoSaude | null;
-  usuario?: Usuario | null; // Added relation to user
+  usuario?: Usuario | null;
 };
 
 export type MedicamentoComRelacoes = PrismaMedicamento & {

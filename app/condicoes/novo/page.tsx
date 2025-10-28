@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,7 +40,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const NovaCondicaoDeSaudePage = () => {
+const CondicaoFormWrapper = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get('userId');
@@ -231,6 +231,14 @@ const NovaCondicaoDeSaudePage = () => {
         </div>
       </main>
     </div>
+  );
+};
+
+const NovaCondicaoDeSaudePage = () => {
+  return (
+    <Suspense fallback={<div>Carregando...</div>}>
+      <CondicaoFormWrapper />
+    </Suspense>
   );
 };
 

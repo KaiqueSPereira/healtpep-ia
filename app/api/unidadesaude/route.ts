@@ -2,20 +2,29 @@
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 import { ApiRouteHandler } from "../types";
-import { getServerSession } from "next-auth"; // Importar getServerSession
-import { authOptions } from "@/app/_lib/auth"; // Importar authOptions
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/_lib/auth";
 
 type UnidadeParams = Record<string, never>;
 
 export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
   try {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
-    const userId = searchParams.get("userId"); // Adicionar para filtrar no GET também
 
     if (id) {
       const unidade = await db.unidadeDeSaude.findUnique({
-        where: { id },
+        where: { 
+            id,
+            userId: userId
+        },
         include: {
           endereco: true,
           profissionais: {
@@ -28,7 +37,7 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
 
       if (!unidade) {
         return NextResponse.json(
-          { error: "Unidade não encontrada" },
+          { error: "Unidade não encontrada ou não pertence ao usuário" },
           { status: 404 },
         );
       }
@@ -36,15 +45,8 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
       return NextResponse.json(unidade);
     }
 
-    // Lógica para listar unidades, agora filtrando por usuário se userId for fornecido
-    const whereClause: { userId?: string } = {};
-    if (userId) {
-        whereClause.userId = userId;
-    }
-
-
     const unidades = await db.unidadeDeSaude.findMany({
-        where: whereClause, // Aplicar o filtro de usuário se existir
+      where: { userId: userId },
       include: {
         endereco: true,
         profissionais: true,

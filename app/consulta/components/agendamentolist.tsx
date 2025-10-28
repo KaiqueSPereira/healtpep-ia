@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
 import { Button } from "@/app/_components/ui/button";
-import { Consultas, Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
+import { Consultas, Exame, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
 
 type ConsultaComRelacoes = Consultas & { 
     profissional: Profissional | null; 
@@ -14,14 +14,14 @@ type ExameComRelacoes = Exame & {
     unidades: UnidadeDeSaude | null; 
 };
 
-// CORREÇÃO: A data será passada como string para evitar problemas de serialização
 export type AgendamentoUnificado = {
   id: string;
-  data: string; // Alterado de Date para string
+  data: string;
   nomeProfissional: string;
   especialidade: string;
   local: string;
   tipo: 'Consulta' | 'Exame';
+  tipoConsulta?: Consultatype;
   userId: string;
 };
 
@@ -49,20 +49,20 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
       const consultas: ConsultaComRelacoes[] = await consultasRes.json();
       const exames: ExameComRelacoes[] = await examesRes.json();
 
-      // CORREÇÃO: Passa a string de data diretamente, sem criar um objeto Date
       const consultasMapeadas: AgendamentoUnificado[] = consultas.map(c => ({
         id: c.id,
-        data: c.data as unknown as string, // Mantém a string da API
+        data: c.data as unknown as string,
         nomeProfissional: c.profissional?.nome || 'Não especificado',
         especialidade: c.profissional?.especialidade || 'Clínico Geral',
         local: c.unidade?.nome || 'Local não especificado',
         tipo: 'Consulta',
+        tipoConsulta: c.tipo,
         userId: c.userId,
       }));
 
       const examesMapeados: AgendamentoUnificado[] = exames.map(e => ({
         id: e.id,
-        data: e.dataExame as unknown as string, // Mantém a string da API
+        data: e.dataExame as unknown as string,
         nomeProfissional: e.profissional?.nome || 'Não especificado',
         especialidade: e.tipo || 'Exame', 
         local: e.unidades?.nome || 'Local não especificado', 
@@ -73,7 +73,6 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
       const todosAgendamentos = [...consultasMapeadas, ...examesMapeados];
       const agora = new Date();
 
-      // CORREÇÃO: Cria o objeto Date apenas para a comparação e ordenação
       const futuros = todosAgendamentos
         .filter(ag => new Date(ag.data) >= agora)
         .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());

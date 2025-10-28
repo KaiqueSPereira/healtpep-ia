@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -49,17 +49,19 @@ const formSchema = z.object({
 type MedicamentoFormData = z.infer<typeof formSchema>;
 
 interface MedicamentoFormProps {
-    onSave: () => void; // CORRECTED: Renamed from onFormSubmit to onSave
-    profissionais: Profissional[];
-    condicoesSaude: CondicaoSaude[];
+    onSave: () => void; 
     medicamento?: MedicamentoComRelacoes | null;
 }
 
-export default function MedicamentoForm({ onSave, profissionais, condicoesSaude, medicamento }: MedicamentoFormProps) {
+export default function MedicamentoForm({ onSave, medicamento }: MedicamentoFormProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const { data: session } = useSession();
     const isEditMode = !!medicamento;
+
+    const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+    const [consultas, setConsultas] = useState<Consulta[]>([]);
+    const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
 
     const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
@@ -75,6 +77,29 @@ export default function MedicamentoForm({ onSave, profissionais, condicoesSaude,
             status: StatusMedicamento.Ativo 
         } 
     });
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!session?.user?.id) return;
+            try {
+                const [profissionaisRes, condicoesRes, consultasRes] = await Promise.all([
+                    fetch('/api/profissionais'),
+                    fetch('/api/condicoessaude'),
+                    fetch('/api/consultas')
+                ]);
+
+                if (profissionaisRes.ok) setProfissionais(await profissionaisRes.json());
+                if (condicoesRes.ok) setCondicoesSaude(await condicoesRes.json());
+                if (consultasRes.ok) {
+                    const data = await consultasRes.json();
+                    setConsultas(Array.isArray(data) ? data : data.consultas || []);
+                }
+            } catch {
+                toast({ title: "Erro ao carregar dados", description: "Não foi possível carregar informações para os menus.", variant: "destructive" });
+            }
+        };
+        fetchData();
+    }, [session]);
 
     useEffect(() => {
          const resetValues = (med: MedicamentoComRelacoes | null) => {
@@ -118,7 +143,7 @@ export default function MedicamentoForm({ onSave, profissionais, condicoesSaude,
                 throw new Error(errorData.error || `Falha ao ${isEditMode ? 'atualizar' : 'criar'} o medicamento.`);
             }
             toast({ title: `Medicamento ${isEditMode ? 'atualizado' : 'adicionado'} com sucesso!` });
-            onSave(); // CORRECTED: Called onSave
+            onSave();
         } catch (err) {
             toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
         } finally {
@@ -133,7 +158,7 @@ export default function MedicamentoForm({ onSave, profissionais, condicoesSaude,
             const response = await fetch(`/api/medicamentos/${medicamento.id}`, { method: 'DELETE' });
             if (!response.ok) throw new Error('Falha ao apagar o medicamento.');
             toast({ title: "Medicamento apagado com sucesso!" });
-            onSave(); // CORRECTED: Called onSave
+            onSave();
         } catch (err) {
             toast({ title: "Erro", description: (err as Error).message, variant: "destructive" });
         } finally {
@@ -161,7 +186,7 @@ export default function MedicamentoForm({ onSave, profissionais, condicoesSaude,
                     <div className="border p-3 rounded-md space-y-3">
                         <p className="text-sm font-medium text-center">Associações (Opcional)</p>
                         <FormField control={form.control} name="profissionalId" render={({ field }) => (<FormItem><FormLabel>Profissional</FormLabel><MenuProfissionais profissionais={profissionais} onProfissionalSelect={(p: Profissional | null) => { setSelectedProfissional(p); field.onChange(p?.id ?? undefined); }} selectedProfissional={selectedProfissional} /><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="consultaId" render={({ field }) => (<FormItem><FormLabel>Consulta</FormLabel><MenuConsultas onConsultaSelect={(c: Consulta | null) => { setSelectedConsulta(c); field.onChange(c?.id ?? undefined); }} selectedConsulta={selectedConsulta} userId={session?.user?.id || ''} /><FormMessage /></FormItem>)} />
+                        <FormField control={form.control} name="consultaId" render={({ field }) => (<FormItem><FormLabel>Consulta</FormLabel><MenuConsultas consultas={consultas} onConsultaSelect={(c: Consulta | null) => { setSelectedConsulta(c); field.onChange(c?.id ?? undefined); }} selectedConsulta={selectedConsulta} /><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="condicaoSaudeId" render={({ field }) => (<FormItem><FormLabel>Condição de Saúde</FormLabel><MenuCondicoes condicoes={condicoesSaude} onCondicaoSelect={(c: CondicaoSaude | null) => { setSelectedCondicao(c); field.onChange(c?.id ?? undefined); }} selectedCondicao={selectedCondicao} /><FormMessage /></FormItem>)} />
                     </div>
 

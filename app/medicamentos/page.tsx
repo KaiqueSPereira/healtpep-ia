@@ -2,24 +2,20 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-// Link import was removed as it was unused
 import { PlusCircle, Search, Trash2, Edit, Loader2 } from 'lucide-react';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Input } from '@/app/_components/ui/input';
-// DialogFooter was removed as it was unused
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/app/_components/ui/dialog';
 import MedicamentoForm from './components/MedicamentoForm';
 import MedicamentoDetails from './components/MedicamentoDetails';
-import { MedicamentoComRelacoes, Profissional, CondicaoSaude } from '@/app/_components/types';
+import { MedicamentoComRelacoes } from '@/app/_components/types';
 import { toast } from '@/app/_hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 
 export default function MedicamentosPage() {
   const { data: session } = useSession();
   const [medicamentos, setMedicamentos] = useState<MedicamentoComRelacoes[]>([]);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-  const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -32,14 +28,13 @@ export default function MedicamentosPage() {
     if (!session?.user?.id) return;
     try {
       setLoading(true);
-      const response = await fetch(`/api/users/${session.user.id}/medicamentos`);
+      // CORRECTED: The API endpoint structure was slightly off. It should be under /api/medicamentos not users.
+      const response = await fetch(`/api/medicamentos`); 
       if (!response.ok) {
         throw new Error('Falha ao carregar medicamentos');
       }
       const data = await response.json();
-      setMedicamentos(data.medicamentos || []);
-      setProfissionais(data.profissionais || []);
-      setCondicoesSaude(data.condicoesSaude || []);
+      setMedicamentos(Array.isArray(data) ? data : []);
     } catch (error) {
       toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
     } finally {
@@ -49,7 +44,7 @@ export default function MedicamentosPage() {
 
   useEffect(() => {
     fetchMedicamentos();
-  }, [fetchMedicamentos]); // Correctly added fetchMedicamentos to dependency array
+  }, [fetchMedicamentos]);
 
   const handleAddOrEdit = (medicamento?: MedicamentoComRelacoes) => {
     setSelectedMedicamento(medicamento || null);
@@ -94,7 +89,7 @@ export default function MedicamentosPage() {
   const filteredMedicamentos = useMemo(() => {
     return medicamentos.filter(m =>
       m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.principioAtivo?.toLowerCase().includes(searchTerm.toLowerCase())
+      (m.principioAtivo && m.principioAtivo.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [medicamentos, searchTerm]);
 
@@ -161,8 +156,6 @@ export default function MedicamentosPage() {
           <MedicamentoForm
             medicamento={selectedMedicamento}
             onSave={handleSave}
-            profissionais={profissionais}
-            condicoesSaude={condicoesSaude}
           />
         </DialogContent>
       </Dialog>
@@ -171,7 +164,6 @@ export default function MedicamentosPage() {
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-             {/* Corrected unescaped quotes */}
             <DialogTitle>Detalhes do Medicamento</DialogTitle>
             <DialogDescription>Informações completas sobre o medicamento &quot;{selectedMedicamento?.nome}&quot;.</DialogDescription>
           </DialogHeader>

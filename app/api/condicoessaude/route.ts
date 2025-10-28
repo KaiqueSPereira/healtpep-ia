@@ -4,6 +4,8 @@ import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 import { decryptString } from '@/app/_lib/crypto'; 
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

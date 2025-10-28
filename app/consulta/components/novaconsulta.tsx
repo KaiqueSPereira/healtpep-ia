@@ -26,7 +26,6 @@ import {
   FormMessage,
 } from "@/app/_components/ui/form";
 import { Textarea } from "@/app/_components/ui/textarea";
-import { useSession } from "next-auth/react";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes"; 
 import { set } from "date-fns";
@@ -42,11 +41,11 @@ import { Label } from "@/app/_components/ui/label";
 import MenuConsultas from "./menuconsultas";
 
 const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
-  const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
 
   const [unidades, setUnidades] = useState<Unidade[]>([]);
+  const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
   const [allProfissionais, setAllProfissionais] = useState<Profissional[]>([]);
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>([]);
@@ -58,27 +57,30 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
   const form = useForm({ defaultValues: { queixas: "", tipoexame: "", anotacaoExame: "" } });
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
 
-  // CORREÇÃO: Hook para buscar todos os dados iniciais da API com os endpoints corretos
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [unidadesRes, profissionaisRes, condicoesRes] = await Promise.all([
-          fetch("/api/unidades"), // Endpoint corrigido
+        const [unidadesRes, profissionaisRes, condicoesRes, consultasRes] = await Promise.all([
+          fetch("/api/unidades"),
           fetch("/api/profissionais"),
-          fetch("/api/condicoessaude"), // Endpoint corrigido
+          fetch("/api/condicoessaude"),
+          fetch("/api/consultas"),
         ]);
 
         if (!unidadesRes.ok) throw new Error("Falha ao buscar unidades");
         if (!profissionaisRes.ok) throw new Error("Falha ao buscar profissionais");
         if (!condicoesRes.ok) throw new Error("Falha ao buscar condições de saúde");
+        if (!consultasRes.ok) throw new Error("Falha ao buscar consultas");
 
         const unidadesData = await unidadesRes.json();
         const profissionaisData = await profissionaisRes.json();
         const condicoesData = await condicoesRes.json();
+        const consultasData = await consultasRes.json();
 
         setUnidades(unidadesData);
         setAllProfissionais(profissionaisData);
         setCondicoesSaude(condicoesData);
+        setConsultas(Array.isArray(consultasData) ? consultasData : consultasData.consultas || []);
 
       } catch (error) {
         console.error("Erro ao carregar dados do formulário:", error);
@@ -91,9 +93,8 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     };
 
     fetchData();
-  }, []); // Array de dependências vazio para executar apenas uma vez
+  }, []);
 
-  // Efeito para filtrar profissionais quando a unidade muda
   useEffect(() => {
     if (selectedUnidade) {
       const profissionaisFiltrados = allProfissionais.filter(profissional => 
@@ -103,19 +104,21 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     } else {
       setFilteredProfissionais(allProfissionais);
     }
-    setSelectedProfissional(null); // Limpa o profissional selecionado ao trocar de unidade
+    setSelectedProfissional(null);
   }, [selectedUnidade, allProfissionais]);
 
-  const handleConsultaOrigemSelect = (consulta: Consulta) => {
+  const handleConsultaOrigemSelect = (consulta: Consulta | null) => {
     setSelectedConsultaOrigem(consulta);
-    if (consulta.unidade) {
-      setSelectedUnidade(consulta.unidade);
-    }
-    if (consulta.profissional) {
-      setSelectedProfissional(consulta.profissional);
-    }
-    if (consulta.condicaoSaude) {
-        setSelectedCondicao(consulta.condicaoSaude);
+    if (consulta) {
+      if (consulta.unidade) {
+        setSelectedUnidade(consulta.unidade);
+      }
+      if (consulta.profissional) {
+        setSelectedProfissional(consulta.profissional);
+      }
+      if (consulta.condicaoSaude) {
+          setSelectedCondicao(consulta.condicaoSaude);
+      }
     }
   };
 
@@ -220,11 +223,11 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
             </div>
             <ConsultaTipoSelector selectedTipo={selectedTipo} onTipoSelect={setSelectedTipo} />
             
-            {selectedTipo === 'Retorno' && session?.user?.id && (
+            {selectedTipo === 'Retorno' && (
               <div className="space-y-2">
                   <Label>Consulta de Origem</Label>
                   <MenuConsultas 
-                    userId={session.user.id}
+                    consultas={consultas}
                     onConsultaSelect={handleConsultaOrigemSelect}
                     selectedConsulta={selectedConsultaOrigem}
                   />

@@ -3,6 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 // Rota para buscar todas as unidades de saúde do usuário logado
 export async function GET() {
   try {

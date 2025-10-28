@@ -9,15 +9,15 @@ import MenuProfissionais from "../../profissionais/_components/menuprofissionais
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 
-// CORREÇÃO: Importa os tipos diretamente do Prisma Client, usando os nomes corretos do schema
-import type { Consultas, Profissional, UnidadeDeSaude, CondicaoSaude } from "@prisma/client";
-import { useSession } from "next-auth/react";
+// CORREÇÃO: Importa os tipos enriquecidos
+import type { Consulta, Profissional, CondicaoSaude } from "@/app/_components/types";
+import { UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: Atualiza a interface de props com os tipos corretos do Prisma
+// CORREÇÃO: Atualiza a interface de props para usar os tipos corretos
 interface ExamDetailsFormProps {
-    consultas: Consultas[];
-    selectedConsulta: Consultas | null;
-    onConsultaSelect: (consulta: Consultas | null) => void;
+    consultas: Consulta[];
+    selectedConsulta: Consulta | null;
+    onConsultaSelect: (consulta: Consulta | null) => void;
 
     unidades: UnidadeDeSaude[];
     selectedUnidade: UnidadeDeSaude | null;
@@ -44,6 +44,7 @@ interface ExamDetailsFormProps {
 }
 
 export function ExamDetailsForm({
+    consultas,
     selectedConsulta, onConsultaSelect,
     unidades,
     selectedUnidade, onUnidadeSelect,
@@ -54,23 +55,21 @@ export function ExamDetailsForm({
     tipo, onTipoChange,
     selectorsKey
 }: ExamDetailsFormProps) {
-    const { data: session } = useSession();
 
     return (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
                 <Label>Consulta Associada (Opcional)</Label>
                 <MenuConsultas
-                    userId={session?.user?.id || ''}
+                    consultas={consultas} // Passa a lista de consultas
                     selectedConsulta={selectedConsulta}
                     onConsultaSelect={(consulta) => {
                         onConsultaSelect(consulta);
-                        if (consulta) {
-                            // Ao selecionar uma consulta, popula automaticamente o profissional e a unidade
-                            onProfissionalSelect(consulta.profissional || null);
-                            onUnidadeSelect(consulta.unidade || null);
+                        // AGORA FUNCIONA: A tipagem correta permite o acesso a 'profissional' e 'unidade'
+                        if (consulta && consulta.profissional && consulta.unidade) {
+                            onProfissionalSelect(consulta.profissional);
+                            onUnidadeSelect(consulta.unidade);
                         } else {
-                            // Se a consulta for desmarcada, limpa os campos
                             onProfissionalSelect(null);
                             onUnidadeSelect(null);
                         }
@@ -95,7 +94,6 @@ export function ExamDetailsForm({
                 unidades={unidades}
                 selectedUnidade={selectedUnidade}
                 onUnidadeSelect={onUnidadeSelect}
-                // Desabilita se uma consulta já determinou a unidade
                 disabled={!!selectedConsulta?.unidadeId}
               />
             </div>
@@ -107,7 +105,6 @@ export function ExamDetailsForm({
                 selectedProfissional={selectedProfissional}
                 onProfissionalSelect={onProfissionalSelect}
                 unidadeId={selectedUnidade?.id}
-                // Desabilita se uma consulta já determinou o profissional
                 disabled={!!selectedConsulta?.profissionalId}
               />
             </div>
