@@ -3,15 +3,11 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
 import { Button } from "@/app/_components/ui/button";
-import { Consultas, Exame, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
+import { Consultas, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
 
 type ConsultaComRelacoes = Consultas & { 
     profissional: Profissional | null; 
     unidade: UnidadeDeSaude | null; 
-};
-type ExameComRelacoes = Exame & { 
-    profissional: Profissional | null; 
-    unidades: UnidadeDeSaude | null; 
 };
 
 export type AgendamentoUnificado = {

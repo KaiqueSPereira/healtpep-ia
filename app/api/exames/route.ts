@@ -1,14 +1,21 @@
 import { prisma } from '@/app/_lib/prisma';
 import { NextResponse, NextRequest } from 'next/server';
 import { Buffer } from 'buffer';
-
-import { 
-  encryptString, 
-  safeDecrypt, 
-  encrypt as encryptBuffer 
+import {
+  encryptString,
+  safeDecrypt,
+  encrypt as encryptBuffer
 } from '@/app/_lib/crypto';
 
-// GET handler (sem alterações)
+// Interface para garantir a tipagem dos dados de resultado recebidos.
+interface ResultadoInput {
+  nome: string;
+  valor: string;
+  unidade?: string;
+  referencia?: string;
+}
+
+// GET: Busca e descriptografa exames e seus resultados.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,12 +31,24 @@ export async function GET(request: NextRequest) {
       orderBy: { dataExame: 'desc' },
     });
 
-    const decryptedExames = exames.map(exame => ({
-      ...exame,
-      nome: safeDecrypt(exame.nome),
-      tipo: exame.tipo ? safeDecrypt(exame.tipo) : exame.tipo,
-      anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
-    }));
+    // Descriptografa tanto os campos do exame quanto os resultados aninhados.
+    const decryptedExames = exames.map(exame => {
+      const decryptedResultados = exame.resultados.map(res => ({
+        ...res,
+        nome: safeDecrypt(res.nome),
+        valor: safeDecrypt(res.valor),
+        unidade: res.unidade ? safeDecrypt(res.unidade) : null,
+        referencia: res.referencia ? safeDecrypt(res.referencia) : null,
+      }));
+
+      return {
+        ...exame,
+        nome: safeDecrypt(exame.nome),
+        tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+        anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+        resultados: decryptedResultados,
+      };
+    });
 
     return NextResponse.json(decryptedExames, { status: 200 });
   } catch (error) {
@@ -38,7 +57,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST handler com a correção final de tipo
+// POST: Cria um novo exame, criptografando todos os campos necessários.
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -61,12 +80,13 @@ export async function POST(request: Request) {
     const dataExame = new Date(dataExameStr);
 
     let nomeArquivo: string | undefined;
-    let arquivoExame: Buffer | undefined;
+    let arquivoParaSalvar: Buffer | null = null;
 
     if (file) {
         nomeArquivo = file.name;
         const fileBuffer = await file.arrayBuffer();
-        arquivoExame = encryptBuffer(Buffer.from(fileBuffer));
+        const originalBuffer = Buffer.from(fileBuffer);
+        arquivoParaSalvar = encryptBuffer(originalBuffer);
     }
 
     const encryptedAnotacao = anotacao ? encryptString(anotacao) : null;
@@ -78,7 +98,7 @@ export async function POST(request: Request) {
         dataExame,
         nome: encryptString(nomeExame),
         nomeArquivo: nomeArquivo,
-        arquivoExame: arquivoExame ? new Uint8Array(arquivoExame) : null,
+        arquivoExame: arquivoParaSalvar ? new Uint8Array(arquivoParaSalvar) : null,
         anotacao: encryptedAnotacao,
         tipo: encryptString(tipo),
         ...(profissionalId && { profissionalId }),
@@ -89,21 +109,20 @@ export async function POST(request: Request) {
     });
 
     if (resultadosStr) {
-      const resultados = JSON.parse(resultadosStr);
-      
+      const resultados: ResultadoInput[] = JSON.parse(resultadosStr);
+
       const validResults = resultados.filter(
-        (res: { nome?: string; valor?: string }) => 
-          res.nome && res.valor && res.valor.trim() !== '' && res.valor.trim() !== '-'
+        (res) => res.nome && res.valor && res.valor.trim() !== ''
       );
 
       if (validResults.length > 0) {
         await prisma.resultadoExame.createMany({
-          data: validResults.map((res: any) => ({
+          data: validResults.map((res) => ({
             exameId: newExame.id,
-            nome: res.nome,
-            valor: res.valor,
-            unidade: res.unidade,
-            referencia: res.referencia,
+            nome: encryptString(res.nome),
+            valor: encryptString(res.valor),
+            unidade: res.unidade ? encryptString(res.unidade) : undefined,
+            referencia: res.referencia ? encryptString(res.referencia) : undefined,
           })),
         });
       }
@@ -116,6 +135,7 @@ export async function POST(request: Request) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: 'Formato de JSON inválido nos resultados do exame.' }, { status: 400 });
     }
-    return NextResponse.json({ error: 'Falha ao criar exame', details: (error as Error).message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    return NextResponse.json({ error: 'Falha ao criar exame', details: errorMessage }, { status: 500 });
   }
 }
