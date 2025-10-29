@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma"; 
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { decryptString, encryptString } from "@/app/_lib/crypto"; 
+import { encryptString, safeDecrypt } from "@/app/_lib/crypto"; 
 import { Prisma, ResultadoExame } from "@prisma/client"; 
-
 
 interface ResultadoExameInput {
   id: string;
@@ -13,7 +12,6 @@ interface ResultadoExameInput {
   unidade?: string | null;
   referencia?: string | null;
 }
-
 
 export async function GET(
   req: NextRequest,
@@ -41,9 +39,15 @@ export async function GET(
       include: {
         profissional: true,
         unidades: true,
-        consulta: true,
+        // CORREÇÃO: Inclui os dados aninhados da consulta para profissional e unidade
+        consulta: {
+          include: {
+            profissional: true,
+            unidade: true,
+          },
+        },
         resultados: true,
-        condicaoSaude: true, // CORREÇÃO: Inclui a condição de saúde relacionada
+        condicaoSaude: true,
       },
     });
 
@@ -53,27 +57,35 @@ export async function GET(
         { status: 404 },
       );
     }
-
+    
     const descriptografarResultados = (r: ResultadoExame) => ({
       ...r,
-      nome: decryptString(r.nome) ?? '',
-      valor: decryptString(r.valor) ?? '',
-      unidade: decryptString(r.unidade ?? "") ?? '',
-      referencia: decryptString(r.referencia ?? "") ?? '',
+      nome: safeDecrypt(r.nome),
+      valor: safeDecrypt(r.valor),
+      unidade: r.unidade ? safeDecrypt(r.unidade) : null,
+      referencia: r.referencia ? safeDecrypt(r.referencia) : null,
     });
 
     const exameDescriptografado = {
       ...exame,
-      nome: exame.nome ? decryptString(exame.nome) : null,
-      nomeArquivo: exame.nomeArquivo ? decryptString(exame.nomeArquivo) : null,
-      anotacao: exame.anotacao ? decryptString(exame.anotacao) : null,
-      analiseIA: exame.analiseIA ? decryptString(exame.analiseIA) : null,
-      tipo: exame.tipo || null,
-      consulta: exame.consulta || null,
+      nome: safeDecrypt(exame.nome),
+      nomeArquivo: exame.nomeArquivo, 
+      anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+      analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
+      tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+      // CORREÇÃO: Descriptografa os campos da consulta antes de enviá-los
+      consulta: exame.consulta
+        ? {
+            ...exame.consulta,
+            tipo: exame.consulta.tipo ? safeDecrypt(exame.consulta.tipo) : null,
+            motivo: exame.consulta.motivo ? safeDecrypt(exame.consulta.motivo) : null,
+            
+          }
+        : null,
       profissional: exame.profissional || null,
       unidades: exame.unidades || null,
       resultados: exame.resultados?.map(descriptografarResultados),
-      condicaoSaude: exame.condicaoSaude || null, // CORREÇÃO: Adiciona o objeto da condição de saúde na resposta
+      condicaoSaude: exame.condicaoSaude || null, 
     };
 
     return NextResponse.json({ exame: exameDescriptografado }, { status: 200 });
@@ -100,7 +112,6 @@ export async function PUT(
 
   try {
     const data = await req.json();
-    // CORREÇÃO: Adiciona condicaoSaudeId para permitir a atualização da relação
     const { anotacao, dataExame, tipo, resultados, condicaoSaudeId } = data;
 
     const transaction = await prisma.$transaction(async (prisma) => {
@@ -116,10 +127,9 @@ export async function PUT(
       }
       
       if (tipo !== undefined) {
-        updateData.tipo = tipo;
+        updateData.tipo = encryptString(tipo || "");
       }
 
-      // CORREÇÃO: Lógica para conectar ou desconectar a condição de saúde
       if (condicaoSaudeId !== undefined) {
         if (condicaoSaudeId === null) {
           updateData.condicaoSaude = { disconnect: true };

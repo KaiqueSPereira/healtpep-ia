@@ -2,21 +2,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import OpenAI from "openai";
-import { encryptString, decryptString } from "@/app/_lib/crypto";
+// Refatorado para usar safeDecrypt para mais robustez
+import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
 
 // Configuração do OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// CORREÇÃO: Definir tipos locais que correspondem exatamente aos dados do Prisma,
-// incluindo a possibilidade de valores nulos.
 interface LocalResultadoExame {
     id: string;
     nome: string;
     valor: string;
-    unidade: string | null; // Permite que unidade seja nula
-    referencia: string | null; // Permite que referencia seja nula
+    unidade: string | null;
+    referencia: string | null;
 }
 
 interface LocalTratamento {
@@ -62,13 +61,12 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       return null;
     }
 
-    // 2. Descriptografar e formatar os dados para o prompt
-    // Usa o tipo local correto agora
+    // 2. Descriptografar e formatar os dados para o prompt usando safeDecrypt
     const resultadosFormatados = exame.resultados.map((r: LocalResultadoExame) => {
-        const nome = r.nome ? decryptString(r.nome) : "";
-        const valor = r.valor ? decryptString(r.valor) : "";
-        const unidade = r.unidade ? decryptString(r.unidade) : "";
-        const referencia = r.referencia ? decryptString(r.referencia) : "N/A";
+        const nome = safeDecrypt(r.nome);
+        const valor = safeDecrypt(r.valor);
+        const unidade = r.unidade ? safeDecrypt(r.unidade) : "";
+        const referencia = r.referencia ? safeDecrypt(r.referencia) : "N/A";
         return `- ${nome || 'N/A'}: ${valor || 'N/A'} ${unidade || ''} (Ref: ${referencia || 'N/A'})`;
     }).join('\n');
 
@@ -77,7 +75,6 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     const sexo = dadosSaude?.sexo || 'Não informado';
     const peso = exame.usuario.historicoPeso[0]?.peso ? `${exame.usuario.historicoPeso[0].peso} kg` : 'Não informado';
     
-    // Usa o tipo local correto agora
     const tratamentosAtuais = exame.usuario.condicoesSaude.map((t: LocalTratamento) => `- ${t.nome}`).join('\n') || "Nenhum";
 
     let consultaInfo = "Nenhuma consulta diretamente vinculada a este exame.";
@@ -91,7 +88,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     `;
     }
 
-    const anotacaoExame = exame.anotacao ? decryptString(exame.anotacao) : "Nenhuma anotação fornecida.";
+    const anotacaoExame = exame.anotacao ? safeDecrypt(exame.anotacao) : "Nenhuma anotação fornecida.";
 
     // 3. Construir o prompt detalhado para a IA
     const prompt = `
@@ -133,7 +130,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       return null;
     }
 
-    // 5. Salvar a análise no banco de dados
+    // 5. Salvar a análise no banco de dados usando encryptString
     await prisma.exame.update({
       where: { id: examId },
       data: {

@@ -28,7 +28,7 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
   const dia = dataObj.getDate().toString();
   const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const linkHref = `/${tipo.toLowerCase()}s/${id}`;
+  const linkHref = `/${tipo.toLowerCase()}/${id}`;
 
   return (
     <div className="w-full md:w-auto">

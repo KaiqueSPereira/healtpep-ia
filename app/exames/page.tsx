@@ -1,6 +1,7 @@
 "use client";
 
-import {useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
+import { useSession } from "next-auth/react"; // Importa o hook useSession
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import { toast } from "@/app/_hooks/use-toast";
@@ -14,7 +15,6 @@ import { Button } from "@/app/_components/ui/button";
 import { ExameTypeFilter } from "./components/ExameTypeFilter";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: O tipo ExameCompleto foi exportado para poder ser usado em outros componentes como o ExamesGrid.
 export type ExameCompleto = Exame & {
     profissional: Profissional | null;
     unidades: UnidadeDeSaude | null;
@@ -38,6 +38,7 @@ type ChartData = {
 };
 
 export default function ExamesPage() {
+    const { data: session, status } = useSession(); // Usa o hook para obter a sessão
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -52,9 +53,31 @@ export default function ExamesPage() {
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
 
     useEffect(() => {
+        // Não faz nada enquanto a sessão está carregando
+        if (status === 'loading') return;
+
+        // Se o usuário não estiver autenticado, exibe um erro e para.
+        if (status === 'unauthenticated') {
+            toast({ title: "Você precisa estar logado para ver seus exames.", variant: "destructive" });
+            setLoading(false);
+            return;
+        }
+
         const fetchData = async () => {
             setLoading(true);
-            const url = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
+            const userId = session?.user?.id;
+
+            // Garante que temos um userId antes de fazer a chamada
+            if (!userId) {
+                toast({ title: "Não foi possível obter a identificação do usuário.", variant: "destructive" });
+                setLoading(false);
+                return;
+            }
+
+            const viewUrl = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
+            // CORREÇÃO: Adiciona o userId como um query parameter na URL
+            const url = `${viewUrl}?userId=${userId}`;
+
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
@@ -73,7 +96,7 @@ export default function ExamesPage() {
             }
         };
         fetchData();
-    }, [currentView]);
+    }, [currentView, session, status]); // Adiciona a sessão e o status como dependências
 
     const listFilterOptions = useMemo(() => 
         Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), 

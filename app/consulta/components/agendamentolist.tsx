@@ -37,17 +37,15 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
   const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
     try {
-      const [consultasRes, examesRes] = await Promise.all([
+      const [consultasRes] = await Promise.all([
         fetch(`/api/consultas?userId=${userId}`),
-        fetch(`/api/exames?userId=${userId}`)
       ]);
 
-      if (!consultasRes.ok || !examesRes.ok) {
+      if (!consultasRes.ok) {
         throw new Error("Erro ao buscar agendamentos");
       }
 
       const consultas: ConsultaComRelacoes[] = await consultasRes.json();
-      const exames: ExameComRelacoes[] = await examesRes.json();
 
       const consultasMapeadas: AgendamentoUnificado[] = consultas.map(c => ({
         id: c.id,
@@ -60,17 +58,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         userId: c.userId,
       }));
 
-      const examesMapeados: AgendamentoUnificado[] = exames.map(e => ({
-        id: e.id,
-        data: e.dataExame as unknown as string,
-        nomeProfissional: e.profissional?.nome || 'Não especificado',
-        especialidade: e.tipo || 'Exame', 
-        local: e.unidades?.nome || 'Local não especificado', 
-        tipo: 'Exame',
-        userId: e.userId,
-      }));
-
-      const todosAgendamentos = [...consultasMapeadas, ...examesMapeados];
+      const todosAgendamentos = [...consultasMapeadas];
       const agora = new Date();
 
       const futuros = todosAgendamentos

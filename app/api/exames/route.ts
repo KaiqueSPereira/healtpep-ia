@@ -1,66 +1,14 @@
 import { prisma } from '@/app/_lib/prisma';
 import { NextResponse, NextRequest } from 'next/server';
-import { z } from 'zod';
-import crypto from 'crypto';
+import { Buffer } from 'buffer';
 
-// --- Funções de Criptografia ---
-const ALGORITHM = 'aes-256-cbc';
-const IV_LENGTH = 16;
+import { 
+  encryptString, 
+  safeDecrypt, 
+  encrypt as encryptBuffer 
+} from '@/app/_lib/crypto';
 
-// Chave de encriptação tem de ser uma string de 32 bytes (256 bits)
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-
-if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 32) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('FATAL_ERROR: A variável de ambiente ENCRYPTION_KEY tem de ser definida com 32 caracteres em produção.');
-  } else {
-    console.warn('AVISO: ENCRYPTION_KEY não definida ou inválida. Usando uma chave de fallback insegura para desenvolvimento.');
-    process.env.ENCRYPTION_KEY = '12345678901234567890123456789012';
-  }
-}
-
-// Assegura que a chave é uma string para as funções crypto
-const key = process.env.ENCRYPTION_KEY as string;
-
-function encrypt(text: string): string {
-  if (!text) return text;
-  const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(key), iv);
-  let encrypted = cipher.update(text, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
-  return iv.toString('hex') + ':' + encrypted;
-}
-
-function decrypt(text: string): string {
-  if (!text || !text.includes(':')) return text; // Retorna o texto se for nulo, vazio ou não parece encriptado
-  try {
-    const textParts = text.split(':');
-    const iv = Buffer.from(textParts.shift()!, 'hex');
-    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(key), iv);
-    let decrypted = decipher.update(encryptedText);
-    decrypted = Buffer.concat([decrypted, decipher.final()]);
-    return decrypted.toString();
-  } catch (error) {
-    console.error("Falha ao decriptar, retornando valor original.", error);
-    return text;
-  }
-}
-// --- Fim das Funções de Criptografia ---
-
-// Zod schema para validação
-const exameSchema = z.object({
-  nome: z.string().min(1, 'O nome do exame é obrigatório.'),
-  dataExame: z.string().transform((str) => new Date(str)),
-  horaExame: z.string().optional(),
-  tipo: z.string().optional(),
-  userId: z.string(),
-  profissionalId: z.string().optional(),
-  unidadesId: z.string().optional(),
-  condicaoSaudeId: z.string().optional(),
-});
-
-// GET handler para buscar e DECRIPTAR exames
+// GET handler (sem alterações)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -72,15 +20,15 @@ export async function GET(request: NextRequest) {
 
     const exames = await prisma.exame.findMany({
       where: { userId: userId },
-      include: { unidades: true, profissional: true },
+      include: { unidades: true, profissional: true, resultados: true },
       orderBy: { dataExame: 'desc' },
     });
 
-    // Decripta os dados antes de os enviar para o cliente
     const decryptedExames = exames.map(exame => ({
       ...exame,
-      nome: decrypt(exame.nome),
-      tipo: exame.tipo ? decrypt(exame.tipo) : exame.tipo,
+      nome: safeDecrypt(exame.nome),
+      tipo: exame.tipo ? safeDecrypt(exame.tipo) : exame.tipo,
+      anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
     }));
 
     return NextResponse.json(decryptedExames, { status: 200 });
@@ -90,47 +38,84 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST handler para criar e ENCRIPTAR um novo exame
+// POST handler com a correção final de tipo
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const parsedBody = exameSchema.safeParse(body);
+    const formData = await request.formData();
 
-    if (!parsedBody.success) {
-      return NextResponse.json({ errors: parsedBody.error.flatten().fieldErrors }, { status: 400 });
+    const userId = formData.get("userId") as string;
+    const profissionalId = formData.get("profissionalId") as string | null;
+    const unidadesId = formData.get("unidadesId") as string | null;
+    const consultaId = formData.get("consultaId") as string | null;
+    const condicaoSaudeId = formData.get("condicaoSaudeId") as string | null;
+    const anotacao = formData.get("anotacao") as string | null;
+    const dataExameStr = formData.get("dataExame") as string;
+    const tipo = formData.get("tipo") as string;
+    const resultadosStr = formData.get("resultados") as string | null;
+    const file = formData.get("file") as File | null;
+
+    if (!userId || !dataExameStr || !tipo) {
+      return NextResponse.json({ error: "Campos obrigatórios (userId, dataExame, tipo) não foram fornecidos." }, { status: 400 });
     }
 
-    const { dataExame, horaExame, nome, tipo, ...restOfData } = parsedBody.data;
+    const dataExame = new Date(dataExameStr);
 
-    if (horaExame) {
-      const [hours, minutes] = horaExame.split(':').map(Number);
-      dataExame.setHours(hours, minutes, 0, 0);
+    let nomeArquivo: string | undefined;
+    let arquivoExame: Buffer | undefined;
+
+    if (file) {
+        nomeArquivo = file.name;
+        const fileBuffer = await file.arrayBuffer();
+        arquivoExame = encryptBuffer(Buffer.from(fileBuffer));
     }
 
-    // Encripta os dados sensíveis
-    const encryptedNome = encrypt(nome);
-    const encryptedTipo = tipo ? encrypt(tipo) : tipo;
+    const encryptedAnotacao = anotacao ? encryptString(anotacao) : null;
+    const nomeExame = tipo || file?.name || 'Exame sem nome';
 
     const newExame = await prisma.exame.create({
       data: {
-        ...restOfData,
-        nome: encryptedNome,
-        tipo: encryptedTipo,
-        dataExame: dataExame,
+        userId,
+        dataExame,
+        nome: encryptString(nomeExame),
+        nomeArquivo: nomeArquivo,
+        arquivoExame: arquivoExame ? new Uint8Array(arquivoExame) : null,
+        anotacao: encryptedAnotacao,
+        tipo: encryptString(tipo),
+        ...(profissionalId && { profissionalId }),
+        ...(unidadesId && { unidadesId }),
+        ...(consultaId && { consultaId }),
+        ...(condicaoSaudeId && { condicaoSaudeId }),
       },
-      include: { unidades: true, profissional: true },
     });
 
-    // Decripta a resposta para a confirmação
-    const decryptedResponse = {
-        ...newExame,
-        nome: decrypt(newExame.nome),
-        tipo: newExame.tipo ? decrypt(newExame.tipo) : newExame.tipo
-    };
+    if (resultadosStr) {
+      const resultados = JSON.parse(resultadosStr);
+      
+      const validResults = resultados.filter(
+        (res: { nome?: string; valor?: string }) => 
+          res.nome && res.valor && res.valor.trim() !== '' && res.valor.trim() !== '-'
+      );
 
-    return NextResponse.json(decryptedResponse, { status: 201 });
+      if (validResults.length > 0) {
+        await prisma.resultadoExame.createMany({
+          data: validResults.map((res: any) => ({
+            exameId: newExame.id,
+            nome: res.nome,
+            valor: res.valor,
+            unidade: res.unidade,
+            referencia: res.referencia,
+          })),
+        });
+      }
+    }
+
+    return NextResponse.json({ id: newExame.id, message: "Exame criado com sucesso" }, { status: 201 });
+
   } catch (error) {
     console.error("Erro ao criar exame:", error);
-    return NextResponse.json({ error: 'Falha ao criar exame' }, { status: 500 });
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'Formato de JSON inválido nos resultados do exame.' }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Falha ao criar exame', details: (error as Error).message }, { status: 500 });
   }
 }

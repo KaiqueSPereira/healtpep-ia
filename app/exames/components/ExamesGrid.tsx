@@ -5,10 +5,8 @@ import { Card, CardContent } from "@/app/_components/ui/card";
 import { Button } from "@/app/_components/ui/button";
 import { Trash2, Pencil, FileText } from "lucide-react";
 import clsx from "clsx";
-// CORREÇÃO: Importa o tipo correto da página pai.
 import { ExameCompleto } from "../page";
 
-// CORREÇÃO: As props agora usam o tipo ExameCompleto importado.
 type Props = {
   exames: ExameCompleto[];
   onDeleteClick: (examId: string) => void;
@@ -29,11 +27,15 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
     window.open(`/api/exames/arquivo?id=${examId}`, "_blank");
   };
 
-  // CORREÇÃO: A função agora recebe um objeto Date diretamente.
-  const formatExameDate = (dataObj: Date | null) => {
-    if (!dataObj) {
-        return { mes: "Mês inválido", dia: "-", horaFormatada: "--:--" };
+  // CORREÇÃO: A função agora trata a data de entrada (string da API) e valida antes de formatar.
+  const formatExameDate = (dataInput: string | Date | null | undefined) => {
+    const dataObj = dataInput ? new Date(dataInput) : null;
+
+    // Verifica se o objeto Date é válido antes de tentar formatar
+    if (!dataObj || isNaN(dataObj.getTime())) {
+        return { mes: "Data inválida", dia: "!", horaFormatada: "xx:xx" };
     }
+    
     const mes = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj);
     const dia = dataObj.getDate().toString();
     const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });

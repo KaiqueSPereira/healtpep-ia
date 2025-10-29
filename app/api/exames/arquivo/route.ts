@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import { decrypt, decryptString } from "@/app/_lib/crypto";
+import { decrypt } from "@/app/_lib/crypto";
 import { Buffer } from 'buffer';
 
 export async function GET(req: NextRequest) {
@@ -24,19 +24,12 @@ export async function GET(req: NextRequest) {
       return new Response("Arquivo não encontrado", { status: 404 });
     }
 
-    const encryptedBuffer = Buffer.from(exame.arquivoExame as Uint8Array);
-    const decryptedFileBuffer = decrypt(encryptedBuffer);
+    // CORREÇÃO: Converte o Uint8Array do Prisma para um Buffer antes de descriptografar.
+    const decryptedFileBuffer = decrypt(Buffer.from(exame.arquivoExame));
 
-    let decryptedFileName: string | null = null;
-    if (exame.nomeArquivo) {
-        try {
-            decryptedFileName = decryptString(exame.nomeArquivo);
-        } catch (e) {
-            console.error("Erro ao descriptografar nome do arquivo:", e);
-        }
-    }
+    const fileName = exame.nomeArquivo || 'arquivo_desconhecido';
 
-    const fileExtension = decryptedFileName?.split(".").pop()?.toLowerCase();
+    const fileExtension = fileName.split(".").pop()?.toLowerCase();
 
     const contentTypes: Record<string, string> = {
       pdf: "application/pdf",
@@ -53,7 +46,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${decryptedFileName || "arquivo"}"`,
+        "Content-Disposition": `inline; filename="${fileName}"`,
       },
     });
 

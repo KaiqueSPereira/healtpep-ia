@@ -95,6 +95,39 @@ const ConsultaPage = () => {
     }
   }, [consultaId, fetchConsulta]);
 
+  // Lógica para adicionar anotação reimplementada
+  const handleAdicionarAnotacao = async () => {
+    if (!novaAnotacaoContent.trim() || !consulta) {
+      toast({ title: "A anotação não pode estar vazia.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/consultas/anotacao', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          consultaId: consulta.id,
+          anotacao: novaAnotacaoContent,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha ao adicionar anotação.');
+      }
+
+      toast({ title: "Anotação adicionada com sucesso!" });
+      setNovaAnotacaoContent(""); // Limpa a textarea
+      fetchConsulta(); // Recarrega os dados da consulta para mostrar a nova anotação
+    } catch (err) {
+      const message = (err as Error).message;
+      toast({ title: `Erro ao adicionar anotação: ${message}`, variant: "destructive" });
+    }
+  };
+
   const handleDeleteAnexo = async (anexoId: string) => {
     if (window.confirm("Tem certeza que deseja apagar este anexo?")) {
         try {
@@ -227,7 +260,7 @@ const ConsultaPage = () => {
               value={novaAnotacaoContent}
               onChange={(e) => setNovaAnotacaoContent(e.target.value)}
             />
-            <Button onClick={() => alert("Lógica para adicionar anotação a ser reimplementada.")}>
+            <Button onClick={handleAdicionarAnotacao}>
               Adicionar Anotação
             </Button>
           </CardContent>
