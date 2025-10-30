@@ -3,40 +3,83 @@ import { NextResponse } from "next/server";
 import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { Anotacoes, Exame, Profissional, UnidadeDeSaude, Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
-// 1. Helper do Prisma para obter o tipo de payload completo
+// Tipos para as funções de descriptografia
+interface AnotacaoParaDescriptografar {
+  id: string;
+  anotacao: string;
+  createdAt: Date;
+}
+
+interface ExameParaDescriptografar {
+    id: string;
+    tipo: string;
+    anotacao: string;
+    dataExame: Date;
+}
+
 const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
   include: {
     profissional: true,
     unidade: true,
-    Anotacoes: true,
+    Anotacoes: { orderBy: { createdAt: 'desc' } },
     anexos: true,
-    Exame: { include: { profissional: true, unidades: true } },
-    condicoes: true, // Corrigido de 'tratamento' para 'condicoes'
-    consultaOrigem: { select: { id: true, data: true, tipo: true } },
-    retornos: { select: { id: true, data: true, tipo: true }, orderBy: { data: 'asc' } },
+    Exame: { 
+        include: { profissional: true, unidades: true }, 
+        orderBy: { dataExame: 'desc' } 
+    },
+    condicoes: true, 
+    consultaOrigem: {
+      include: {
+        Anotacoes: { orderBy: { createdAt: 'desc' } },
+        anexos: true,
+        Exame: {
+          include: {
+            profissional: true,
+            unidades: true
+          },
+          orderBy: { dataExame: 'desc' }
+        }
+      }
+    },
+    retornos: { 
+        include: {
+            profissional: true,
+            unidade: true,
+        },
+        orderBy: { data: 'desc' } 
+    },
   },
 });
-
-// 2. Define um tipo TypeScript para a consulta completa
-type FullConsulta = Prisma.ConsultasGetPayload<typeof consultaWithRelations>;
 
 interface ConsultaParams {
   params: { consultaId: string };
 }
-
-type ExameWithRelations = Exame & {
-  profissional: Profissional | null;
-  unidades: UnidadeDeSaude | null;
-};
 
 const getUserId = async (): Promise<string | null> => {
   const session = await getServerSession(authOptions);
   return session?.user?.id || null;
 };
 
-// 📌 GET - VERSÃO FINAL CORRIGIDA
+const decryptExames = (exames: ExameParaDescriptografar[] | undefined) => {
+    if (!exames) return [];
+    return exames.map(exame => ({
+        ...exame,
+        tipo: exame.tipo ? decryptString(exame.tipo) : undefined,
+        anotacao: exame.anotacao ? decryptString(exame.anotacao) : undefined,
+        dataExame: new Date(exame.dataExame).toISOString(), 
+    }));
+};
+
+const decryptAnotacoes = (anotacoes: AnotacaoParaDescriptografar[] | undefined) => {
+    if (!anotacoes) return [];
+    return anotacoes.map(anotacao => ({
+        ...anotacao,
+        anotacao: decryptString(anotacao.anotacao),
+    }));
+};
+
 export async function GET(_request: Request, { params }: ConsultaParams) {
   try {
     const userId = await getUserId();
@@ -44,60 +87,40 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    // 3. Usa a busca com a cláusula 'include' corrigida
-    const consulta: FullConsulta | null = await db.consultas.findUnique({
+    const consulta = await db.consultas.findUnique({
       where: { id: params.consultaId, userId: userId },
-      ...consultaWithRelations, // Usa o validador para garantir a inclusão e a tipagem
+      ...consultaWithRelations,
     });
 
     if (!consulta) {
       return NextResponse.json({ error: "Consulta não encontrada" }, { status: 404 });
     }
 
-    // 4. Constrói a resposta a partir do objeto 'consulta' agora CORRETAMENTE TIPADO
     const responseData = {
-      id: consulta.id,
-      tipo: consulta.tipo,
-      data: consulta.data,
-      // O campo 'status' não existe no schema, foi removido.
+      ...consulta,
       motivo: consulta.motivo ? decryptString(consulta.motivo) : null,
       tipodeexame: consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null,
+      Anotacoes: decryptAnotacoes(consulta.Anotacoes as AnotacaoParaDescriptografar[]),
+      Exame: decryptExames(consulta.Exame as ExameParaDescriptografar[]),
       
-      profissional: consulta.profissional,
-      unidade: consulta.unidade,
-      condicoes: consulta.condicoes, // Corrigido
-
-      Anotacoes: (consulta.Anotacoes || []).map((anotacao: Anotacoes) => ({ // Tipagem explícita
-        ...anotacao,
-        anotacao: decryptString(anotacao.anotacao),
-      })),
+      consultaOrigem: consulta.consultaOrigem ? {
+        ...consulta.consultaOrigem,
+        motivo: consulta.consultaOrigem.motivo ? decryptString(consulta.consultaOrigem.motivo) : null,
+        Anotacoes: decryptAnotacoes(consulta.consultaOrigem.Anotacoes as AnotacaoParaDescriptografar[]),
+        Exame: decryptExames(consulta.consultaOrigem.Exame as ExameParaDescriptografar[])
+      } : null,
       
-      anexos: consulta.anexos || [],
-      
-      Exame: (consulta.Exame || []).map((exame: ExameWithRelations) => ({ // Tipagem explícita
-        ...exame,
-        tipo: exame.tipo ? decryptString(exame.tipo) : exame.tipo,
-        anotacao: exame.anotacao ? decryptString(exame.anotacao) : exame.anotacao,
-        dataExame: new Date(exame.dataExame).toISOString(),
-      })),
-
-      consultaOrigem: consulta.consultaOrigem,
-      retornos: consulta.retornos,
+      consultasDeRetorno: consulta.retornos,
     };
 
     return NextResponse.json(responseData);
 
   } catch (error) {
-    if (error instanceof TypeError && error.message.includes('circular')) {
-      console.error("API ERRO: Tentativa de serializar uma estrutura circular em JSON.", error);
-      return NextResponse.json({ error: "Erro interno ao processar dados relacionados." }, { status: 500 });
-    }
     console.error("Erro ao buscar consulta:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
 }
 
-// 📌 PATCH - Atualizar uma consulta existente
 export async function PATCH(request: Request, { params }: ConsultaParams) {
   try {
     const userId = await getUserId();
@@ -106,15 +129,31 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
     }
 
     const body = await request.json();
-    const { motivo, tipodeexame, ...rest } = body;
+    const { motivo, tipodeexame, data, ...rest } = body;
+
+    const dataToUpdate: Prisma.ConsultasUpdateInput = { ...rest };
+
+    if (motivo !== undefined) {
+        if (!motivo) {
+            return NextResponse.json({ error: "O campo 'motivo' é obrigatório e não pode ser vazio." }, { status: 400 });
+        }
+        dataToUpdate.motivo = encryptString(motivo);
+    }
+
+    if (tipodeexame !== undefined) {
+        if (!tipodeexame) {
+            return NextResponse.json({ error: "O campo 'tipodeexame' é obrigatório e não pode ser vazio." }, { status: 400 });
+        }
+        dataToUpdate.tipodeexame = encryptString(tipodeexame);
+    }
+
+    if (data) {
+      dataToUpdate.data = new Date(data);
+    }
 
     const consultaAtualizada = await db.consultas.update({
       where: { id: params.consultaId, userId: userId },
-      data: {
-        ...rest,
-        ...(motivo !== undefined && { motivo: motivo ? encryptString(motivo) : null }),
-        ...(tipodeexame !== undefined && { tipodeexame: tipodeexame ? encryptString(tipodeexame) : null }),
-      },
+      data: dataToUpdate,
     });
 
     return NextResponse.json(consultaAtualizada);
@@ -125,7 +164,6 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
   }
 }
 
-// 📌 DELETE - Deletar uma consulta
 export async function DELETE(_request: Request, { params }: ConsultaParams) {
   try {
     const userId = await getUserId();
@@ -138,6 +176,9 @@ export async function DELETE(_request: Request, { params }: ConsultaParams) {
     return NextResponse.json({ message: "Consulta deletada com sucesso" }, { status: 200 });
 
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      return NextResponse.json({ error: 'Não é possível apagar. Existem consultas de retorno vinculadas a esta consulta.' }, { status: 409 });
+    }
     console.error("Erro ao deletar consulta:", error);
     return NextResponse.json({ error: "Erro ao deletar consulta" }, { status: 500 });
   }

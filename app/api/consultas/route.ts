@@ -103,28 +103,24 @@ export async function POST(req: Request) {
       tipo,
       profissionalId,
       unidadeId,
-      condicaoSaudeId, // This is the ID from the form
+      condicaoSaudeId,
       queixas,
       tipoexame,
+      // CORREÇÃO: Recebe o ID da consulta de origem
+      consultaOrigemId,
     } = body;
 
     const motivoParaCriptografar = tipo === "Exame" ? tipoexame : queixas;
 
-    if (!data || !tipo || motivoParaCriptografar === undefined || motivoParaCriptografar === null) {
-      const missingFields = [];
-      if (!data) missingFields.push("data");
-      if (!tipo) missingFields.push("tipo");
-      if (motivoParaCriptografar === undefined || motivoParaCriptografar === null) {
-        missingFields.push("motivo (queixas ou tipo de exame)");
-      }
+    if (!data || !tipo) {
       return NextResponse.json(
-        { error: `Campos obrigatórios faltando: ${missingFields.join(", ")}` },
+        { error: `Campos obrigatórios faltando: data e tipo` },
         { status: 400 }
       );
     }
 
-    const encryptedMotivo = encryptString(motivoParaCriptografar);
-    const encryptedTipoExame = tipo === "Exame" && tipoexame !== undefined && tipoexame !== null ? encryptString(tipoexame) : null;
+    const encryptedMotivo = motivoParaCriptografar ? encryptString(motivoParaCriptografar) : "";
+    const encryptedTipoExame = tipo === "Exame" && tipoexame ? encryptString(tipoexame) : null;
 
     const novaConsulta = await db.consultas.create({
       data: {
@@ -135,7 +131,9 @@ export async function POST(req: Request) {
         unidadeId: unidadeId || null,
         motivo: encryptedMotivo,
         tipodeexame: encryptedTipoExame,
-        condicoes: condicaoSaudeId ? { connect: { id: condicaoSaudeId } } : undefined, // Corrected from CondicaoSaude
+        condicoes: condicaoSaudeId ? { connect: { id: condicaoSaudeId } } : undefined,
+        // CORREÇÃO: Salva a relação com a consulta de origem se o ID for fornecido
+        consultaOrigemId: consultaOrigemId || null,
       },
     });
 

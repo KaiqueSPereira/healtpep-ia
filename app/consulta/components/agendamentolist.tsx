@@ -103,7 +103,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
             agendamentos={agendamentosFuturos}
           />
           <AgendamentoSection
-            title="Últimos Eventos de Saúde"
+            title="Últimoas Consultas"
             agendamentos={agendamentosPassados}
           />
         </>

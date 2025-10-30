@@ -1,97 +1,65 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { toast } from "@/app/_hooks/use-toast";
-import { Button } from "@/app/_components/ui/button";
-import DescriptionEditor from "@/app/consulta/components/descriptioneditor";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/app/_components/ui/card";
-import { Check, ChevronLeftIcon, ChevronsUpDown } from "lucide-react";
-import Header from "@/app/_components/header";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-} from "@/app/_components/ui/command";
-import { Consultatype } from "@prisma/client";
-import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-} from "@/app/_components/ui/popover";
 import { useRouter } from "next/navigation";
+import { toast } from "@/app/_hooks/use-toast";
 
-interface Consulta {
+import { Button } from "@/app/_components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
+import { Textarea } from "@/app/_components/ui/textarea";
+import { Popover, PopoverTrigger, PopoverContent } from "@/app/_components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/app/_components/ui/command";
+import Header from "@/app/_components/header";
+
+import { Consultatype } from "@prisma/client";
+import { Check, ChevronLeftIcon, ChevronsUpDown } from "lucide-react";
+
+// Tipos
+interface Profissional {
   id: string;
+  nome: string;
+  especialidade: string;
+}
+
+interface Unidade {
+  id: string;
+  nome: string;
   tipo: string;
-  data: string;
-  unidade: {
-    id: string;
-    nome: string;
-    tipo: string;
-  };
-  profissional: {
-    id: string;
-    nome: string;
-    especialidade: string;
-    NumClasse: string;
-  };
+}
+
+interface FormData {
+  tipo: Consultatype;
+  profissionalId: string;
+  unidadeId: string;
   motivo: string;
 }
 
 interface ConsultaPageProps {
-  params: {
-    id: string;
-  };
+  params: { id: string };
 }
 
-// Componente para Seleção do Tipo de Consulta
-const TipoConsultaSelector = ({ selectedTipo, onSelect }: { selectedTipo: string; onSelect: (tipo: string) => void }) => {
+// Selectors
+const TipoConsultaSelector = ({ selectedTipo, onSelect }: { selectedTipo: string; onSelect: (tipo: Consultatype) => void }) => {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(selectedTipo || "");
-
-  const handleSelectTipo = (currentValue: string) => {
-    setValue(currentValue === value ? "" : currentValue);
-    setOpen(false);
-    onSelect(currentValue);
-  };
-
   const tiposConsulta = Object.values(Consultatype);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[200px] justify-between"
-        >
-          {value ? value : "Selecione o Tipo..."}
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-[250px] justify-between">
+          {selectedTipo || "Selecione o Tipo..."}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[250px] p-0">
         <Command>
           <CommandList>
             <CommandEmpty>Nenhum tipo encontrado.</CommandEmpty>
             <CommandGroup>
               {tiposConsulta.map((tipo) => (
-                <CommandItem
-                  key={tipo}
-                  value={tipo}
-                  onSelect={() => handleSelectTipo(tipo)}
-                >
-                  <Check
-                    className={`mr-2 h-4 w-4 ${value === tipo ? "opacity-100" : "opacity-0"}`}
-                  />
+                <CommandItem key={tipo} value={tipo} onSelect={() => { onSelect(tipo); setOpen(false); }}>
+                  <Check className={`mr-2 h-4 w-4 ${selectedTipo === tipo ? "opacity-100" : "opacity-0"}`} />
                   {tipo}
                 </CommandItem>
               ))}
@@ -103,49 +71,15 @@ const TipoConsultaSelector = ({ selectedTipo, onSelect }: { selectedTipo: string
   );
 };
 
-
-interface Profissional {
-  id: string;
-  nome: string;
-  especialidade: string;
-  NumClasse: string;
-}
-
-const ProfissionalConsultaSelector = ({
-  selectedProfissional,
-  onSelect,
-  profissionais = [] as Profissional[],
-}: {
-  selectedProfissional: Profissional | null;
-  onSelect: (profissional: Profissional | null) => void;
-  profissionais: Profissional[];
-}) => {
+const ProfissionalConsultaSelector = ({ selectedProfissional, onSelect, profissionais }: { selectedProfissional: string; onSelect: (id: string) => void; profissionais: Profissional[] }) => {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(selectedProfissional?.id || null);
-
-  const handleSelectProfissional = (profissionalId: string) => {
-    const newValue = profissionalId === value ? null : profissionalId;
-    setValue(newValue);
-    setOpen(false);
-    onSelect(profissionais.find((p) => p.id === newValue) || null); // Passa o objeto profissional ou null
-  };
-
-  // ✅ Garante que profissionais seja um array antes de chamar find()
-  const nomeProfissionalSelecionado =
-    (Array.isArray(profissionais) &&
-      profissionais.find((p) => p.id === value)?.nome) ||
-    "Selecione um profissional...";
+  const nomeProfissional = useMemo(() => profissionais.find(p => p.id === selectedProfissional)?.nome || "Selecione um profissional...", [profissionais, selectedProfissional]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[250px] justify-between"
-        >
-          {nomeProfissionalSelecionado}
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-[250px] justify-between">
+          {nomeProfissional}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -154,18 +88,12 @@ const ProfissionalConsultaSelector = ({
           <CommandList>
             <CommandEmpty>Nenhum profissional encontrado.</CommandEmpty>
             <CommandGroup>
-              {Array.isArray(profissionais) &&
-                profissionais.map((profissional) => (
-                  <CommandItem
-                    key={profissional.id}
-                    onSelect={() => handleSelectProfissional(profissional.id)}
-                  >
-                    <Check
-                      className={`mr-2 h-4 w-4 ${value === profissional.id ? "opacity-100" : "opacity-0"}`}
-                    />
-                    {`${profissional.nome} - ${profissional.especialidade}`}
-                  </CommandItem>
-                ))}
+              {profissionais.map((p) => (
+                <CommandItem key={p.id} value={p.id} onSelect={() => { onSelect(p.id); setOpen(false); }}>
+                  <Check className={`mr-2 h-4 w-4 ${selectedProfissional === p.id ? "opacity-100" : "opacity-0"}`} />
+                  {`${p.nome} - ${p.especialidade}`}
+                </CommandItem>
+              ))}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -174,48 +102,15 @@ const ProfissionalConsultaSelector = ({
   );
 };
 
-interface Unidade {
-  id: string;
-  nome: string;
-  tipo: string;
-}
-
-const UnidadeConsultaSelector = ({
-  selectedUnidade,
-  onSelect,
-  unidades = [] as Unidade[],
-}: {
-  selectedUnidade: Unidade | null;
-  onSelect: (unidade: Unidade | null) => void;
-  unidades: Unidade[];
-}) => {
+const UnidadeConsultaSelector = ({ selectedUnidade, onSelect, unidades }: { selectedUnidade: string; onSelect: (id: string) => void; unidades: Unidade[] }) => {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(selectedUnidade?.id || null);
-
-
-  const handleSelectUnidade = (UnidadeId: string) => {
-    const newValue = UnidadeId === value ? null : UnidadeId;
-    setValue(newValue);
-    setOpen(false);
-    onSelect(unidades.find((u) => u.id === newValue) || null); // Passa o objeto unidade ou null
-  };
-
-  // ✅ Garante que profissionais seja um array antes de chamar find()
-  const nomeUnidadeSelecionada =
-    (Array.isArray(unidades) &&
-      unidades.find((u) => u.id === value)?.nome) ||
-    "Selecione uma unidade...";
+  const nomeUnidade = useMemo(() => unidades.find(u => u.id === selectedUnidade)?.nome || "Selecione uma unidade...", [unidades, selectedUnidade]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[250px] justify-between"
-        >
-          {nomeUnidadeSelecionada}
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-[250px] justify-between">
+          {nomeUnidade}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -224,18 +119,12 @@ const UnidadeConsultaSelector = ({
           <CommandList>
             <CommandEmpty>Nenhuma unidade encontrada.</CommandEmpty>
             <CommandGroup>
-              {Array.isArray(unidades) &&
-                unidades.map((unidade: { id: string; nome: string; tipo: string }) => (
-                  <CommandItem
-                    key={unidade.id}
-                    onSelect={() => handleSelectUnidade(unidade.id)}
-                  >
-                    <Check
-                      className={`mr-2 h-4 w-4 ${value === unidade.id ? "opacity-100" : "opacity-0"}`}
-                    />
-                    {`${unidade.nome} - ${unidade.tipo}`}
-                  </CommandItem>
-                ))}
+              {unidades.map((u) => (
+                <CommandItem key={u.id} value={u.id} onSelect={() => { onSelect(u.id); setOpen(false); }}>
+                  <Check className={`mr-2 h-4 w-4 ${selectedUnidade === u.id ? "opacity-100" : "opacity-0"}`} />
+                  {`${u.nome} - ${u.tipo}`}
+                </CommandItem>
+              ))}
             </CommandGroup>
           </CommandList>
         </Command>
@@ -245,217 +134,158 @@ const UnidadeConsultaSelector = ({
 };
 
 const UpdateConsulta = ({ params }: ConsultaPageProps) => {
-  const router = useRouter(); // ✅ Instanciando o router
-  const [consulta, setConsulta] = useState<Consulta | null>(null);
-  const [profissionais, setProfissionais] = useState([]);
-  const [unidades, setUnidades] = useState([]);
+  const router = useRouter();
+  const [formData, setFormData] = useState<FormData | null>(null);
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const fetchConsulta = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/consultas/${params.id}`);
-        const data = await response.json();
-        setConsulta(data);
+        const [consultaRes, profRes, unidadesRes] = await Promise.all([
+          fetch(`/api/consultas/${params.id}`),
+          fetch("/api/profissionais"),
+          fetch("/api/unidadesaude"),
+        ]);
+
+        const consultaData = await consultaRes.json();
+        const profData = await profRes.json();
+        const unidadesData = await unidadesRes.json();
+
+        if (consultaData && !consultaData.error) {
+          setFormData({
+            tipo: consultaData.tipo,
+            profissionalId: consultaData.profissional?.id || "",
+            unidadeId: consultaData.unidade?.id || "",
+            motivo: consultaData.motivo || "",
+          });
+          const dataObj = new Date(consultaData.data);
+          setDate(dataObj.toISOString().split("T")[0]);
+          setTime(dataObj.toTimeString().slice(0, 5));
+        }
+
+        setProfissionais(profData);
+        setUnidades(unidadesData);
+
       } catch (error) {
-        console.error("Erro ao buscar consulta:", error);
+        console.error("Erro ao buscar dados:", error);
+        toast({ title: "Erro ao carregar dados.", variant: "destructive" });
       } finally {
         setLoading(false);
       }
     };
 
-    const fetchProfissionais = async () => {
-      try {
-        const response = await fetch("/api/profissional"); // 🔹 Faz a requisição para buscar os profissionais
-        const data = await response.json();
-        setProfissionais(data); // 🔹 Salva os profissionais no estado
-      } catch (error) {
-        console.error("Erro ao buscar profissionais:", error);
-      }
-    };
-
-    const fetchUnidades = async () => {
-      try {
-        const response = await fetch("/api/unidadesaude"); // 🔹 Faz a requisição para buscar as unidades
-        const data = await response.json();
-        setUnidades(data); // 🔹 Salva as unidades no estado
-      } catch (error) {
-        console.error("Erro ao buscar unidades:", error);
-      }
-    };
-
-    fetchProfissionais();
-    fetchConsulta();
-    fetchUnidades();
-    setLoading(false);
+    fetchData();
   }, [params.id]);
 
-  const handleUpdateConsulta = async () => {
+  const handleUpdateField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
+    setFormData(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const handleSave = async () => {
+    if (!formData || !date || !time) {
+      toast({ title: "Por favor, preencha todos os campos obrigatórios.", variant: "destructive" });
+      return;
+    }
+    setIsSaving(true);
+
     try {
+      const combinedDateTime = new Date(`${date}T${time}`);
+      const payload = {
+        ...formData,
+        data: combinedDateTime.toISOString(),
+      };
+
       const response = await fetch(`/api/consultas/${params.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tipo: consulta?.tipo,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
-        toast({
-          title: "Consulta atualizada com sucesso!",
-          variant: "default", // Use "default" ou outro permitido, pois "success" não é um variant padrão
-          duration: 5000,
-        });
-
-        // ✅ Redirecionando para a página da consulta
+        toast({ title: "Consulta atualizada com sucesso!", variant: "default" });
         router.push(`/consulta/${params.id}`);
+        router.refresh();
       } else {
-        toast({
-          title: "Erro ao atualizar consulta.",
-          variant: "destructive", // Use "destructive" para erros
-          duration: 5000
-       });
+        const errorData = await response.json();
+        toast({ title: "Erro ao atualizar consulta.", description: errorData.error, variant: "destructive" });
       }
-    } catch (error) {
-      toast({
-        title: "Erro ao atualizar consulta.",
-        description: error instanceof Error ? error.message : "Ocorreu um erro inesperado.", // Opcional: adicionar descrição do erro
-        variant: "destructive",
-        duration: 5000
-    });
+    } catch {
+      toast({ title: "Ocorreu um erro inesperado.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
   if (loading) return <h1>Carregando...</h1>;
-  if (!consulta) return <h1>Consulta não encontrada</h1>;
+  if (!formData) return <h1>Consulta não encontrada</h1>;
 
   return (
     <div>
       <Header />
       <header className="flex items-center justify-between p-5">
-        <Link href={`/consulta/${params.id}`}>
-          <Button variant="ghost" size="icon">
+        <Button asChild variant="ghost" size="icon">
+          <Link href={`/consulta/${params.id}`}>
             <ChevronLeftIcon />
-          </Button>
-        </Link>
-        <Button onClick={handleUpdateConsulta}>Salvar alterações</Button>
+          </Link>
+        </Button>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving ? "Salvando..." : "Salvar alterações"}
+        </Button>
       </header>
 
-      <main className="p-5">
-        <div className="flex items-center gap-5 p-3">
-          <h1 className="text-xl font-bold">
-            Tipo de Consulta:
+      <main className="space-y-6 p-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">Tipo de Consulta:</h2>
             <TipoConsultaSelector
-              selectedTipo={consulta.tipo}
-              onSelect={(tipoSelecionado) => {
-                setConsulta((prev) =>
-                  prev
-                    ? {
-                        ...prev,
-                        tipo: tipoSelecionado,
-                        id: prev.id,
-                        data: prev.data,
-                        unidade: prev.unidade,
-                        profissional: prev.profissional,
-                        queixas: prev.motivo,
-                      }
-                    : prev,
-                );
-              }}
+              selectedTipo={formData.tipo}
+              onSelect={(tipo) => handleUpdateField('tipo', tipo)}
             />
-          </h1>
+          </div>
 
-          <input
-            type="date"
-            defaultValue={
-              consulta.data
-                ? new Date(consulta.data).toISOString().split("T")[0]
-                : ""
-            }
-            className="rounded border border-none bg-black px-3 py-2 text-white"
-          />
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">Data e Hora:</h2>
+            <div className="flex items-center gap-2">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded border bg-transparent px-3 py-2" />
+              <p>às</p>
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="rounded border bg-transparent px-3 py-2" />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">Profissional:</h2>
+            <ProfissionalConsultaSelector
+              profissionais={profissionais}
+              selectedProfissional={formData.profissionalId}
+              onSelect={(id) => handleUpdateField('profissionalId', id)}
+            />
+          </div>
 
-          <p>às</p>
-
-          <input
-            type="time"
-            defaultValue={new Date(consulta.data).toLocaleTimeString("pt-BR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-            className="rounded border border-none bg-black px-3 py-2 text-white"
-          />
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold">Unidade:</h2>
+            <UnidadeConsultaSelector
+              unidades={unidades}
+              selectedUnidade={formData.unidadeId}
+              onSelect={(id) => handleUpdateField('unidadeId', id)}
+            />
+          </div>
         </div>
-
-        <h1 className="p-5 text-xl font-bold">
-          Profissional:
-          <ProfissionalConsultaSelector
-            selectedProfissional={consulta.profissional}
-            onSelect={(
-              ProfissionalSelecionado: {
-                id: string;
-                nome: string;
-                especialidade: string;
-                NumClasse: string;
-              } | null,
-            ) => {
-              setConsulta((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      profissional: ProfissionalSelecionado || {
-                        id: "",
-                        nome: "",
-                        especialidade: "",
-                        NumClasse: "",
-                      },
-                    }
-                  : prev,
-              );
-            }}
-            profissionais={profissionais}
-          />
-        </h1>
-
-        <h1 className="p-5 text-xl font-bold">
-          Unidade:
-          <UnidadeConsultaSelector
-            selectedUnidade={consulta.unidade}
-            onSelect={(
-              unidadeSelecionada: {
-                id: string;
-                nome: string;
-                tipo: string;
-              } | null,
-            ) => {
-              setConsulta((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      unidade: unidadeSelecionada || {
-                        id: "",
-                        nome: "",
-                        tipo: "",
-                      },
-                    }
-                  : prev,
-              );
-            }}
-            unidades={unidades}
-          />
-        </h1>
 
         <Card className="border-none">
           <CardHeader>
             <CardTitle>Registros sobre a consulta</CardTitle>
           </CardHeader>
           <CardContent>
-            <CardContent>
-              <p>{consulta.motivo || "Nenhuma queixa registrada"}</p>
-            </CardContent>
-            <DescriptionEditor
-              descricao={consulta.motivo}
-              consultaId={consulta.id}
+            <Textarea
+              placeholder="Escreva aqui os dados sobre a consulta..."
+              className="mt-2 w-full min-h-[150px]"
+              value={formData.motivo}
+              onChange={(e) => handleUpdateField('motivo', e.target.value)}
             />
           </CardContent>
         </Card>

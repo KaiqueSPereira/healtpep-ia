@@ -1,4 +1,3 @@
-// app/exames/components/ExamDetailForm.tsx
 "use client";
 
 import { Label } from "../../_components/ui/label";
@@ -9,11 +8,9 @@ import MenuProfissionais from "../../profissionais/_components/menuprofissionais
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 
-// CORREÇÃO: Importa os tipos enriquecidos
 import type { Consulta, Profissional, CondicaoSaude } from "@/app/_components/types";
 import { UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: Atualiza a interface de props para usar os tipos corretos
 interface ExamDetailsFormProps {
     consultas: Consulta[];
     selectedConsulta: Consulta | null;
@@ -61,18 +58,14 @@ export function ExamDetailsForm({
             <div>
                 <Label>Consulta Associada (Opcional)</Label>
                 <MenuConsultas
-                    consultas={consultas} // Passa a lista de consultas
+                    consultas={consultas}
                     selectedConsulta={selectedConsulta}
                     onConsultaSelect={(consulta) => {
                         onConsultaSelect(consulta);
-                        // AGORA FUNCIONA: A tipagem correta permite o acesso a 'profissional' e 'unidade'
-                        if (consulta && consulta.profissional && consulta.unidade) {
-                            onProfissionalSelect(consulta.profissional);
-                            onUnidadeSelect(consulta.unidade);
-                        } else {
-                            onProfissionalSelect(null);
-                            onUnidadeSelect(null);
-                        }
+                        // Ao selecionar uma consulta, preenche os campos de unidade e profissional.
+                        // O usuário ainda pode editá-los se necessário.
+                        onUnidadeSelect(consulta?.unidade || null);
+                        onProfissionalSelect(consulta?.profissional || null);
                     }}
                 />
             </div>
@@ -94,7 +87,7 @@ export function ExamDetailsForm({
                 unidades={unidades}
                 selectedUnidade={selectedUnidade}
                 onUnidadeSelect={onUnidadeSelect}
-                disabled={!!selectedConsulta?.unidadeId}
+                // Campo agora é sempre editável
               />
             </div>
             <div>
@@ -105,7 +98,7 @@ export function ExamDetailsForm({
                 selectedProfissional={selectedProfissional}
                 onProfissionalSelect={onProfissionalSelect}
                 unidadeId={selectedUnidade?.id}
-                disabled={!!selectedConsulta?.profissionalId}
+                // Campo agora é sempre editável
               />
             </div>
 

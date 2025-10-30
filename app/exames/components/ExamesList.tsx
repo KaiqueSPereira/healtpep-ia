@@ -85,7 +85,7 @@ const ExamesList = ({ userId }: ExamesListProps) => {
 
           <ExameSection title="Próximos Exames" exames={futurosExames} />
 
-          <ExameSection title="Últimos 5 Exames" exames={ultimos5PassadosExames} />
+          <ExameSection title="Últimos Exames" exames={ultimos5PassadosExames} />
         </>
       )}
     </div>

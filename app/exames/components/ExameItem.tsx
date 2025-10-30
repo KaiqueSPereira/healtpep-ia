@@ -1,27 +1,25 @@
 "use client";
+
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import Link from "next/link";
-// CORREÇÃO: Importa os tipos corretos do Prisma
-import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
+import { Badge } from "@/app/_components/ui/badge";
 import { FileText } from 'lucide-react';
+import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: Define o mesmo tipo que os componentes pai usam
+// Define o tipo para o Exame com suas relações, para garantir a tipagem correta
 type ExameComRelacoes = Exame & {
   profissional: Profissional | null;
   unidades: UnidadeDeSaude | null;
 };
 
 interface ExameItemProps {
-  // CORREÇÃO: Usa o novo tipo para a prop exame
   exame: ExameComRelacoes;
 }
 
 const ExameItem = ({ exame }: ExameItemProps) => {
   if (!exame) {
-    return (
-      <p className="text-gray-300">Dados do exame não encontrados.</p>
-    );
+    return null; // Retorna nulo se o exame não for fornecido
   }
 
   const {
@@ -29,43 +27,50 @@ const ExameItem = ({ exame }: ExameItemProps) => {
     profissional,
     unidades,
     dataExame,
-    anotacao,
     tipo,
     nomeArquivo,
+    anotacao,
   } = exame;
 
-  // CORREÇÃO: Usa a propriedade "data" para criar o objeto Date
-  const dataObj = dataExame ? new Date(dataExame) : null;
+  // Formatação de data e hora
+  const dataObj = dataExame ? new Date(dataExame) : new Date();
+  const mes = new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(dataObj).replace(".", "");
+  const dia = dataObj.getDate().toString();
+  const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  const mes = dataObj
-    ? new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj)
-    : "Mês não especificado";
+  // Extração de dados com valores padrão
+  const nomeProfissional = profissional?.nome || "Profissional não informado";
+  const unidadeNome = unidades?.nome || "Unidade não informada";
+  const tipoExame = tipo || "Exame";
+  const anotacaoExame = anotacao || "Nenhuma anotação.";
 
-  const dia = dataObj ? dataObj.getDate().toString() : "Dia não especificado";
-
-  const profissionalNome =
-    profissional?.nome || "Profissional não especificado";
-  const unidadeNome = unidades?.nome || "Unidade não especificada";
-
-  const anotacaoExame = anotacao;
+  const linkHref = `/exames/${id}`;
 
   return (
     <div className="w-full md:w-auto">
+      {/* Altura do card aumentada para dar mais espaço ao conteúdo */}
       <Card className="min-w-[280px] max-w-[320px] h-52">
         <CardContent className="flex p-0 overflow-hidden h-full">
-          <div className="flex flex-col gap-1 py-5 pl-5 pr-4 flex-grow">
-            <h3 className="text-lg font-bold ">{tipo || 'Tipo não especificado'}</h3>
-            <p className="text-sm font-semibold ">{profissionalNome}</p>
-            <p className="truncate text-sm ">{unidadeNome}</p>
-            {anotacaoExame && (
-                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">{anotacaoExame}</p>
-            )}
+          {/* Seção principal de conteúdo (esquerda) */}
+          <div className="flex flex-col gap-1 py-4 px-5 flex-grow min-w-0">
+            <Badge 
+              className="w-fit mb-2 bg-blue-600 text-primary-foreground hover:bg-blue-600/80"
+            >
+              {tipoExame}
+            </Badge>
+
+            {/* Textos sem truncamento para permitir quebra de linha */}
+            <h3 className="text-md font-bold">{nomeProfissional}</h3>
+            <p className="text-sm font-semibold">{unidadeNome}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{anotacaoExame}</p>
+            
+            {/* Botões na parte inferior com tamanho reduzido */}
             <div className="flex items-center gap-2 mt-auto">
-              <Button variant="secondary" asChild>
-                <Link href={`/exames/${id}`}>Detalhes</Link>
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={linkHref}>Ver Detalhes</Link>
               </Button>
               {nomeArquivo && (
-                <Button variant="ghost" asChild>
+                <Button variant="ghost" size="sm" asChild>
                   <Link href={`/api/exames/arquivo?id=${id}`} target="_blank">
                     <FileText className="mr-1 h-4 w-4" />
                     Laudo
@@ -74,10 +79,15 @@ const ExameItem = ({ exame }: ExameItemProps) => {
               )}
             </div>
           </div>
-           <div className="border-l-2 border-blue-500 h-full flex-shrink-0"></div>
-          <div className="flex flex-col items-center justify-between px-5 py-5 flex-shrink-0 w-24">
-            <p className="text-sm capitalize ">{mes}</p>
-            <p className="text-2xl font-bold ">{dia}</p>
+          
+          {/* Borda vertical azul */}
+          <div className="border-l-2 border-blue-600 h-full flex-shrink-0"></div>
+
+          {/* Seção de data (direita) */}
+          <div className="flex flex-col items-center justify-center px-4 py-5 flex-shrink-0 w-24">
+            <p className="text-sm font-bold uppercase text-blue-600">{mes}</p>
+            <p className="text-3xl font-bold">{dia}</p>
+            <p className="text-sm">{horaFormatada}</p>
           </div>
         </CardContent>
       </Card>
