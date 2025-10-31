@@ -46,6 +46,8 @@ export async function GET(request: NextRequest) {
         nome: safeDecrypt(exame.nome),
         tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
         anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+        // O nome do arquivo também precisa ser descriptografado para exibição, se necessário
+        nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
         resultados: decryptedResultados,
       };
     });
@@ -79,11 +81,13 @@ export async function POST(request: Request) {
 
     const dataExame = new Date(dataExameStr);
 
-    let nomeArquivo: string | undefined;
+    let encryptedNomeArquivo: string | null = null;
     let arquivoParaSalvar: Buffer | null = null;
 
     if (file) {
-        nomeArquivo = file.name;
+        const nomeArquivo = file.name;
+        // Criptografa o nome do arquivo
+        encryptedNomeArquivo = encryptString(nomeArquivo);
         const fileBuffer = await file.arrayBuffer();
         const originalBuffer = Buffer.from(fileBuffer);
         arquivoParaSalvar = encryptBuffer(originalBuffer);
@@ -97,7 +101,8 @@ export async function POST(request: Request) {
         userId,
         dataExame,
         nome: encryptString(nomeExame),
-        nomeArquivo: nomeArquivo,
+        // Salva o nome do arquivo criptografado
+        nomeArquivo: encryptedNomeArquivo,
         arquivoExame: arquivoParaSalvar ? new Uint8Array(arquivoParaSalvar) : null,
         anotacao: encryptedAnotacao,
         tipo: encryptString(tipo),

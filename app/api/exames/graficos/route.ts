@@ -2,91 +2,104 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { decryptString, decrypt } from "@/app/_lib/crypto"; // Adicionando importação de decrypt
+import { safeDecrypt } from "@/app/_lib/crypto";
 
-
-// Função auxiliar para tentar descriptografar usando ambos os métodos
-function tryDecrypt(encryptedValue: string | null | undefined): string | null {
-  if (encryptedValue === null || encryptedValue === undefined) {
-    return null;
-  }
-  try {
-    return decryptString(encryptedValue);
-  } catch {
-    try {
-      // Verifica se a string pode ser hex (uma verificação simples)
-      if (/^[0-9a-fA-F]+$/.test(encryptedValue)) {
-         return decrypt(Buffer.from(encryptedValue, 'hex')).toString();
-      } else {
-         // Se não for hex, provavelmente é um formato inválido mesmo para o método antigo
-         console.warn("Tentativa de descriptografia hex falhou: valor não parece ser hexadecimal", encryptedValue);
-         return null; // Ou retorne um placeholder como "[Valor Criptografado Inválido]"
-      }
-    } catch (hexError) {
-      console.error("Erro na descriptografia (ambos os métodos falharam):", hexError, "Valor:", encryptedValue);
-      return null; // Retorna null se ambos os métodos falharem
-      // Ou retorne um placeholder como "[Falha na Descriptografia]"
-    }
-  }
+// Função robusta para descriptografar ou retornar o valor original
+function tryDecrypt(value: string | null | undefined): string {
+    if (!value) return "";
+    const decryptedValue = safeDecrypt(value);
+    // Se a descriptografia falhar (retornar null), usa o valor original.
+    // Isso lida com dados antigos não criptografados.
+    return decryptedValue !== null ? decryptedValue : value;
 }
+
+// Interface para estruturar os dados para o gráfico
+interface ChartData {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: (number | null)[];
+    borderColor: string;
+    backgroundColor: string;
+  }[];
+}
+
+// Função para gerar uma cor aleatória para as linhas do gráfico
+const getRandomColor = () => {
+  const r = Math.floor(Math.random() * 255);
+  const g = Math.floor(Math.random() * 255);
+  const b = Math.floor(Math.random() * 255);
+  return {
+    borderColor: `rgb(${r}, ${g}, ${b})`,
+    backgroundColor: `rgba(${r}, ${g}, ${b}, 0.5)`,
+  };
+};
 
 export async function GET() {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
 
   if (!userId) {
-     console.log("Usuário não autenticado no GET de gráficos.");
-     console.log("--- Fim do GET em /api/exames/graficos ---");
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
   try {
     const exames = await prisma.exame.findMany({
-      where: {
-        userId,
-      },
-      include: {
-        resultados: true,
-      },
-      orderBy: {
-        dataExame: 'asc', // Mantido ascendente para gráficos temporais
-      },
+      where: { userId },
+      include: { resultados: true },
+      orderBy: { dataExame: 'asc' },
     });
 
-     console.log(`Encontrados ${exames.length} exames para gráficos.`);
+    // Objeto para agrupar os resultados por nome
+    const resultsByName: { [key: string]: { date: Date; value: number }[] } = {};
+    const allDates = new Set<string>();
 
-    const decryptedExames = exames.map(exame => {
-      const decryptedNome = tryDecrypt(exame.nome);
-      const decryptedAnotacao = tryDecrypt(exame.anotacao);
-      const decryptedNomeArquivo = tryDecrypt(exame.nomeArquivo);
+    exames.forEach(exame => {
+      const examDate = new Date(exame.dataExame).toISOString().split('T')[0];
+      allDates.add(examDate);
 
+      exame.resultados.forEach(resultado => {
+        const nome = tryDecrypt(resultado.nome);
+        const valorStr = tryDecrypt(resultado.valor);
+        const numericValue = parseFloat(valorStr.replace(',', '.'));
 
-       const decryptedResultados = exame.resultados.map(resultado => ({
-        ...resultado,
-        nome: tryDecrypt(resultado.nome) || '', // Retorna string vazia se falhar para nome (obrigatório)
-        valor: tryDecrypt(resultado.valor) || '', // Retorna string vazia se falhar para valor (obrigatório)
-        unidade: tryDecrypt(resultado.unidade),
-        referencia: tryDecrypt(resultado.referencia),
-      }));
+        // Adiciona ao grupo apenas se for um nome válido e um número
+        if (nome && !isNaN(numericValue)) {
+          if (!resultsByName[nome]) {
+            resultsByName[nome] = [];
+          }
+          resultsByName[nome].push({ date: exame.dataExame, value: numericValue });
+        }
+      });
+    });
 
-       // Filtrar resultados inválidos se necessário, ou lidar com eles no frontend
-       // Por exemplo, se 'nome' ou 'valor' não puderem ser descriptografados, o resultado pode ser problemático.
+    // Cria os 'labels' (datas) ordenados
+    const labels = Array.from(allDates).sort();
+
+    // Cria os 'datasets'
+    const datasets = Object.keys(resultsByName).map(nome => {
+      const dataPoints = resultsByName[nome];
+      const color = getRandomColor();
+
+      // Mapeia os valores para as datas corretas, inserindo 'null' onde não há dados
+      const data = labels.map(labelDate => {
+        const point = dataPoints.find(p => new Date(p.date).toISOString().split('T')[0] === labelDate);
+        return point ? point.value : null;
+      });
 
       return {
-        ...exame,
-        nome: decryptedNome,
-        anotacao: decryptedAnotacao,
-        nomeArquivo: decryptedNomeArquivo,
-        resultados: decryptedResultados,
+        label: nome,
+        data,
+        ...color,
       };
     });
 
-    console.log("Exames descriptografados para gráficos.");
-    console.log("--- Fim do GET em /api/exames/graficos ---");
-    return NextResponse.json(decryptedExames, { status: 200 });
+    const chartData: ChartData = { labels, datasets };
+
+    return NextResponse.json(chartData, { status: 200 });
+
   } catch (error) {
-    console.error("Erro ao buscar exames para gráficos:", error);
-    console.log("--- Fim do GET em /api/exames/graficos com erro ---");
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
+    console.error("Erro ao montar dados para gráficos:", error);
+    return NextResponse.json({ error: "Erro interno ao processar dados para gráficos." }, { status: 500 });
   }
 }
