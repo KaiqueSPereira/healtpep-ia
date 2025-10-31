@@ -1,14 +1,28 @@
-// app/api/exames/analise-completa/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import OpenAI from "openai";
-// Refatorado para usar safeDecrypt para mais robustez
 import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
 
-// Configuração do OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Função para obter o mimetype a partir do nome do arquivo
+const getMimeType = (fileName: string): string | null => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    if (!extension) return null;
+
+    switch (extension) {
+        case 'png': return 'image/png';
+        case 'jpg':
+        case 'jpeg': return 'image/jpeg';
+        case 'webp': return 'image/webp';
+        // A OpenAI não suporta PDFs diretamente via image_url, mas pode ser útil para outras integrações
+        case 'pdf': return 'application/pdf';
+        default: return null;
+    }
+};
+
 
 interface LocalResultadoExame {
     id: string;
@@ -22,7 +36,6 @@ interface LocalTratamento {
     nome: string;
 }
 
-// Função para calcular a idade a partir da data de nascimento
 function calcularIdade(dataNascimento: string): number {
     const hoje = new Date();
     const nascimento = new Date(dataNascimento);
@@ -34,10 +47,9 @@ function calcularIdade(dataNascimento: string): number {
     return idade;
 }
 
-// A função principal que será chamada para gerar a análise
 async function analisarExame(examId: string, userId: string): Promise<string | null> {
   try {
-    // 1. Buscar todos os dados relevantes do banco de dados
+    // CORREÇÃO: Busca o Exame com seus campos escalares (incluindo arquivoExame)
     const exame = await prisma.exame.findUnique({
       where: { id: examId, userId: userId },
       include: {
@@ -46,13 +58,10 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
           include: {
             dadosSaude: true,
             condicoesSaude: true,
-            historicoPeso: {
-              orderBy: { data: 'desc' },
-              take: 1
-            }
+            historicoPeso: { orderBy: { data: 'desc' }, take: 1 }
           }
         },
-        consulta: true 
+        consulta: true
       }
     });
 
@@ -61,7 +70,6 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       return null;
     }
 
-    // 2. Descriptografar e formatar os dados para o prompt usando safeDecrypt
     const resultadosFormatados = exame.resultados.map((r: LocalResultadoExame) => {
         const nome = safeDecrypt(r.nome);
         const valor = safeDecrypt(r.valor);
@@ -80,7 +88,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     let consultaInfo = "Nenhuma consulta diretamente vinculada a este exame.";
     if (exame.consulta) {
         const dataConsulta = new Date(exame.consulta.data).toLocaleDateString("pt-BR");
-        const queixas = exame.consulta.motivo || 'Não informado';
+        const queixas = exame.consulta.motivo ? safeDecrypt(exame.consulta.motivo) : 'Não informado';
         consultaInfo = `
       - Data da Consulta: ${dataConsulta}
       - Tipo de Consulta: ${exame.consulta.tipo || 'Não informado'}
@@ -90,11 +98,9 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
 
     const anotacaoExame = exame.anotacao ? safeDecrypt(exame.anotacao) : "Nenhuma anotação fornecida.";
 
-    // 3. Construir o prompt detalhado para a IA
-    const prompt = `
-      Por favor, analise os seguintes resultados de exame para um paciente. Forneça uma análise clara e concisa em português, destacando quaisquer resultados que estejam fora do padrão e explicando sua possível significância clínica de forma geral. 
-      A análise não deve ser um diagnóstico, mas sim um resumo informativo para auxiliar o usuário/paciente a passar informações para o profissional de saúde. Leve em consideração todos os dados fornecidos: dados do paciente, contexto da consulta e as 
-      anotações do próprio usuário, para uma análise mais precisa e contextualizada.
+    const textPrompt = `
+      Por favor, analise os seguintes resultados de exame e quaisquer imagens anexadas para um paciente. Forneça uma análise clara e concisa em português, destacando quaisquer resultados que estejam fora do padrão e explicando sua possível significância clínica de forma geral. Se imagens ou documentos forem fornecidos, descreva o que você vê e relacione com os dados do exame.
+      A análise não deve ser um diagnóstico, mas sim um resumo informativo para auxiliar o usuário/paciente a passar informações para o profissional de saúde. Leve em consideração todos os dados fornecidos para uma análise mais precisa e contextualizada.
 
       **Dados do Paciente:**
       - Idade: ${idade} anos
@@ -109,17 +115,35 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       **Anotações do Usuário sobre o Exame:**
       ${anotacaoExame}
 
-      **Resultados do Exame:**
+      **Resultados do Exame (dados textuais):**
       ${resultadosFormatados}
 
       **Formato da Resposta:**
       Gere um parágrafo de texto corrido com a análise. Comece com uma visão geral e depois detalhe os pontos importantes. Seja objetivo e use uma linguagem que um leigo possa entender, mas que seja clinicamente relevante.
     `;
 
-    // 4. Chamar a API da OpenAI
+    const messageContent: (OpenAI.Chat.ChatCompletionContentPartText | OpenAI.Chat.ChatCompletionContentPartImage)[] = [
+        { type: "text", text: textPrompt },
+    ];
+
+    // CORREÇÃO: Pega o anexo do próprio exame e o converte
+    if (exame.arquivoExame && exame.nomeArquivo) {
+        const mimetype = getMimeType(exame.nomeArquivo);
+        // Apenas processa imagens que a API da OpenAI aceita
+        if (mimetype && mimetype.startsWith('image/')) {
+            const base64Image = (exame.arquivoExame as Buffer).toString('base64');
+            const imageUrl = `data:${mimetype};base64,${base64Image}`;
+
+            messageContent.push({
+                type: "image_url",
+                image_url: { "url": imageUrl },
+            });
+        }
+    }
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
+      messages: [{ role: "user", content: messageContent }],
       temperature: 0.2,
     });
 
@@ -130,12 +154,9 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       return null;
     }
 
-    // 5. Salvar a análise no banco de dados usando encryptString
     await prisma.exame.update({
       where: { id: examId },
-      data: {
-        analiseIA: encryptString(analiseGerada)
-      }
+      data: { analiseIA: encryptString(analiseGerada) }
     });
     
     console.log(`Análise de IA gerada e salva para o exame ${examId}.`);
@@ -147,7 +168,6 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
   }
 }
 
-// Rota da API POST para acionar a análise
 export async function POST(req: NextRequest) {
   console.log("--- Início do POST em /api/exames/analise-completa ---");
   

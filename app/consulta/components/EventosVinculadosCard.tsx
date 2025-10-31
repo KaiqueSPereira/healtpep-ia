@@ -33,7 +33,7 @@ const EventosVinculadosCard = ({ isRetorno, exames, retornos }: EventosVinculado
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isRetorno ? "Exames (da Consulta de Origem)" : "Eventos Vinculados"}</CardTitle>
+        <CardTitle>{isRetorno ? "Exames" : "Eventos Vinculados"}</CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {exames.map((exame) => <ExameItem key={`exame-${exame.id}`} exame={exame} />)}

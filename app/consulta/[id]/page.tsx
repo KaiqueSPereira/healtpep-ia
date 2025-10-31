@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "@/app/_hooks/use-toast";
 import { ChevronLeftIcon } from "lucide-react";
-import Link from "next/link";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
@@ -118,8 +117,8 @@ const ConsultaPage = () => {
     <div>
       <Header />
       <div className="relative w-full px-5 py-6">
-        <Button size="icon" variant="secondary" className="absolute left-5 top-6" asChild>
-          <Link href="/consulta"><ChevronLeftIcon /></Link>
+        <Button size="icon" variant="secondary" className="absolute left-5 top-6" onClick={() => router.back()}>
+          <ChevronLeftIcon />
         </Button>
         <div className="absolute right-5 top-6 flex gap-2">
           <BotaoEditarConsulta consultaId={consulta.id} />
