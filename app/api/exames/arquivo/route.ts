@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import { decrypt, safeDecrypt } from "@/app/_lib/crypto"; // CORREÇÃO: Importa a função safeDecrypt
+import { decrypt, safeDecrypt } from "@/app/_lib/crypto"; 
 import { Buffer } from 'buffer';
 
 export async function GET(req: NextRequest) {
@@ -26,8 +26,10 @@ export async function GET(req: NextRequest) {
 
     const decryptedFileBuffer = decrypt(Buffer.from(exame.arquivoExame));
 
-    // CORREÇÃO: Descriptografa o nome do arquivo antes de usá-lo.
-    const fileName = safeDecrypt(exame.nomeArquivo) || 'arquivo_desconhecido';
+    // CORRIGIDO: Verifica se nomeArquivo existe ANTES de descriptografar
+    const fileName = exame.nomeArquivo 
+      ? safeDecrypt(exame.nomeArquivo) 
+      : 'arquivo_desconhecido';
 
     const fileExtension = fileName.split(".").pop()?.toLowerCase();
 
@@ -46,7 +48,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${fileName}"`, // Agora usa o nome descriptografado
+        "Content-Disposition": `inline; filename="${fileName}"`, 
       },
     });
 
