@@ -14,7 +14,7 @@ const profissionalCreateSchema = z.object({
 });
 
 // Método GET (Listar todos os profissionais)
-export async function GET(req: Request) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || !session.user.id) {
     return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
