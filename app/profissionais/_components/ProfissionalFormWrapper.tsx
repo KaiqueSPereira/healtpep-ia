@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/app/_components/header";
 import {
@@ -11,50 +11,38 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react"; // ChevronDown não é mais necessário
-import { Profissional } from "@/app/_components/types"; // Unidade e tipos relacionados a ela não são mais necessários aqui
-import { toast } from "@/app/_hooks/use-toast";
+import { ChevronLeft } from "lucide-react";
+import { Profissional } from "@/app/_components/types";
 import { useForm } from "react-hook-form";
 import { useEffect } from "react";
+import { useToast } from "@/app/_hooks/use-toast";
 
-// Removido Unidade | null de FormData
 interface FormData {
   profissional: Profissional;
-  // unidade: Unidade | null; // Removido
 }
 
 export function ProfissionalFormWrapper() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast(); // CORREÇÃO: Inicialização do hook
   const profissionalid = searchParams.get("profissionalid");
 
-  // Removido default value para unidade
   const form = useForm<FormData>({
     defaultValues: {
       profissional: { nome: "", especialidade: "", NumClasse: "" },
-      // unidade: null, // Removido
     },
   });
-
-  // Removidos estados e lógica relacionados à unidade única
-  // const [unidades, setUnidades] = useState<Unidade[]>([]);
-  // const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
-  // const [popoverOpen, setPopoverOpen] = useState(false);
 
   const fetchProfissionalById = async (profissionalid: string) => {
     try {
       const response = await fetch(`/api/profissionais/${profissionalid}`);
       if (!response.ok) throw new Error("Erro ao buscar dados do profissional");
 
-      // Ajustar tipagem da resposta se a API não retornar mais a unidade única neste endpoint
-      const data: { profissional: Profissional /* unidade?: Unidade */ } = // Removido unidade?
-        await response.json();
+      const data: { profissional: Profissional } = await response.json();
       form.setValue("profissional", data.profissional);
-      // form.setValue("unidade", data.unidade); // Removido
-      // setSelectedUnidade(data.unidade); // Removido
     } catch (error) {
       console.error("Erro ao buscar profissional:", error);
-        toast({title: "Erro ao buscar profissional.",variant: "destructive", duration: 5000});
+      toast({title: "Erro ao buscar profissional.",variant: "destructive"});
     }
   };
 
@@ -62,12 +50,8 @@ export function ProfissionalFormWrapper() {
     if (profissionalid) {
       fetchProfissionalById(profissionalid);
     }
-    // fetchUnidades(); // Removido
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profissionalid]);
-
-  // Removida função fetchUnidades
-  // const fetchUnidades = async () => { /* ... */ };
 
   const createProfissional = async (data: FormData) => {
     try {
@@ -80,22 +64,35 @@ export function ProfissionalFormWrapper() {
           nome: data.profissional.nome,
           especialidade: data.profissional.especialidade,
           NumClasse: data.profissional.NumClasse,
-          // unidadeId: selectedUnidade?.id, // Removido
         }),
       });
 
+      // IMPLEMENTAÇÃO: Lógica de toasts
       if (response.ok) {
-        // Redirecionar para a página de edição do novo profissional
-        const newProfessional = await response.json(); // Assumindo que a API retorna o profissional criado com ID
+        toast({ title: "Profissional cadastrado com sucesso!" });
+        const newProfessional = await response.json();
         router.push(`/profissionais/${newProfessional.id}/editar`);
       } else {
         const errorDetails = await response.json();
         console.error("Erro ao criar profissional:", errorDetails);
-        toast({title: "Erro ao criar profissional.", variant: "destructive", duration: 5000});
+
+        if (response.status === 409) {
+          toast({
+            title: "Profissional já cadastrado",
+            description: errorDetails.error, // Mensagem vinda da API
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro ao criar profissional.",
+            description: errorDetails.error || "Ocorreu um erro inesperado.",
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
-      console.error("Erro ao criar profissional:", error);
-      toast({title: "Erro ao criar profissional.", variant: "destructive", duration: 5000});
+      console.error("Erro de rede ou inesperado:", error);
+      toast({title: "Erro ao criar profissional.", description: "Verifique sua conexão ou tente novamente.", variant: "destructive"});
     }
   };
 
@@ -107,29 +104,36 @@ export function ProfissionalFormWrapper() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          // Enviando apenas os dados do profissional, unidades são gerenciadas pelo outro componente/API
           nome: data.profissional.nome,
           especialidade: data.profissional.especialidade,
           NumClasse: data.profissional.NumClasse,
-          // unidadeId: selectedUnidade?.id, // Removido
         }),
       });
-      if (!response.ok) throw new Error("Erro ao atualizar profissional");
 
-       toast({title: "Profissional atualizado com sucesso."});
-      // Redirecionar para a página de detalhes do profissional ou outra página
-      router.push(`/profissionais/${profissionalid}`);
+      if (!response.ok) {
+        const errorDetails = await response.json();
+        // Trata erro de duplicidade também na atualização
+        if (response.status === 409) {
+             toast({
+                title: "Número de Classe já existe",
+                description: errorDetails.error,
+                variant: "destructive",
+            });
+        } else {
+            throw new Error("Erro ao atualizar profissional");
+        }
+      } else {
+        toast({title: "Profissional atualizado com sucesso."});
+        router.push(`/profissionais/${profissionalid}`);
+      }
 
     } catch (error) {
       console.error("Erro ao atualizar profissional:", error);
-      toast({title: "Erro ao atualizar profissional.", variant: "destructive", duration: 5000});
+      toast({title: "Erro ao atualizar profissional.", variant: "destructive"});
     }
   };
 
   const handleSubmit = async (data: FormData) => {
-    // Removida validação de unidade única
-    // if (!selectedUnidade) { /* ... */ }
-
     try {
       if (profissionalid) {
         await updateProfissional(data);
@@ -138,7 +142,7 @@ export function ProfissionalFormWrapper() {
       }
     } catch (error) {
       console.error("Erro ao salvar profissional:", error);
-       toast({title: "Erro ao salvar profissional.", variant: "destructive", duration: 5000});
+       toast({title: "Erro ao salvar profissional.", variant: "destructive"});
     }
   };
 
@@ -152,7 +156,6 @@ export function ProfissionalFormWrapper() {
           className="left-5 top-6"
           asChild
         >
-          {/* Ajustar o Link para voltar para a lista de profissionais */}
           <Link href="/profissionais">
             <ChevronLeft />
           </Link>
@@ -208,12 +211,6 @@ export function ProfissionalFormWrapper() {
                 </FormItem>
               )}
             />
-
-            {/* A lógica de múltiplas unidades será adicionada na página de edição */}
-            {/* <h2 className="mt-6 text-xl font-semibold">Unidade de Saúde</h2> */}
-            {/* Removido o FormField de unidade única */}
-
-
             <Button type="submit" className="mt-6 justify-center">
               Salvar
             </Button>

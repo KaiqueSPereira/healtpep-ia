@@ -1,10 +1,9 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useMemo } from "react";
-import { useSession } from "next-auth/react"; // Importa o hook useSession
+import { useSession } from "next-auth/react";
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
-import { toast } from "@/app/_hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import ExameLineChart from "./components/ExameLineChart";
 import { Input } from "@/app/_components/ui/input";
@@ -14,6 +13,7 @@ import Link from "next/link";
 import { Button } from "@/app/_components/ui/button";
 import { ExameTypeFilter } from "./components/ExameTypeFilter";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
+import { useToast } from "../_hooks/use-toast";
 
 export type ExameCompleto = Exame & {
     profissional: Profissional | null;
@@ -38,7 +38,7 @@ type ChartData = {
 };
 
 export default function ExamesPage() {
-    const { data: session, status } = useSession(); // Usa o hook para obter a sessão
+    const { data: session, status } = useSession();
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -51,12 +51,11 @@ export default function ExamesPage() {
     const [chartData, setChartData] = useState<ChartData | null>(null);
     const [examToDelete, setExamToDelete] = useState<string | null>(null);
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
-        // Não faz nada enquanto a sessão está carregando
         if (status === 'loading') return;
 
-        // Se o usuário não estiver autenticado, exibe um erro e para.
         if (status === 'unauthenticated') {
             toast({ title: "Você precisa estar logado para ver seus exames.", variant: "destructive" });
             setLoading(false);
@@ -67,7 +66,6 @@ export default function ExamesPage() {
             setLoading(true);
             const userId = session?.user?.id;
 
-            // Garante que temos um userId antes de fazer a chamada
             if (!userId) {
                 toast({ title: "Não foi possível obter a identificação do usuário.", variant: "destructive" });
                 setLoading(false);
@@ -75,7 +73,6 @@ export default function ExamesPage() {
             }
 
             const viewUrl = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
-            // CORREÇÃO: Adiciona o userId como um query parameter na URL
             const url = `${viewUrl}?userId=${userId}`;
 
             try {
@@ -96,7 +93,9 @@ export default function ExamesPage() {
             }
         };
         fetchData();
-    }, [currentView, session, status]); // Adiciona a sessão e o status como dependências
+    // CORREÇÃO: A dependência agora é o `session.user.id`, que é estável,
+    // em vez do objeto `session` inteiro, que pode mudar a cada renderização.
+    }, [currentView, session?.user?.id, status, toast]); 
 
     const listFilterOptions = useMemo(() => 
         Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), 
