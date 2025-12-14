@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from "@/app/_components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { Label } from "@/app/_components/ui/label";
@@ -14,8 +16,24 @@ import { useState, useEffect } from 'react';
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
+import { Popover, PopoverContent } from "@/app/_components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandItem } from "@/app/_components/ui/command";
+import { cn } from "@/app/_lib/utils";
 
-// Helper para formatar texto de enums
+// --- ÍCONES PARA AS FORMAS FARMACÊUTICAS ---
+import { Pill, CircleDot, Beaker, Droplets, Syringe, SprayCan } from 'lucide-react';
+import { PopoverAnchor } from "@radix-ui/react-popover";
+
+// --- OPÇÕES DE FORMA FARMACÊUTICA ---
+const formasFarmaceuticas = [
+  { name: 'Comprimido', icon: <Pill className="h-6 w-6 mb-1" /> },
+  { name: 'Cápsula', icon: <CircleDot className="h-6 w-6 mb-1" /> },
+  { name: 'Líquido', icon: <Beaker className="h-6 w-6 mb-1" /> },
+  { name: 'Gotas', icon: <Droplets className="h-6 w-6 mb-1" /> },
+  { name: 'Injeção', icon: <Syringe className="h-6 w-6 mb-1" /> },
+  { name: 'Spray', icon: <SprayCan className="h-6 w-6 mb-1" /> },
+];
+
 const formatEnum = (text: string) => {
     if (!text) return '';
     const replaced = text.replace(/_/g, ' ');
@@ -27,15 +45,15 @@ const medicamentoSchema = z.object({
   principioAtivo: z.string().optional().nullable(),
   linkBula: z.string().url({ message: "Por favor, insira uma URL válida." }).optional().nullable(),
   posologia: z.string().optional().nullable(),
-  forma: z.string().optional().nullable(),
+  forma: z.string().optional().nullable(), // Mantido como string opcional
   tipo: z.nativeEnum(TipoMedicamento),
   dataInicio: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Data de início inválida" }),
   dataFim: z.string().optional().nullable(),
   status: z.nativeEnum(StatusMedicamento),
-  estoque: z.number().int().optional().nullable(),
-  quantidadeCaixa: z.number().int().optional().nullable(),
-  quantidadeDose: z.number().optional().nullable(),
-  frequenciaNumero: z.number().int().optional().nullable(),
+  estoque: z.preprocess(val => (val === "" || val === null) ? null : Number(val), z.number().int().optional().nullable()),
+  quantidadeCaixa: z.preprocess(val => (val === "" || val === null) ? null : Number(val), z.number().int().optional().nullable()),
+  quantidadeDose: z.preprocess(val => (val === "" || val === null) ? null : Number(val), z.number().optional().nullable()),
+  frequenciaNumero: z.preprocess(val => (val === "" || val === null) ? null : Number(val), z.number().int().optional().nullable()),
   frequenciaTipo: z.nativeEnum(FrequenciaTipo).optional().nullable(),
   condicaoSaudeId: z.string().optional().nullable(),
   profissionalId: z.string().optional().nullable(),
@@ -52,13 +70,23 @@ interface MedicamentoFormProps {
     consultas: Consulta[];
 }
 
+interface AnvisaMed {
+  id: string;
+  nomeComercial: string;
+  principioAtivo: string;
+  linkBula: string;
+}
+
 export default function MedicamentoForm({ medicamento, onSave, condicoes, profissionais, consultas }: MedicamentoFormProps) {
     const { data: session } = useSession();
     const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
     const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
+    const [anvisaResults, setAnvisaResults] = useState<AnvisaMed[]>([]);
+    const [isAnvisaLoading, setIsAnvisaLoading] = useState(false);
+    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
-    const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<MedicamentoFormData>({
+    const { register, handleSubmit, formState: { errors }, setValue, watch, getValues } = useForm<MedicamentoFormData>({
         resolver: zodResolver(medicamentoSchema),
         defaultValues: {
             ...medicamento,
@@ -66,7 +94,7 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
             dataFim: medicamento?.dataFim ? new Date(medicamento.dataFim).toISOString().split('T')[0] : ''
         }
     });
-
+    
     useEffect(() => {
         if (medicamento) {
             setSelectedCondicao(medicamento.condicaoSaude || null);
@@ -81,17 +109,42 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
     const status = watch("status");
     const tipo = watch("tipo");
     const frequenciaTipo = watch("frequenciaTipo");
+    const forma = watch("forma"); // Observa a forma farmacêutica selecionada
+
+    const triggerAnvisaSearch = async () => {
+        const nome = getValues("nome");
+        if (nome && nome.length >= 3) {
+            setIsAnvisaLoading(true);
+            setIsPopoverOpen(true);
+            try {
+                const res = await fetch(`/api/medicamentos/br-search?name=${encodeURIComponent(nome)}`);
+                const data = await res.json();
+                setAnvisaResults(data);
+            } catch (error) {
+                console.error("Falha ao buscar medicamentos na ANVISA", error);
+                setAnvisaResults([]);
+            } finally {
+                setIsAnvisaLoading(false);
+            }
+        }
+    };
+
+    const handleSelectAnvisaMed = (med: AnvisaMed) => {
+        setValue("nome", med.nomeComercial, { shouldValidate: true });
+        setValue("principioAtivo", med.principioAtivo, { shouldValidate: true });
+        setValue("linkBula", med.linkBula, { shouldValidate: true });
+        setIsPopoverOpen(false);
+        setAnvisaResults([]);
+    };
 
     const onSubmit = async (data: MedicamentoFormData) => {
         try {
             const method = medicamento ? 'PUT' : 'POST';
             const endpoint = medicamento ? `/api/medicamentos/${medicamento.id}` : '/api/medicamentos';
-
-            // Constrói o payload com os tipos corretos, evitando 'any'
+            
             const payload = {
                 ...data,
                 userId: session?.user.id,
-                // Converte strings vazias em null para os campos opcionais
                 dataFim: data.dataFim || null,
                 principioAtivo: data.principioAtivo || null,
                 linkBula: data.linkBula || null,
@@ -100,11 +153,6 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
                 condicaoSaudeId: data.condicaoSaudeId || null,
                 profissionalId: data.profissionalId || null,
                 consultaId: data.consultaId || null,
-                
-                // Garante que os enums estejam no formato correto (UPPERCASE) para a API
-                tipo: data.tipo.toUpperCase().replace(/ /g, '_') as TipoMedicamento,
-                status: data.status.toUpperCase() as StatusMedicamento,
-                frequenciaTipo: data.frequenciaTipo ? data.frequenciaTipo.toUpperCase() as FrequenciaTipo : null,
             };
 
             const response = await fetch(endpoint, {
@@ -115,10 +163,7 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
 
             if (!response.ok) {
                  const errorData = await response.json();
-                 if (response.status === 422) {
-                     console.error("Validation Errors:", errorData);
-                 }
-                 const errorMessage = errorData.error || (Array.isArray(errorData) ? errorData.map(e => e.message).join(', ') : `Falha ao salvar medicamento. Status: ${response.status}`);
+                 const errorMessage = errorData.error || (Array.isArray(errorData) ? errorData.map(e => e.message).join(', ') : `Falha ao salvar medicamento.`);
                  throw new Error(errorMessage);
             }
 
@@ -131,12 +176,52 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-1 rounded-lg bg-card text-card-foreground">
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <Label htmlFor="nome">Nome do Medicamento</Label>
-                    <Input id="nome" {...register("nome")} />
-                    {errors.nome && <p className="text-red-500 text-sm">{errors.nome.message}</p>}
-                </div>
+                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                    <div className="space-y-2">
+                        <Label htmlFor="nome">Nome do Medicamento</Label>
+                        <PopoverAnchor asChild>
+                             <Input 
+                                id="nome" 
+                                {...register("nome")} 
+                                onBlur={triggerAnvisaSearch}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        triggerAnvisaSearch();
+                                    }
+                                }}
+                                autoComplete="off"
+                            />
+                        </PopoverAnchor>
+                        {errors.nome && <p className="text-red-500 text-sm">{errors.nome.message}</p>}
+                    </div>
+                     <PopoverContent className="w-[--radix-popover-anchor-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                        <Command>
+                            <CommandEmpty>
+                                {isAnvisaLoading ? "Buscando..." : "Nenhum medicamento encontrado."}
+                            </CommandEmpty>
+                            {!isAnvisaLoading && anvisaResults.length > 0 && (
+                                <CommandGroup heading={`${anvisaResults.length} resultados encontrados`}>
+                                    {anvisaResults.map((med) => (
+                                        <CommandItem
+                                            key={med.id}
+                                            onSelect={() => handleSelectAnvisaMed(med)}
+                                            className="cursor-pointer"
+                                        >
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">{med.nomeComercial}</span>
+                                                <span className="text-xs text-muted-foreground">{med.principioAtivo}</span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                        </Command>
+                    </PopoverContent>
+                </Popover>
+
                 <div>
                     <Label htmlFor="principioAtivo">Princípio Ativo</Label>
                     <Input id="principioAtivo" {...register("principioAtivo")} />
@@ -154,9 +239,31 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
                     </Select>
                     {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message}</p>}
                 </div>
-                <div>
-                    <Label htmlFor="forma">Forma Farmacêutica</Label>
-                    <Input id="forma" {...register("forma")} />
+                
+                <div className="space-y-2">
+                    {/* O input original foi removido e trocado pelo seletor visual abaixo */}
+                </div>
+            </div>
+
+            {/* --- SELETOR VISUAL DE FORMA FARMACÊUTICA --- */}
+            <div className="space-y-2">
+                <Label>Forma Farmacêutica</Label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {formasFarmaceuticas.map((f) => (
+                        <Button
+                            key={f.name}
+                            type="button"
+                            variant="outline"
+                            onClick={() => setValue("forma", f.name, { shouldValidate: true })}
+                            className={cn(
+                                "flex flex-col items-center justify-center h-20 text-center p-2",
+                                forma === f.name && "ring-2 ring-primary border-primary"
+                            )}
+                        >
+                            {f.icon}
+                            <span className="text-xs">{f.name}</span>
+                        </Button>
+                    ))}
                 </div>
             </div>
 
@@ -201,11 +308,11 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <Label htmlFor="quantidadeDose">Quantidade por Dose</Label>
-                    <Input id="quantidadeDose" type="number" step="0.1" {...register("quantidadeDose", { valueAsNumber: true })} />
+                    <Input id="quantidadeDose" type="text" inputMode="decimal" {...register("quantidadeDose")} />
                 </div>
                 <div>
                     <Label htmlFor="frequenciaNumero">Frequência (Número)</Label>
-                    <Input id="frequenciaNumero" type="number" {...register("frequenciaNumero", { valueAsNumber: true })} />
+                    <Input id="frequenciaNumero" type="number" {...register("frequenciaNumero")} />
                 </div>
                 <div>
                     <Label htmlFor="frequenciaTipo">Frequência (Período)</Label>
@@ -221,11 +328,11 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div>
                     <Label htmlFor="estoque">Estoque Atual (unidades)</Label>
-                    <Input id="estoque" type="number" {...register("estoque", { valueAsNumber: true })} />
+                    <Input id="estoque" type="number" {...register("estoque")} />
                 </div>
                 <div>
                     <Label htmlFor="quantidadeCaixa">Unidades por Caixa</Label>
-                    <Input id="quantidadeCaixa" type="number" {...register("quantidadeCaixa", { valueAsNumber: true })} />
+                    <Input id="quantidadeCaixa" type="number" {...register("quantidadeCaixa")} />
                 </div>
             </div>
 

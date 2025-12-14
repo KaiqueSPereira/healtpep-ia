@@ -77,7 +77,6 @@ export async function PUT(req: Request, { params }: { params: { Id: string } }) 
     const json = await req.json();
     const body = medicamentoUpdateSchema.parse(json);
 
-    // CORREÇÃO: Removido o tipo 'any' e construído o objeto de forma segura
     const { nome, principioAtivo, posologia, forma, ...restOfBody } = body;
 
     const dataToUpdate = {
