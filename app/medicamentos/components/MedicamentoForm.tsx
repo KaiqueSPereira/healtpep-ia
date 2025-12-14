@@ -4,14 +4,24 @@ import { Label } from "@/app/_components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/_components/ui/select";
 import { Textarea } from "@/app/_components/ui/textarea";
 import { toast } from "@/app/_hooks/use-toast";
-import { MedicamentoComRelacoes } from "@/app/_components/types";
+import { MedicamentoComRelacoes, CondicaoSaude, Profissional, Consulta } from "@/app/_components/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { FrequenciaTipo, StatusMedicamento, TipoMedicamento } from '@prisma/client';
+import { useState, useEffect } from 'react';
+import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
+import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
+import MenuConsultas from "@/app/consulta/components/menuconsultas";
 
-// Esquema de validação com Zod, alinhado ao schema.prisma
+// Helper para formatar texto de enums
+const formatEnum = (text: string) => {
+    if (!text) return '';
+    const replaced = text.replace(/_/g, ' ');
+    return replaced.charAt(0).toUpperCase() + replaced.slice(1).toLowerCase();
+};
+
 const medicamentoSchema = z.object({
   nome: z.string().min(3, { message: "O nome do medicamento deve ter no mínimo 3 caracteres." }),
   principioAtivo: z.string().optional().nullable(),
@@ -27,6 +37,9 @@ const medicamentoSchema = z.object({
   quantidadeDose: z.number().optional().nullable(),
   frequenciaNumero: z.number().int().optional().nullable(),
   frequenciaTipo: z.nativeEnum(FrequenciaTipo).optional().nullable(),
+  condicaoSaudeId: z.string().optional().nullable(),
+  profissionalId: z.string().optional().nullable(),
+  consultaId: z.string().optional().nullable(),
 });
 
 type MedicamentoFormData = z.infer<typeof medicamentoSchema>;
@@ -34,10 +47,17 @@ type MedicamentoFormData = z.infer<typeof medicamentoSchema>;
 interface MedicamentoFormProps {
     medicamento?: MedicamentoComRelacoes | null;
     onSave: () => void;
+    condicoes: CondicaoSaude[];
+    profissionais: Profissional[];
+    consultas: Consulta[];
 }
 
-export default function MedicamentoForm({ medicamento, onSave }: MedicamentoFormProps) {
+export default function MedicamentoForm({ medicamento, onSave, condicoes, profissionais, consultas }: MedicamentoFormProps) {
     const { data: session } = useSession();
+    const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
+    const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
+    const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
+
     const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<MedicamentoFormData>({
         resolver: zodResolver(medicamentoSchema),
         defaultValues: {
@@ -46,6 +66,17 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
             dataFim: medicamento?.dataFim ? new Date(medicamento.dataFim).toISOString().split('T')[0] : ''
         }
     });
+
+    useEffect(() => {
+        if (medicamento) {
+            setSelectedCondicao(medicamento.condicaoSaude || null);
+            setSelectedProfissional(medicamento.profissional || null);
+            setSelectedConsulta(medicamento.consulta || null);
+            setValue("condicaoSaudeId", medicamento.condicaoSaudeId);
+            setValue("profissionalId", medicamento.profissionalId);
+            setValue("consultaId", medicamento.consultaId);
+        }
+    }, [medicamento, setValue]);
 
     const status = watch("status");
     const tipo = watch("tipo");
@@ -56,27 +87,50 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
             const method = medicamento ? 'PUT' : 'POST';
             const endpoint = medicamento ? `/api/medicamentos/${medicamento.id}` : '/api/medicamentos';
 
+            // Constrói o payload com os tipos corretos, evitando 'any'
+            const payload = {
+                ...data,
+                userId: session?.user.id,
+                // Converte strings vazias em null para os campos opcionais
+                dataFim: data.dataFim || null,
+                principioAtivo: data.principioAtivo || null,
+                linkBula: data.linkBula || null,
+                posologia: data.posologia || null,
+                forma: data.forma || null,
+                condicaoSaudeId: data.condicaoSaudeId || null,
+                profissionalId: data.profissionalId || null,
+                consultaId: data.consultaId || null,
+                
+                // Garante que os enums estejam no formato correto (UPPERCASE) para a API
+                tipo: data.tipo.toUpperCase().replace(/ /g, '_') as TipoMedicamento,
+                status: data.status.toUpperCase() as StatusMedicamento,
+                frequenciaTipo: data.frequenciaTipo ? data.frequenciaTipo.toUpperCase() as FrequenciaTipo : null,
+            };
+
             const response = await fetch(endpoint, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...data, userId: session?.user.id })
+                body: JSON.stringify(payload)
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Falha ao salvar medicamento');
+                 const errorData = await response.json();
+                 if (response.status === 422) {
+                     console.error("Validation Errors:", errorData);
+                 }
+                 const errorMessage = errorData.error || (Array.isArray(errorData) ? errorData.map(e => e.message).join(', ') : `Falha ao salvar medicamento. Status: ${response.status}`);
+                 throw new Error(errorMessage);
             }
 
             toast({ title: "Sucesso!", description: `Medicamento ${medicamento ? 'atualizado' : 'criado'} com sucesso.` });
             onSave();
         } catch (error) {
-            toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro", variant: "destructive" });
+            toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
         }
     };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-1 rounded-lg bg-card text-card-foreground">
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <Label htmlFor="nome">Nome do Medicamento</Label>
@@ -95,7 +149,7 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
                     <Select onValueChange={(value) => setValue("tipo", value as TipoMedicamento)} value={tipo}>
                         <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                         <SelectContent>
-                            {Object.values(TipoMedicamento).map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>)}
+                            {Object.values(TipoMedicamento).map(t => <SelectItem key={t} value={t}>{formatEnum(t)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                     {errors.tipo && <p className="text-red-500 text-sm">{errors.tipo.message}</p>}
@@ -104,6 +158,27 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
                     <Label htmlFor="forma">Forma Farmacêutica</Label>
                     <Input id="forma" {...register("forma")} />
                 </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Associar a (Opcional)</Label>
+              <div className="grid grid-cols-1 gap-2">
+                <MenuCondicoes 
+                    condicoes={condicoes} 
+                    selectedCondicao={selectedCondicao}
+                    onCondicaoSelect={(c) => {setSelectedCondicao(c); setValue('condicaoSaudeId', c?.id || null);}}
+                />
+                <MenuProfissionais 
+                    profissionais={profissionais} 
+                    selectedProfissional={selectedProfissional}
+                    onProfissionalSelect={(p) => {setSelectedProfissional(p); setValue('profissionalId', p?.id || null);}}
+                />
+                <MenuConsultas 
+                    consultas={consultas} 
+                    selectedConsulta={selectedConsulta}
+                    onConsultaSelect={(c) => {setSelectedConsulta(c); setValue('consultaId', c?.id || null);}}
+                />
+              </div>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -137,7 +212,7 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
                     <Select onValueChange={(value) => setValue("frequenciaTipo", value as FrequenciaTipo)} value={frequenciaTipo || undefined}>
                         <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
                         <SelectContent>
-                            {Object.values(FrequenciaTipo).map(ft => <SelectItem key={ft} value={ft}>{ft}</SelectItem>)}
+                            {Object.values(FrequenciaTipo).map(ft => <SelectItem key={ft} value={ft}>{formatEnum(ft)}</SelectItem>)}
                         </SelectContent>
                     </Select>
                 </div>
@@ -165,7 +240,7 @@ export default function MedicamentoForm({ medicamento, onSave }: MedicamentoForm
                 <Select onValueChange={(value) => setValue("status", value as StatusMedicamento)} value={status}>
                     <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
                     <SelectContent>
-                        {Object.values(StatusMedicamento).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {Object.values(StatusMedicamento).map(s => <SelectItem key={s} value={s}>{formatEnum(s)}</SelectItem>)}
                     </SelectContent>
                 </Select>
                  {errors.status && <p className="text-red-500 text-sm">{errors.status.message}</p>}
