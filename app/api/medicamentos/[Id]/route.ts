@@ -7,7 +7,6 @@ import { db } from '@/app/_lib/prisma';
 import { encryptString, safeDecrypt } from '@/app/_lib/crypto';
 import { TipoMedicamento, StatusMedicamento, FrequenciaTipo } from '@prisma/client';
 
-// Esquema de validação para ATUALIZAÇÃO de medicamentos
 const medicamentoUpdateSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório.').optional(),
   principioAtivo: z.string().optional().nullable(),
@@ -28,7 +27,6 @@ const medicamentoUpdateSchema = z.object({
   consultaId: z.string().optional().nullable(),
 });
 
-// --- FUNÇÃO GET (ID): BUSCAR E DESCRIPTOGRAFAR UM MEDICAMENTO ---
 export async function GET(req: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
@@ -45,7 +43,6 @@ export async function GET(req: Request, { params }: { params: { Id: string } }) 
       return new NextResponse('Medicamento não encontrado ou não autorizado', { status: 404 });
     }
 
-    // Descriptografa os dados para enviar ao frontend
     const decryptedMedicamento = {
       ...medicamento,
       nome: safeDecrypt(medicamento.nome),
@@ -65,7 +62,6 @@ export async function GET(req: Request, { params }: { params: { Id: string } }) 
   }
 }
 
-// --- FUNÇÃO PUT: CRIPTOGRAFAR E ATUALIZAR UM MEDICAMENTO ---
 export async function PUT(req: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
@@ -81,12 +77,16 @@ export async function PUT(req: Request, { params }: { params: { Id: string } }) 
     const json = await req.json();
     const body = medicamentoUpdateSchema.parse(json);
 
-    // Criptografa os campos de texto antes de atualizar
-    const dataToUpdate: any = { ...body };
-    if (body.nome) dataToUpdate.nome = encryptString(body.nome);
-    if (body.principioAtivo) dataToUpdate.principioAtivo = encryptString(body.principioAtivo);
-    if (body.posologia) dataToUpdate.posologia = encryptString(body.posologia);
-    if (body.forma) dataToUpdate.forma = encryptString(body.forma);
+    // CORREÇÃO: Removido o tipo 'any' e construído o objeto de forma segura
+    const { nome, principioAtivo, posologia, forma, ...restOfBody } = body;
+
+    const dataToUpdate = {
+        ...restOfBody,
+        ...(nome && { nome: encryptString(nome) }),
+        ...(principioAtivo && { principioAtivo: encryptString(principioAtivo) }),
+        ...(posologia && { posologia: encryptString(posologia) }),
+        ...(forma && { forma: encryptString(forma) }),
+    };
 
     const updatedMedicamento = await db.medicamento.update({
       where: { id: params.Id },
@@ -105,7 +105,6 @@ export async function PUT(req: Request, { params }: { params: { Id: string } }) 
   }
 }
 
-// --- FUNÇÃO DELETE: DELETAR UM MEDICAMENTO ---
 export async function DELETE(req: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
