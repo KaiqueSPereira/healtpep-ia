@@ -4,28 +4,31 @@ import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
+import { TipoMedicamento, StatusMedicamento, FrequenciaTipo } from '@prisma/client';
+import { encryptString, safeDecrypt } from '@/app/_lib/crypto';
 
-// UPDATED: Zod schema to use condicaoSaudeId
+// Esquema de validação para criação de medicamentos
 const medicamentoCreateSchema = z.object({
   nome: z.string().min(1, 'Nome é obrigatório.'),
   principioAtivo: z.string().optional().nullable(),
-  linkBula: z.string().optional().nullable(),
+  linkBula: z.string().url().optional().nullable(),
   posologia: z.string().optional().nullable(),
   forma: z.string().optional().nullable(),
-  tipo: z.enum(['Uso_Continuo', 'Tratamento_Clinico', 'Esporadico']),
+  tipo: z.nativeEnum(TipoMedicamento),
   dataInicio: z.coerce.date(),
   dataFim: z.coerce.date().optional().nullable(),
-  status: z.enum(['Ativo', 'Concluido', 'Suspenso']),
+  status: z.nativeEnum(StatusMedicamento),
   estoque: z.coerce.number().optional().nullable(),
   quantidadeCaixa: z.coerce.number().optional().nullable(),
   quantidadeDose: z.coerce.number().optional().nullable(),
   frequenciaNumero: z.coerce.number().optional().nullable(),
-  frequenciaTipo: z.enum(['Hora', 'Dia', 'Semana', 'Mes']).optional().nullable(),
+  frequenciaTipo: z.nativeEnum(FrequenciaTipo).optional().nullable(),
   profissionalId: z.string().optional().nullable(),
   consultaId: z.string().optional().nullable(),
-  condicaoSaudeId: z.string().optional().nullable(), // UPDATED
+  condicaoSaudeId: z.string().optional().nullable(),
 });
 
+// --- FUNÇÃO GET: BUSCAR E DESCRIPTOGRAFAR MEDICAMENTOS ---
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -35,43 +38,43 @@ export async function GET() {
 
     const medicamentos = await db.medicamento.findMany({
       where: { userId: session.user.id },
-      // UPDATED: Select clause to include condicaoSaude
-      select: {
-        id: true,
-        nome: true,
-        principioAtivo: true,
-        linkBula: true,
-        posologia: true,
-        forma: true,
-        tipo: true,
-        dataInicio: true,
-        dataFim: true,
-        status: true,
-        estoque: true,
-        quantidadeCaixa: true,
-        quantidadeDose: true,
-        frequenciaNumero: true,
-        frequenciaTipo: true,
-        createdAt: true,
-        updatedAt: true,
-        userId: true,
-        profissionalId: true,
-        consultaId: true,
-        condicaoSaudeId: true, // UPDATED
+      include: {
         profissional: true,
+        condicaoSaude: true,
         consulta: true,
-        condicaoSaude: true, // UPDATED
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json(medicamentos);
+    // Descriptografa os dados para enviar ao frontend
+    const decryptedMedicamentos = medicamentos.map(med => ({
+      ...med,
+      nome: safeDecrypt(med.nome),
+      principioAtivo: med.principioAtivo ? safeDecrypt(med.principioAtivo) : null,
+      posologia: med.posologia ? safeDecrypt(med.posologia) : null,
+      forma: med.forma ? safeDecrypt(med.forma) : null,
+      condicaoSaude: med.condicaoSaude ? {
+        ...med.condicaoSaude,
+        nome: safeDecrypt(med.condicaoSaude.nome),
+      } : null,
+      profissional: med.profissional ? {
+          ...med.profissional,
+          nome: safeDecrypt(med.profissional.nome),
+      } : null,
+      consulta: med.consulta ? {
+          ...med.consulta,
+          motivo: safeDecrypt(med.consulta.motivo),
+      } : null,
+    }));
+
+    return NextResponse.json(decryptedMedicamentos);
   } catch (error) {
     console.error('[MEDICAMENTOS_GET]', error);
     return new NextResponse('Erro Interno do Servidor', { status: 500 });
   }
 }
 
+// --- FUNÇÃO POST: CRIPTOGRAFAR E CRIAR NOVO MEDICAMENTO ---
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -82,28 +85,19 @@ export async function POST(req: Request) {
     const json = await req.json();
     const body = medicamentoCreateSchema.parse(json);
 
-    // UPDATED: dataForDb to handle condicaoSaudeId
-    const dataForDb = {
+    // Criptografa os dados antes de salvar no banco
+    const encryptedData = {
       ...body,
-      principioAtivo: body.principioAtivo || null,
-      linkBula: body.linkBula || null,
-      posologia: body.posologia || null,
-      forma: body.forma || null,
-      frequenciaTipo: body.frequenciaTipo || null,
-      profissionalId: body.profissionalId || null,
-      consultaId: body.consultaId || null,
-      condicaoSaudeId: body.condicaoSaudeId || null, // UPDATED
-      dataFim: body.dataFim ?? null,
-      estoque: body.estoque ?? null,
-      quantidadeCaixa: body.quantidadeCaixa ?? null,
-      quantidadeDose: body.quantidadeDose ?? null,
-      frequenciaNumero: body.frequenciaNumero ?? null,
+      nome: encryptString(body.nome),
+      principioAtivo: body.principioAtivo ? encryptString(body.principioAtivo) : null,
+      posologia: body.posologia ? encryptString(body.posologia) : null,
+      forma: body.forma ? encryptString(body.forma) : null,
     };
 
     const medicamento = await db.medicamento.create({
       data: {
         userId: session.user.id,
-        ...dataForDb,
+        ...encryptedData,
       },
     });
 
