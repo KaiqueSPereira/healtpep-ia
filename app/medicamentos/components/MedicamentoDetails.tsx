@@ -1,79 +1,59 @@
 'use client';
-
 import { MedicamentoComRelacoes } from "@/app/_components/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { format} from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { CalendarDays, Syringe, Clock, Link as LinkIcon, Info, User, Activity, MapPin } from 'lucide-react'; // REMOVED Badge and Pill
+import { format } from 'date-fns';
 
 interface MedicamentoDetailsProps {
-  medicamento: MedicamentoComRelacoes;
+    medicamento: MedicamentoComRelacoes;
 }
 
-const MedicamentoDetails = ({ medicamento }: MedicamentoDetailsProps) => {
+export default function MedicamentoDetails({ medicamento }: MedicamentoDetailsProps) {
 
-  const DetailItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: React.ReactNode }) => (
-    <div className="flex items-start">
-      <Icon className="h-5 w-5 text-gray-500 mt-1 mr-3 flex-shrink-0" />
-      <div>
-        <p className="font-semibold text-gray-800">{label}</p>
-        <p className="text-gray-600">{value || 'Não informado'}</p>
-      </div>
-    </div>
-  );
-
-  return (
-    <Card className="border-none shadow-none">
-      <CardHeader>
-        <CardTitle className="text-center text-2xl font-bold">{medicamento.nome}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <DetailItem icon={Info} label="Princípio Ativo" value={medicamento.principioAtivo} />
-        <DetailItem icon={Syringe} label="Forma Farmacêutica" value={medicamento.forma} />
-        <DetailItem icon={Activity} label="Tipo" value={medicamento.tipo.replace('_', ' ')} />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <DetailItem 
-                icon={CalendarDays} 
-                label="Início do Tratamento" 
-                value={format(new Date(medicamento.dataInicio), 'dd/MM/yyyy', { locale: ptBR })}
-            />
-            {medicamento.dataFim && (
-                 <DetailItem 
-                    icon={CalendarDays} 
-                    label="Fim do Tratamento" 
-                    value={format(new Date(medicamento.dataFim), 'dd/MM/yyyy', { locale: ptBR })}
-                />
-            )}
+    const DetailItem = ({ label, value }: { label: string, value: string | number | undefined | null }) => (
+        <div className="py-2">
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            <p className="text-md text-foreground">{value || 'N/A'}</p>
         </div>
+    );
 
-        {medicamento.posologia && <DetailItem icon={Clock} label="Posologia e Observações" value={medicamento.posologia} />}
-        
-        {medicamento.linkBula && (
-            <DetailItem 
-                icon={LinkIcon} 
-                label="Bula" 
-                value={<a href={medicamento.linkBula} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Acessar Bula</a>}
-            />
-        )}
+    return (
+        <div className="p-4 bg-card text-card-foreground rounded-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                <DetailItem label="Princípio Ativo" value={medicamento.principioAtivo} />
+                <DetailItem label="Forma Farmacêutica" value={medicamento.forma} />
+                <DetailItem label="Status" value={medicamento.status} />
+                <DetailItem label="Tipo de Medicamento" value={medicamento.tipo.replace(/_/g, ' ')} />
+                <DetailItem label="Data de Início" value={medicamento.dataInicio ? format(new Date(medicamento.dataInicio), 'dd/MM/yyyy') : 'N/A'} />
+                {medicamento.dataFim && <DetailItem label="Data de Fim" value={format(new Date(medicamento.dataFim), 'dd/MM/yyyy')} />}
+                {medicamento.linkBula && <div className="py-2"><p className="text-sm font-medium text-muted-foreground">Bula</p><a href={medicamento.linkBula} target="_blank" rel="noopener noreferrer" className="text-md text-primary hover:underline">Acessar bula</a></div>}
+            </div>
 
-        <div className="border-t pt-4 space-y-4">
-            <h3 className="text-lg font-semibold text-center mb-2">Associações</h3>
-            {medicamento.profissional && <DetailItem icon={User} label="Profissional" value={medicamento.profissional.nome} />}
-            {medicamento.condicaoSaude && <DetailItem icon={Activity} label="Condição de Saúde" value={medicamento.condicaoSaude.nome} />}
-            {medicamento.consulta && (
-                 <DetailItem 
-                    icon={MapPin} 
-                    label="Consulta Relacionada" 
-                    value={`Consulta de ${medicamento.consulta.tipo} em ${format(new Date(medicamento.consulta.data), 'dd/MM/yyyy', { locale: ptBR })}`}
-                />
-            )}
-            { !medicamento.profissional && !medicamento.condicaoSaude && !medicamento.consulta && <p className="text-center text-gray-500">Nenhuma associação registrada.</p> }
+            <div className="mt-6 border-t pt-4">
+                <h4 className="font-semibold text-lg mb-2 text-foreground">Dosagem e Frequência</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <DetailItem label="Posologia" value={medicamento.posologia} />
+                    <DetailItem label="Quantidade por Dose" value={medicamento.quantidadeDose} />
+                    <DetailItem label="Frequência" value={medicamento.frequenciaNumero ? `${medicamento.frequenciaNumero} vez(es) a cada ${medicamento.frequenciaTipo}` : 'N/A'} />
+                </div>
+            </div>
+
+            <div className="mt-6 border-t pt-4">
+                <h4 className="font-semibold text-lg mb-2 text-foreground">Estoque</h4>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                    <DetailItem label="Estoque Atual" value={medicamento.estoque} />
+                    <DetailItem label="Unidades por Caixa" value={medicamento.quantidadeCaixa} />
+                </div>
+            </div>
+
+            {(medicamento.profissional || medicamento.consulta || medicamento.condicaoSaude) &&
+                <div className="mt-6 border-t pt-4">
+                    <h4 className="font-semibold text-lg mb-2 text-foreground">Informações Associadas</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        {medicamento.profissional && <DetailItem label="Prescrito por" value={medicamento.profissional.nome} />}
+                        {medicamento.condicaoSaude && <DetailItem label="Condição de Saúde" value={medicamento.condicaoSaude.nome} />}
+                        {medicamento.consulta && <DetailItem label="Consulta de Origem" value={`${format(new Date(medicamento.consulta.data), 'dd/MM/yyyy')} - ${medicamento.consulta.motivo}`} />}
+                    </div>
+                </div>
+            }
         </div>
-
-      </CardContent>
-    </Card>
-  );
-};
-
-export default MedicamentoDetails;
+    );
+}

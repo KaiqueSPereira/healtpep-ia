@@ -270,7 +270,7 @@ model Exame {
   profissionalId  String?
   consultaId      String?
   unidadesId      String?
-  condicaoSaudeId String?          // RENAMED
+  condicaoSaudeId String?         
   tipo            String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
@@ -296,8 +296,8 @@ model ResultadoExame {
 model AnexoConsulta {
   id          String    @id @default(uuid())
   nomeArquivo String
-  arquivo     Bytes?    // Alterado de urlArquivo para arquivo, para guardar os dados
-  mimetype    String?   // Para guardar o tipo do ficheiro (ex: "application/pdf")
+  arquivo     Bytes?    
+  mimetype    String?   
   tipo        TipoAnexo
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -311,7 +311,7 @@ model Medicamento {
   principioAtivo   String?
   linkBula         String?
   posologia        String?
-  forma            String?            // Comprimido, Cápsula, etc.
+  forma            String?            
   tipo             TipoMedicamento
   dataInicio       DateTime
   dataFim          DateTime?
@@ -334,6 +334,6 @@ model Medicamento {
   consultaId       String?
   consulta         Consultas?         @relation(fields: [consultaId], references: [id], onDelete: SetNull)
 
-  condicaoSaudeId  String?            // RENAMED
-  condicaoSaude    CondicaoSaude?     @relation(fields: [condicaoSaudeId], references: [id], onDelete: SetNull) // RENAMED
+  condicaoSaudeId  String?            
+  condicaoSaude    CondicaoSaude?     @relation(fields: [condicaoSaudeId], references: [id], onDelete: SetNull) 
 }

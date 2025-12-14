@@ -50,6 +50,8 @@ export type Exame = PrismaExame & {
 };
 
 export type MedicamentoComRelacoes = PrismaMedicamento & {
+    dosagem?: string | null; // Adicionado
+    quantidadePorDose?: number | null; // Adicionado
     profissional: Profissional | null;
     consulta: Consulta | null;
     condicaoSaude: CondicaoSaude | null; 

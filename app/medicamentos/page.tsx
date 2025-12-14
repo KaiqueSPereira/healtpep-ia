@@ -28,7 +28,6 @@ export default function MedicamentosPage() {
     if (!session?.user?.id) return;
     try {
       setLoading(true);
-      // CORRECTED: The API endpoint structure was slightly off. It should be under /api/medicamentos not users.
       const response = await fetch(`/api/medicamentos`); 
       if (!response.ok) {
         throw new Error('Falha ao carregar medicamentos');
@@ -94,11 +93,11 @@ export default function MedicamentosPage() {
   }, [medicamentos, searchTerm]);
 
   const renderMedicamentoCard = (medicamento: MedicamentoComRelacoes) => (
-    <div key={medicamento.id} className="bg-white shadow rounded-lg p-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+    <div key={medicamento.id} className="bg-card text-card-foreground shadow rounded-lg p-4 flex flex-col justify-between hover:shadow-md transition-shadow border">
       <div>
         <h3 className="font-bold text-lg cursor-pointer" onClick={() => handleViewDetails(medicamento)}>{medicamento.nome}</h3>
-        <p className="text-sm text-gray-600">{medicamento.principioAtivo}</p>
-        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${medicamento.status === 'Ativo' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+        <p className="text-sm text-muted-foreground">{medicamento.principioAtivo}</p>
+        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${medicamento.status === 'Ativo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
           {medicamento.status}
         </span>
       </div>
@@ -110,17 +109,17 @@ export default function MedicamentosPage() {
   );
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-background">
       <Header />
       <main className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Meus Medicamentos</h1>
+            <h1 className="text-3xl font-bold text-foreground">Meus Medicamentos</h1>
             <Button onClick={() => handleAddOrEdit()}> <PlusCircle className="mr-2 h-4 w-4" /> Adicionar </Button>
           </div>
           <div className="mb-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Buscar por nome ou princípio ativo..."
@@ -133,7 +132,7 @@ export default function MedicamentosPage() {
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : filteredMedicamentos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -141,7 +140,7 @@ export default function MedicamentosPage() {
             </div>
           ) : (
             <div className="text-center py-10">
-              <p>Nenhum medicamento encontrado.</p>
+              <p className="text-muted-foreground">Nenhum medicamento encontrado.</p>
             </div>
           )}
         </div>
@@ -149,7 +148,7 @@ export default function MedicamentosPage() {
 
       {/* Form Modal */}
       <Dialog open={isFormModalOpen} onOpenChange={setIsFormModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{selectedMedicamento ? 'Editar Medicamento' : 'Adicionar Novo Medicamento'}</DialogTitle>
           </DialogHeader>
@@ -162,7 +161,7 @@ export default function MedicamentosPage() {
 
       {/* Details Modal */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalhes do Medicamento</DialogTitle>
             <DialogDescription>Informações completas sobre o medicamento &quot;{selectedMedicamento?.nome}&quot;.</DialogDescription>
@@ -181,7 +180,7 @@ export default function MedicamentosPage() {
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setIsDeleteDialogOpen(false)}>Cancelar</AlertDialogCancel>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={handleDelete}>Deletar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
