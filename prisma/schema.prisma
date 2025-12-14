@@ -45,6 +45,12 @@ enum TipoMedicamento {
   Esporadico
 }
 
+enum NotificationType {
+  ESTOQUE_BAIXO
+  LEMBRETE_CONSULTA
+  OUTRO
+}
+
 // MODELOS
 
 model User {
@@ -60,13 +66,14 @@ model User {
   consultas      Consultas[]
   endereco       Endereco[]
   sessions       Session[]
-  condicoesSaude CondicaoSaude[] // RENAMED
+  condicoesSaude CondicaoSaude[] 
   exames         Exame[]
   dadosSaude     DadosSaude?
   historicoPeso  PesoHistorico[]
   profissionais  Profissional[]
   unidades       UnidadeDeSaude[]
   medicamentos   Medicamento[]
+  notifications  Notification[] // Adicionado
 }
 
 model DadosSaude {
@@ -153,7 +160,6 @@ model Consultas {
   profissionalId String?
   unidadeId      String?
 
-  // Self-relation for "Retorno"
   consultaOrigemId String?
   consultaOrigem   Consultas?      @relation("ConsultaRetorno", fields: [consultaOrigemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   retornos         Consultas[]     @relation("ConsultaRetorno")
@@ -163,7 +169,7 @@ model Consultas {
   usuario        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   Exame          Exame[]
   Anotacoes      Anotacoes[]
-  condicoes      CondicaoSaude[] // RENAMED
+  condicoes      CondicaoSaude[] 
   anexos         AnexoConsulta[]
   medicamentos   Medicamento[]
 }
@@ -202,7 +208,7 @@ model Profissional {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   consultas      Consultas[]
-  condicoesSaude CondicaoSaude[]  @relation("ProfissionalCondicoes") // RENAMED
+  condicoesSaude CondicaoSaude[]  @relation("ProfissionalCondicoes")
   unidades       UnidadeDeSaude[] @relation("ProfissionalUnidades")
   exames         Exame[]
   userId         String?
@@ -274,7 +280,7 @@ model Exame {
   tipo            String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  condicaoSaude   CondicaoSaude?   @relation(fields: [condicaoSaudeId], references: [id]) // RENAMED
+  condicaoSaude   CondicaoSaude?   @relation(fields: [condicaoSaudeId], references: [id])
   usuario         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   profissional    Profissional?    @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
   consulta        Consultas?       @relation(fields: [consultaId], references: [id], onDelete: SetNull)
@@ -335,5 +341,24 @@ model Medicamento {
   consulta         Consultas?         @relation(fields: [consultaId], references: [id], onDelete: SetNull)
 
   condicaoSaudeId  String?            
-  condicaoSaude    CondicaoSaude?     @relation(fields: [condicaoSaudeId], references: [id], onDelete: SetNull) 
+  condicaoSaude    CondicaoSaude?     @relation(fields: [condicaoSaudeId], references: [id], onDelete: SetNull)
+
+  notifications    Notification[]
+}
+
+model Notification {
+  id            String           @id @default(cuid())
+  type          NotificationType @default(OUTRO)
+  title         String
+  message       String
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+  
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  medicamentoId String?
+  medicamento   Medicamento?     @relation(fields: [medicamentoId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
