@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { PlusCircle, Search, Trash2, Edit, Loader2 } from 'lucide-react';
+import { PlusCircle, Search, Trash2, Edit, Loader2, Pill, Droplet, SprayCan, Syringe } from 'lucide-react';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Input } from '@/app/_components/ui/input';
@@ -111,21 +111,49 @@ export default function MedicamentosPage() {
     );
   }, [medicamentos, searchTerm]);
 
-  const renderMedicamentoCard = (medicamento: MedicamentoComRelacoes) => (
-    <div key={medicamento.id} className="bg-card text-card-foreground shadow rounded-lg p-4 flex flex-col justify-between hover:shadow-md transition-shadow border">
-      <div>
-        <h3 className="font-bold text-lg cursor-pointer" onClick={() => handleViewDetails(medicamento)}>{medicamento.nome}</h3>
-        <p className="text-sm text-muted-foreground">{medicamento.principioAtivo}</p>
-        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${medicamento.status === 'Ativo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
-          {medicamento.status}
-        </span>
+  const getFormaIcon = (forma: string | null | undefined) => {
+    const formaLower = forma?.toLowerCase() || '';
+    if (formaLower.includes('comprimido') || formaLower.includes('cápsula') || formaLower.includes('drágea')) {
+        return <Pill className="h-5 w-5 text-muted-foreground" />;
+    }
+    if (formaLower.includes('gota') || formaLower.includes('colírio')) {
+        return <Droplet className="h-5 w-5 text-muted-foreground" />;
+    }
+    if (formaLower.includes('spray') || formaLower.includes('aerossol')) {
+        return <SprayCan className="h-5 w-5 text-muted-foreground" />;
+    }
+    if (formaLower.includes('injetável') || formaLower.includes('injeção')) {
+        return <Syringe className="h-5 w-5 text-muted-foreground" />;
+    }
+    return <Pill className="h-5 w-5 text-muted-foreground" />;
+  };
+
+  const renderMedicamentoCard = (medicamento: MedicamentoComRelacoes) => {
+    const formaIcon = getFormaIcon(medicamento.forma);
+    return (
+      <div key={medicamento.id} className="bg-card text-card-foreground shadow rounded-lg p-3 flex flex-col justify-between hover:shadow-lg transition-shadow border">
+          <div className="flex-grow cursor-pointer" onClick={() => handleViewDetails(medicamento)}>
+              <div className="flex items-start gap-3">
+                  <div className="mt-1">{formaIcon}</div>
+                  <div className="flex-grow">
+                      <h3 className="font-bold text-md leading-tight">{medicamento.nome}</h3>
+                      <span className={`mt-1.5 inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${medicamento.status === 'Ativo' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300'}`}>
+                          {medicamento.status}
+                      </span>
+                  </div>
+              </div>
+          </div>
+          <div className="flex justify-end gap-1 mt-3">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleAddOrEdit(medicamento)}>
+                  <Edit className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleDeleteConfirmation(medicamento.id)}>
+                  <Trash2 className="h-4 w-4" />
+              </Button>
+          </div>
       </div>
-      <div className="flex justify-end gap-2 mt-4">
-        <Button variant="ghost" size="icon" onClick={() => handleAddOrEdit(medicamento)}><Edit className="h-4 w-4" /></Button>
-        <Button variant="ghost" size="icon" onClick={() => handleDeleteConfirmation(medicamento.id)}><Trash2 className="h-4 w-4" /></Button>
-      </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -141,7 +169,7 @@ export default function MedicamentosPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Buscar por nome ou princípio ativo..."
+                placeholder="Buscar por nome..."
                 className="pl-10 w-full"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

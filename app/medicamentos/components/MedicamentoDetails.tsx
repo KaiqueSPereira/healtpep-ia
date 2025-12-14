@@ -18,7 +18,6 @@ export default function MedicamentoDetails({ medicamento }: MedicamentoDetailsPr
     return (
         <div className="p-4 bg-card text-card-foreground rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <DetailItem label="Princípio Ativo" value={medicamento.principioAtivo} />
                 <DetailItem label="Forma Farmacêutica" value={medicamento.forma} />
                 <DetailItem label="Status" value={medicamento.status} />
                 <DetailItem label="Tipo de Medicamento" value={medicamento.tipo.replace(/_/g, ' ')} />
