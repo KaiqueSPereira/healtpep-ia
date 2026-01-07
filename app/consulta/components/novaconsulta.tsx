@@ -2,7 +2,7 @@
 
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
 import MenuUnidades from "@/app/unidades/_components/menuunidades";
-import { Profissional, Unidade, CondicaoSaude, Consulta } from "@/app/_components/types"; 
+import { Profissional, Unidade, CondicaoSaude, Consulta } from "@/app/_components/types";
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
 import {
@@ -27,7 +27,7 @@ import {
 } from "@/app/_components/ui/form";
 import { Textarea } from "@/app/_components/ui/textarea";
 import { toast } from "@/app/_hooks/use-toast";
-import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes"; 
+import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 import { set } from "date-fns";
 type Consultatype = "Emergencia" | "Rotina" | "Tratamento" | "Retorno" | "Exame";
 import {
@@ -39,8 +39,10 @@ import {
 } from "@/app/_components/ui/select";
 import { Label } from "@/app/_components/ui/label";
 import MenuConsultas from "./menuconsultas";
+import { useSession } from "next-auth/react";
 
 const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
+  const { data: session } = useSession();
   const [selectedDay, setSelectedDay] = useState<Date | undefined>();
   const [manualTime, setManualTime] = useState<string>("");
 
@@ -145,6 +147,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
           condicaoSaudeId: selectedCondicao?.id || null,
           queixas: form.getValues("queixas") || null,
           consultaOrigemId: selectedConsultaOrigem?.id || null,
+          userId: session?.user?.id,
         };
 
         if (selectedTipo === "Emergencia" && (!consultaData.queixas || !consultaData.unidadeId)) {
@@ -176,6 +179,9 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     } else { // Lógica para Exame
       const tipoExameValue = form.getValues("tipoexame");
       const anotacaoExameValue = form.getValues("anotacaoExame");
+      
+      // DEBUG: Log para verificar o ID do usuário
+      console.log("Tentando salvar exame. ID do usuário da sessão:", session?.user?.id);
 
       if (!selectedUnidade?.id || !selectedProfissional?.id || !tipoExameValue) {
         toast({ title: "Para Exames, selecione Unidade, Profissional e Tipo de Exame.", variant: "destructive" });
@@ -183,11 +189,20 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       }
 
       const formData = new FormData();
+      
+      if (session?.user?.id) {
+        formData.append("userId", session.user.id);
+      } else {
+        // Se o ID não existir, pare a execução e avise o usuário.
+        toast({ title: "Erro de autenticação: ID de usuário não encontrado. Faça login novamente.", variant: "destructive" });
+        return; 
+      }
+      
       formData.append("dataExame", newDate.toISOString());
       formData.append("tipo", tipoExameValue);
       formData.append("unidadesId", selectedUnidade.id);
       formData.append("profissionalId", selectedProfissional.id);
-      if (selectedCondicao?.id) { 
+      if (selectedCondicao?.id) {
         formData.append("condicaoSaudeId", selectedCondicao.id);
       }
       formData.append("nome", tipoExameValue);
@@ -203,7 +218,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         onSaveSuccess?.();
       } catch (error) {
         console.error("Erro ao salvar o exame:", error);
-        toast({ title: (error as Error).message, variant: "destructive" });
+        toast({ title: `Erro ao salvar o exame: ${(error as Error).message}`, variant: "destructive" });
       }
     }
   };
