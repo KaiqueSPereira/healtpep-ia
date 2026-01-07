@@ -38,8 +38,11 @@ export async function GET(
       },
       include: {
         profissional: true,
-        unidades: true,
-        // CORREÇÃO: Inclui os dados aninhados da consulta para profissional e unidade
+        unidades: { 
+          include: {
+            endereco: true,
+          },
+        },
         consulta: {
           include: {
             profissional: true,
@@ -73,7 +76,6 @@ export async function GET(
       anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
       analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
       tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
-      // CORREÇÃO: Descriptografa os campos da consulta antes de enviá-los
       consulta: exame.consulta
         ? {
             ...exame.consulta,

@@ -1,17 +1,26 @@
-"use client";
+'use client';
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas } from "@prisma/client";
+import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco } from "@prisma/client";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
-import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
+import { Pencil, BrainCircuit, RefreshCw, FileText, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { toast } from "@/app/_hooks/use-toast";
+import { parseISO } from "date-fns";
 
+// Tipo para unidade que inclui o endereço
+type UnidadeComEndereco = UnidadeDeSaude & {
+  endereco: Endereco | null;
+};
+
+// Tipo principal que agora usa a unidade com endereço
 type ExameComDetalhes = Exame & {
   resultados: ResultadoExame[];
-  unidades: UnidadeDeSaude | null;
+  unidades: UnidadeComEndereco | null;
   profissional: Profissional | null;
   consulta: (Consultas & {
     profissional: Profissional | null;
@@ -29,6 +38,9 @@ export default function ExameDetalhePage() {
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -88,12 +100,21 @@ export default function ExameDetalhePage() {
     const fetchExameDetails = async () => {
       try {
         setLoading(true);
-        const resExame = await fetch(`/api/exames/${id}`);
+        const [resExame, calendarStatusResponse] = await Promise.all([
+            fetch(`/api/exames/${id}`),
+            fetch('/api/google-calendar/status')
+        ]);
+
         if (!resExame.ok) throw new Error(`Erro ao buscar detalhes do exame`);
         
         const dataExame = await resExame.json();
         const examData: ExameComDetalhes = dataExame?.exame;
         setExame(examData);
+
+        if (calendarStatusResponse.ok) {
+            const calendarData = await calendarStatusResponse.json();
+            setIsCalendarConnected(calendarData.isConnected);
+        }
 
         if (examData && !examData.analiseIA) {
           triggerAnalysis();
@@ -117,6 +138,41 @@ export default function ExameDetalhePage() {
       }
     };
   }, [id, triggerAnalysis]);
+
+  const handleAddToCalendar = async () => {
+    if (!exame) return;
+
+    setIsAddingToCalendar(true);
+    try {
+        const startTime = parseISO(exame.dataExame.toString());
+        const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+
+        const description = `Exame solicitado por ${exame.profissional?.nome || 'profissional não especificado'}.\n` +
+                            `Local: ${exame.unidades?.nome || 'não especificado'}.\n` +
+                            `Endereço: ${exame.unidades?.endereco ? `${exame.unidades.endereco.rua}, ${exame.unidades.endereco.numero} - ${exame.unidades.endereco.bairro}, ${exame.unidades.endereco.municipio}` : 'não especificado'}`;
+
+        const response = await fetch('/api/google-calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                summary: `Exame: ${exame.nome}`,
+                description: description,
+                start: startTime.toISOString(),
+                end: endTime.toISOString(),
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Falha ao criar o evento no Google Agenda.');
+        }
+
+        toast({ title: "Sucesso!", description: "Exame adicionado ao seu Google Agenda." });
+    } catch (error) {
+        toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
+    } finally {
+        setIsAddingToCalendar(false);
+    }
+  };
 
   const handleRefreshAnalysis = () => {
     setExame(prev => prev ? { ...prev, analiseIA: null } : null);
@@ -149,7 +205,6 @@ export default function ExameDetalhePage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">
-                {/* CORREÇÃO: Troca "dataExame" por "data" para corresponder ao schema do Prisma */}
                 Exame de {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString("pt-BR") : "Data não disponível"}
               </h1>
               <p className="text-sm text-muted-foreground">{exame.unidades?.nome && `Unidade: ${exame.unidades.nome}`}</p>
@@ -163,6 +218,24 @@ export default function ExameDetalhePage() {
               </Link>
             </Button>
           </div>
+
+          {isCalendarConnected && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Integração</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={handleAddToCalendar} disabled={isAddingToCalendar} className="w-full">
+                        {isAddingToCalendar ? "Adicionando..." : (
+                            <>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                Adicionar ao Google Agenda
+                            </>                        
+                        )}
+                    </Button>
+                </CardContent>
+            </Card>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">

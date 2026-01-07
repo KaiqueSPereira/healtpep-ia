@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { toast } from "@/app/_hooks/use-toast";
-import { ChevronLeftIcon } from "lucide-react";
+import { ChevronLeftIcon, Calendar as CalendarIcon } from "lucide-react";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
@@ -15,6 +15,7 @@ import DetalhesConsultaCard from "../components/DetalhesConsultaCard";
 import EventosVinculadosCard from "../components/EventosVinculadosCard";
 import AnotacoesCard from "../components/AnotacoesCard";
 import { ConsultaData } from "../types";
+import { parseISO } from "date-fns";
 
 const ConsultaPage = () => {
   const params = useParams();
@@ -28,17 +29,31 @@ const ConsultaPage = () => {
   const [novaAnotacaoContent, setNovaAnotacaoContent] = useState("");
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
+  // Estados para integração com Google Agenda
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
+
   const fetchConsulta = useCallback(async () => {
     if (!consultaId) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/consultas/${consultaId}`);
-      if (!response.ok) {
-        const errorData = await response.json();
+      const [consultaResponse, calendarStatusResponse] = await Promise.all([
+          fetch(`/api/consultas/${consultaId}`),
+          fetch('/api/google-calendar/status')
+      ]);
+
+      if (!consultaResponse.ok) {
+        const errorData = await consultaResponse.json();
         throw new Error(errorData.error || "Erro ao buscar consulta.");
       }
-      const data: ConsultaData = await response.json();
+      const data: ConsultaData = await consultaResponse.json();
       setConsulta(data);
+
+      if (calendarStatusResponse.ok) {
+          const calendarData = await calendarStatusResponse.json();
+          setIsCalendarConnected(calendarData.isConnected);
+      }
+
     } catch (err) {
       const message = (err as Error).message;
       setError(message);
@@ -84,7 +99,6 @@ const ConsultaPage = () => {
       toast({ title: "Anexo apagado com sucesso!" });
       fetchConsulta();
     } catch (err) {
-      // CORREÇÃO: Utiliza a variável 'err' para mostrar um erro mais detalhado.
       toast({ title: `Erro ao apagar anexo: ${(err as Error).message}`, variant: "destructive" });
     }
   };
@@ -103,6 +117,41 @@ const ConsultaPage = () => {
       toast({ title: `Erro: ${(err as Error).message}`, variant: "destructive" });
       setDeleting(false);
       setShowConfirmDelete(false);
+    }
+  };
+
+  const handleAddToCalendar = async () => {
+    if (!consulta) return;
+
+    setIsAddingToCalendar(true);
+    try {
+        const startTime = parseISO(consulta.data.toString());
+        const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Adiciona 1 hora
+
+        const description = `Consulta com ${consulta.profissional?.nome || 'profissional não especificado'}.\n` +
+                            `Local: ${consulta.unidade?.nome || 'não especificado'}.\n` +
+                            `Endereço: ${consulta.unidade?.endereco ? `${consulta.unidade.endereco.rua}, ${consulta.unidade.endereco.numero} - ${consulta.unidade.endereco.bairro}, ${consulta.unidade.endereco.municipio}` : 'não especificado'}`;
+
+        const response = await fetch('/api/google-calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                summary: `Consulta: ${consulta.motivo}`,
+                description: description,
+                start: startTime.toISOString(),
+                end: endTime.toISOString(),
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Falha ao criar o evento no Google Agenda.');
+        }
+
+        toast({ title: "Sucesso!", description: "Consulta adicionada ao seu Google Agenda." });
+    } catch (error) {
+        toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
+    } finally {
+        setIsAddingToCalendar(false);
     }
   };
 
@@ -150,6 +199,24 @@ const ConsultaPage = () => {
           profissional={consulta.profissional}
           motivo={consulta.motivo}
         />
+
+        {isCalendarConnected && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Integração</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Button onClick={handleAddToCalendar} disabled={isAddingToCalendar} className="w-full">
+                        {isAddingToCalendar ? "Adicionando..." : (
+                            <>
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                Adicionar ao Google Agenda
+                            </>
+                        )}
+                    </Button>
+                </CardContent>
+            </Card>
+        )}
 
         <AnexosList anexos={consulta.anexos || []} onDeleteAnexo={handleDeleteAnexo} />
 

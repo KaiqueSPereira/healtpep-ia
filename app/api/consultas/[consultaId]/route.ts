@@ -22,11 +22,22 @@ interface ExameParaDescriptografar {
 const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
   include: {
     profissional: true,
-    unidade: true,
+    unidade: { // CORRIGIDO
+      include: {
+        endereco: true,
+      }
+    },
     Anotacoes: { orderBy: { createdAt: 'desc' } },
     anexos: true,
     Exame: { 
-        include: { profissional: true, unidades: true }, 
+        include: { 
+            profissional: true, 
+            unidades: { // CORRIGIDO
+              include: {
+                endereco: true,
+              }
+            } 
+        }, 
         orderBy: { dataExame: 'desc' } 
     },
     condicoes: true, 
@@ -37,7 +48,11 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
         Exame: {
           include: {
             profissional: true,
-            unidades: true
+            unidades: { // CORRIGIDO
+              include: {
+                endereco: true,
+              }
+            }
           },
           orderBy: { dataExame: 'desc' }
         }
@@ -46,7 +61,11 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
     retornos: { 
         include: {
             profissional: true,
-            unidade: true,
+            unidade: { // CORRIGIDO
+              include: {
+                endereco: true,
+              }
+            },
         },
         orderBy: { data: 'desc' } 
     },

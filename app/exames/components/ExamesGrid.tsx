@@ -27,11 +27,9 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
     window.open(`/api/exames/arquivo?id=${examId}`, "_blank");
   };
 
-  // CORREÇÃO: A função agora trata a data de entrada (string da API) e valida antes de formatar.
   const formatExameDate = (dataInput: string | Date | null | undefined) => {
     const dataObj = dataInput ? new Date(dataInput) : null;
 
-    // Verifica se o objeto Date é válido antes de tentar formatar
     if (!dataObj || isNaN(dataObj.getTime())) {
         return { mes: "Data inválida", dia: "!", horaFormatada: "xx:xx" };
     }
@@ -49,7 +47,7 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
         const { mes, dia, horaFormatada } = formatExameDate(exame.dataExame);
         const profissionalNome = exame.profissional?.nome || "Profissional não especificado";
         const unidadeNome = exame.unidades?.nome || "Unidade não especificada";
-        const anotacaoExame = exame.anotacao;
+        const anotacaoExame = exame.anotacao ? String(exame.anotacao) : null;
 
         return (
           <Card

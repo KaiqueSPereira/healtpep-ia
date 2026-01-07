@@ -5,27 +5,30 @@ import { db } from '@/app/_lib/prisma';
 import { safeDecrypt } from '@/app/_lib/crypto';
 
 // Tipos para a resposta da API RxNorm
-interface RxNormInteractionResponse {
-    fullInteractionTypeGroup?: {
-        fullInteractionType: {
-            interactionPair: {
-                interactionConcept: {
-                    sourceConceptItem: { name: string; };
-                }[];
-                severity: string;
-                description: string;
-            }[];
-        }[];
-    }[];
-    nlmDisclaimer: string;
-}
-
 interface SimpleInteraction {
     medicamentoA: string;
     medicamentoB: string;
     gravidade: string;
     descricao: string;
 }
+
+interface RxNormInteractionData {
+    nlmDisclaimer?: string;
+    fullInteractionTypeGroup?: {
+        fullInteractionType: {
+            interactionPair: {
+                interactionConcept: {
+                    sourceConceptItem: {
+                        name: string;
+                    };
+                }[];
+                severity: string;
+                description: string;
+            }[];
+        }[];
+    }[];
+}
+
 
 // Função principal do endpoint GET
 export async function GET() {
@@ -62,7 +65,7 @@ export async function GET() {
                 if (!response.ok) return null;
                 const data = await response.json();
                 return data.approximateGroup?.candidate?.[0]?.rxcui || null;
-            } catch (e) {
+            } catch { // _e removido
                 return null;
             }
         });
@@ -77,16 +80,14 @@ export async function GET() {
         const interactionUrl = `https://rxnav.nlm.nih.gov/REST/interaction/list.json?rxcuis=${uniqueRxcuiList.join('+')}`;
         const interactionResponse = await fetch(interactionUrl);
         
-        let interactionData: any = {};
-        let interactions: SimpleInteraction[] = [];
+        let interactionData: RxNormInteractionData = {}; // Corrigido de 'any' para o tipo específico
+        const interactions: SimpleInteraction[] = [];
 
-        // Lê a resposta como texto para evitar erro de JSON
         const responseText = await interactionResponse.text();
 
-        // Verifica se a resposta foi bem-sucedida e não é a string "Not found"
-        if (interactionResponse.ok && !responseText.toLowerCase().includes('not found')) {
+        if (interactionResponse.ok && !responseText.toLowerCase().includes('not found') && responseText.startsWith('{')) {
             try {
-                interactionData = JSON.parse(responseText); // Faz o parse apenas se for seguro
+                interactionData = JSON.parse(responseText);
 
                 if (interactionData.fullInteractionTypeGroup) {
                     for (const group of interactionData.fullInteractionTypeGroup) {
@@ -105,8 +106,7 @@ export async function GET() {
                     }
                 }
             } catch(e) {
-                console.error('Falha ao fazer parse da resposta de interação:', responseText);
-                // Trata como se não houvesse interações, mas loga o erro.
+                console.error('Falha ao fazer parse da resposta de interação:', e, responseText);
             }
         }
 
