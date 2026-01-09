@@ -42,7 +42,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
   const nomeProfissional = profissional?.nome || "Profissional não informado";
   const unidadeNome = unidades?.nome || "Unidade não informada";
   const tipoExame = tipo || "Exame";
-  const anotacaoExame = anotacao || "Nenhuma anotação.";
 
   const linkHref = `/exames/${id}`;
 
@@ -62,7 +61,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
             {/* Textos sem truncamento para permitir quebra de linha */}
             <h3 className="text-md font-bold">{nomeProfissional}</h3>
             <p className="text-sm font-semibold">{unidadeNome}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{anotacaoExame}</p>
             
             {/* Botões na parte inferior com tamanho reduzido */}
             <div className="flex items-center gap-2 mt-auto">
