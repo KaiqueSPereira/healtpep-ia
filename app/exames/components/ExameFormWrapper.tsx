@@ -10,7 +10,6 @@ import { Input } from "../../_components/ui/input";
 import { Label } from "../../_components/ui/label";
 import { Textarea } from "../../_components/ui/textarea";
 import { toast } from "../../_hooks/use-toast";
-// CORREÇÃO: Usa o tipo Consulta do arquivo de tipos centralizado e remove o tipo antigo
 import {
   Consulta,
   Profissional,
@@ -21,7 +20,6 @@ import {
 import { ExamDetailsForm } from "./ExamDetailForm";
 import { UnidadeDeSaude } from "@prisma/client";
 
-// CORREÇÃO: Usa o tipo Consulta enriquecido
 type ExameComRelacoes = Exame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
@@ -47,7 +45,6 @@ export function ExameFormWrapper({
 }: {
   existingExamData?: ExameComRelacoes | null;
 }) {
-  // CORREÇÃO: Usa o tipo Consulta para o estado
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
   const [unidades, setUnidades] = useState<UnidadeDeSaude[]>([]);
@@ -227,18 +224,23 @@ export function ExameFormWrapper({
     const method = existingExamData ? "PUT" : "POST";
 
     const body = new FormData();
+    
+    // Adiciona todos os campos ao FormData
     if (userId) body.append("userId", userId);
-    if (selectedProfissional?.id) body.append("profissionalId", selectedProfissional.id);
-    if (selectedUnidade?.id) body.append("unidadesId", selectedUnidade.id);
-    if (selectedConsulta?.id) body.append("consultaId", selectedConsulta.id);
-    if (selectedCondicao?.id) body.append("condicaoSaudeId", selectedCondicao.id);
+    body.append("profissionalId", selectedProfissional?.id || "null");
+    body.append("unidadesId", selectedUnidade?.id || "null");
+    body.append("consultaId", selectedConsulta?.id || "null");
+    body.append("condicaoSaudeId", selectedCondicao?.id || "null");
     body.append("anotacao", anotacao);
     body.append("dataExame", dataIso);
     body.append("tipo", tipo);
+    
     if (exameResultados.length > 0) {
         body.append("resultados", JSON.stringify(exameResultados));
     }
-    if (selectedFile && !existingExamData) {
+    
+    // CORREÇÃO: Anexa o arquivo SE ele for selecionado, tanto para criar quanto para editar.
+    if (selectedFile) {
         body.append("file", selectedFile);
     }
     
@@ -297,13 +299,15 @@ export function ExameFormWrapper({
           <div>
             <Label>Anexar Arquivo (PDF ou imagem)</Label>
             <div className="flex items-center space-x-2">
-              <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} disabled={!!existingExamData} />
-              <Button onClick={handleAnalyzeFile} disabled={!selectedFile || loadingAnalysis || !!existingExamData} type="button">
+              {/* CORREÇÃO: Input de arquivo agora é habilitado para edição */}
+              <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} />
+              {/* CORREÇÃO: Botão de análise agora é habilitado para edição */}
+              <Button onClick={handleAnalyzeFile} disabled={!selectedFile || loadingAnalysis} type="button">
                 {loadingAnalysis ? "Analisando..." : "Analisar Arquivo"}
               </Button>
             </div>
-            {selectedFile && !existingExamData && <p className="mt-1 text-sm text-muted-foreground">Arquivo: {selectedFile.name}</p>}
-            {existingExamData?.nomeArquivo && <p className="mt-1 text-sm text-muted-foreground">Arquivo: {existingExamData.nomeArquivo}</p>}
+            {selectedFile && <p className="mt-1 text-sm text-muted-foreground">Novo arquivo selecionado: {selectedFile.name}</p>}
+            {existingExamData?.nomeArquivo && !selectedFile && <p className="mt-1 text-sm text-muted-foreground">Arquivo atual: {existingExamData.nomeArquivo}</p>}
           </div>
           {["Sangue", "Urina"].includes(tipo) && (
             <TabelaExames exames={exameResultados} onAddExame={handleAddExame} onRemoveExame={handleRemoveExame} onExameChange={handleExameChange} />

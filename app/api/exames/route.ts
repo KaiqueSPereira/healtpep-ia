@@ -7,7 +7,6 @@ import {
   encrypt as encryptBuffer
 } from '@/app/_lib/crypto';
 
-// Interface para garantir a tipagem dos dados de resultado recebidos.
 interface ResultadoInput {
   nome: string;
   valor: string;
@@ -15,7 +14,7 @@ interface ResultadoInput {
   referencia?: string;
 }
 
-// GET: Busca e descriptografa exames e seus resultados.
+// GET OTIMIZADO: Busca apenas os dados essenciais para a lista de exames.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -25,36 +24,43 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
     }
 
+    // Query otimizada: seleciona apenas os campos necessários para a lista.
     const exames = await prisma.exame.findMany({
       where: { userId: userId },
-      include: { unidades: true, profissional: true, resultados: true },
+      select: {
+        id: true,
+        dataExame: true,
+        nome: true, // O nome já está criptografado, será descriptografado no cliente se necessário
+        tipo: true, // O tipo também está criptografado
+        unidades: {
+          select: {
+            nome: true,
+          },
+        },
+        profissional: {
+          select: {
+            nome: true,
+            especialidade: true,
+          },
+        },
+      },
       orderBy: { dataExame: 'desc' },
     });
 
-    // Descriptografa tanto os campos do exame quanto os resultados aninhados.
-    const decryptedExames = exames.map(exame => {
-      const decryptedResultados = exame.resultados.map(res => ({
-        ...res,
-        nome: safeDecrypt(res.nome),
-        valor: safeDecrypt(res.valor),
-        unidade: res.unidade ? safeDecrypt(res.unidade) : null,
-        referencia: res.referencia ? safeDecrypt(res.referencia) : null,
-      }));
-
-      return {
-        ...exame,
-        nome: safeDecrypt(exame.nome),
-        tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
-        anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
-        // O nome do arquivo também precisa ser descriptografado para exibição, se necessário
-        nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
-        resultados: decryptedResultados,
-      };
-    });
+    // Descriptografa os campos necessários no lado do servidor de forma eficiente
+    const decryptedExames = exames.map(exame => ({
+      ...exame,
+      nome: safeDecrypt(exame.nome),
+      tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+      // Mantemos os nomes da unidade e profissional como estão (não são criptografados)
+      unidades: exame.unidades ? { nome: exame.unidades.nome } : null,
+      profissional: exame.profissional ? { nome: exame.profissional.nome, especialidade: exame.profissional.especialidade } : null,
+    }));
 
     return NextResponse.json(decryptedExames, { status: 200 });
+
   } catch (error) {
-    console.error("Erro ao buscar exames:", error);
+    console.error("Erro ao buscar exames (otimizado):", error);
     return NextResponse.json({ error: 'Falha ao buscar exames' }, { status: 500 });
   }
 }
@@ -86,7 +92,6 @@ export async function POST(request: Request) {
 
     if (file) {
         const nomeArquivo = file.name;
-        // Criptografa o nome do arquivo
         encryptedNomeArquivo = encryptString(nomeArquivo);
         const fileBuffer = await file.arrayBuffer();
         const originalBuffer = Buffer.from(fileBuffer);
@@ -101,7 +106,6 @@ export async function POST(request: Request) {
         userId,
         dataExame,
         nome: encryptString(nomeExame),
-        // Salva o nome do arquivo criptografado
         nomeArquivo: encryptedNomeArquivo,
         arquivoExame: arquivoParaSalvar ? new Uint8Array(arquivoParaSalvar) : null,
         anotacao: encryptedAnotacao,
