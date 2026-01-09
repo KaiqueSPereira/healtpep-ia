@@ -29,7 +29,6 @@ const ExameItem = ({ exame }: ExameItemProps) => {
     dataExame,
     tipo,
     nomeArquivo,
-    anotacao,
   } = exame;
 
   // Formatação de data e hora
