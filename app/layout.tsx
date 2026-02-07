@@ -1,10 +1,10 @@
 
+import type { Metadata } from "next";
 import Providers from "./_components/providers";
+import Footer from "./_components/footer"; 
 import "./globals.css";
 
-
-export const metadata = {
-
+export const metadata: Metadata = {
   title: "Health Pep",
   description: "Seu prontuario medico pessoal",
   icons: {
@@ -18,15 +18,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-br">
-      <body className="font-sans">
-        <link rel="icon" href="/iconprontuario.png" />
- <Providers>
- {children}
- </Providers>
- <div className="bottom-0 left-0 z-50 w-full p-4">
- <p className="text-center text-sm">© 2024 Health Pep</p>
- </div>
+    <html lang="pt-br" suppressHydrationWarning>
+      <body className="font-sans flex flex-col min-h-screen">
+        <Providers>
+          {/* Esta main agora é um container flex-col para os filhos da página */}
+          <main className="flex flex-col flex-grow">
+            {children}
+          </main>
+        </Providers>
+        <Footer />
       </body>
     </html>
   );

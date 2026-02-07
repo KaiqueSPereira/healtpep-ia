@@ -1,42 +1,52 @@
 
 'use client';
 
-import Link from 'next/link';
-import Lottie from 'lottie-react';
+import { Button } from "@/app/_components/ui/button";
+import { useRouter } from "next/navigation";
+import Header from "./_components/header";
+import React from 'react';
+import Image from 'next/image'; // Importando o componente de Imagem do Next.js
 
-import { Button } from '@/app/_components/ui/button';
+const NotFound = () => {
+    const router = useRouter();
 
-// URL para uma animação Lottie gratuita que se encaixa no tema "página não encontrada"
-const animationData = "https://lottie.host/8a73b5f0-9759-4786-905b-a8f89553f49c/V9e3T8yKl7.json";
+    return (
+        <React.Fragment>
+            <Header />
 
-export default function NotFound() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full p-4 md:p-8">
-        <div className="grid items-center justify-center gap-8 px-4 text-center md:grid-cols-2 md:text-left">
-            
-            {/* Coluna da Animação */}
-            <div className="max-w-md mx-auto">
-                <Lottie 
-                    animationData={animationData} 
-                    loop={true} 
-                    style={{ width: '100%', height: '100%' }}
-                />
+            {/* 
+              Container principal para o layout de duas colunas.
+              - Empilha verticalmente em telas pequenas (flex-col)
+              - Fica lado a lado em telas médias e maiores (md:flex-row)
+            */}
+            <div className="flex flex-grow flex-col md:flex-row items-center justify-center p-5 gap-8">
+                
+                {/* Coluna da Esquerda: Conteúdo de Texto */}
+                <div className="w-full md:w-1/2 flex flex-col items-center md:items-start text-center md:text-left">
+                    <h1 className="text-6xl lg:text-8xl font-bold text-primary mb-4">404</h1>
+                    <h2 className="text-3xl lg:text-4xl font-semibold mb-3">Oops! Esta página não foi encontrada</h2>
+                    <p className="text-muted-foreground mb-8 max-w-md">
+                        A página que você estava procurando não existe. Ela pode ter sido movida ou removida.
+                    </p>
+                    <Button onClick={() => router.push('/')} className="text-lg py-3 px-6">
+                        Voltar para o Início
+                    </Button>
+                </div>
+
+                {/* Coluna da Direita: Imagem */}
+                <div className="w-full md:w-1/2 flex items-center justify-center">
+                    <Image
+                        src="/electrician-404.png" // O código espera a imagem aqui: public/electrician-404.png
+                        alt="Eletricista segurando um cabo de energia desconectado"
+                        width={500}
+                        height={500}
+                        className="max-w-xs md:max-w-sm lg:max-w-md"
+                        priority // Otimiza o carregamento da imagem
+                    />
+                </div>
             </div>
+        </React.Fragment>
+    );
+};
 
-            {/* Coluna do Texto */}
-            <div className="space-y-4">
-                <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl text-primary">
-                    Oops! Página não encontrada.
-                </h1>
-                <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                    Parece que você se perdeu. A página que você está procurando não existe ou foi movida.
-                </p>
-                <Button asChild>
-                    <Link href="/">Voltar para a Página Inicial</Link>
-                </Button>
-            </div>
-
-        </div>
-    </div>
-  );
-}
+export default NotFound;

@@ -1,4 +1,3 @@
-import { prisma, Prisma } from '@/app/_lib/prisma';
 import { NextResponse, NextRequest } from 'next/server';
 import { Buffer } from 'buffer';
 import {
@@ -6,6 +5,8 @@ import {
   safeDecrypt,
   encrypt as encryptBuffer
 } from '@/app/_lib/crypto';
+import { prisma } from '@/app/_lib/prisma';
+import { Prisma } from '@prisma/client';
 
 interface ResultadoInput {
   nome: string;
