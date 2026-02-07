@@ -16,7 +16,8 @@ interface ExameSectionProps {
 const ExameSection = ({ title, exames }: ExameSectionProps) => (
   <div className="mt-5">
     <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
-    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden">
+    {/* REVERSÃO: Voltando ao layout de flex com rolagem para evitar sobreposição */}
+    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
       {exames.length > 0 ? (
         exames.map((exame) => (
           <ExameItem key={exame.id} exame={exame} />

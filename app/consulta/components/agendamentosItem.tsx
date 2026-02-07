@@ -32,7 +32,8 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
 
   return (
     <div className="w-full md:w-auto">
-      <Card className="min-w-[280px] max-w-[320px] h-48">
+      {/* CORREÇÃO: Altura do card igualada ao ExameItem (h-52) */}
+      <Card className="min-w-[280px] max-w-[320px] h-52">
         <CardContent className="flex p-0 overflow-hidden h-full">
           <div className="flex flex-col gap-1 py-4 px-5 flex-grow min-w-0">
             <Badge 
@@ -41,20 +42,25 @@ const AgendamentoItem = ({ agendamento }: AgendamentoItemProps) => {
             >
               {tipo === 'Consulta' && tipoConsulta ? tipoConsulta : tipo}
             </Badge>
-            <h3 className="text-md font-bold truncate">{especialidade}</h3>
-            <p className="text-sm font-semibold truncate">{nomeProfissional}</p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{local}</p>
-            <div className="flex-grow" />
-            <Button variant="secondary" className="mt-2 w-28" asChild>
-              <Link href={linkHref}>Ver Detalhes</Link>
-            </Button>
+            {/* CORREÇÃO: Fontes reduzidas e truncamento removido */}
+            <h3 className="text-sm font-bold">{especialidade}</h3>
+            <p className="text-xs font-semibold">{nomeProfissional}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{local}</p>
+            
+            {/* CORREÇÃO: Layout do botão alinhado com o ExameItem */}
+            <div className="mt-auto">
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={linkHref}>Ver Detalhes</Link>
+              </Button>
+            </div>
           </div>
           
           <div className="border-l-2 border-primary h-full flex-shrink-0"></div>
 
           <div className="flex flex-col items-center justify-center px-4 py-5 flex-shrink-0 w-24">
             <p className="text-sm font-bold uppercase text-primary">{mes}</p>
-            <p className="text-3xl font-bold">{dia}</p>
+            {/* CORREÇÃO: Tamanho da fonte do dia reduzido */}
+            <p className="text-2xl font-bold">{dia}</p>
             <p className="text-sm">{horaFormatada}</p>
           </div>
         </CardContent>

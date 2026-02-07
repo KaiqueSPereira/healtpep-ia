@@ -103,7 +103,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
             agendamentos={agendamentosFuturos}
           />
           <AgendamentoSection
-            title="Últimoas Consultas"
+            title="Últimas Consultas"
             agendamentos={agendamentosPassados}
           />
         </>
@@ -120,7 +120,8 @@ interface AgendamentoSectionProps {
 const AgendamentoSection = ({ title, agendamentos }: AgendamentoSectionProps) => (
   <div className="mt-5">
     <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
-    <div className="flex gap-4 overflow-x-auto py-2 [&::-webkit-scrollbar]:hidden">
+    {/* REVERSÃO: Voltando ao layout de flex com rolagem para consistência */}
+    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
       {agendamentos.length > 0 ? (
         agendamentos.map((agendamento) => (
           <AgendamentoItem key={`${agendamento.tipo}-${agendamento.id}`} agendamento={agendamento} />
