@@ -62,7 +62,7 @@ export async function GET(req: Request, { params }: { params: { Id: string } }) 
   }
 }
 
-export async function PUT(req: Request, { params }: { params: { Id: string } }) {
+export async function PATCH(req: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -96,10 +96,10 @@ export async function PUT(req: Request, { params }: { params: { Id: string } }) 
 
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('[MEDICAMENTO_PUT_VALIDATION_ERROR]', error.issues);
+      console.error('[MEDICAMENTO_PATCH_VALIDATION_ERROR]', error.issues);
       return new NextResponse(JSON.stringify(error.issues), { status: 422 });
     }
-    console.error('[MEDICAMENTO_PUT]', error);
+    console.error('[MEDICAMENTO_PATCH]', error);
     return new NextResponse('Erro Interno do Servidor', { status: 500 });
   }
 }

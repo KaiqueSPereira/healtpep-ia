@@ -6,7 +6,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from '@/app/_hooks/use-toast';
-import { useSession } from 'next-auth/react';
+import useAuthStore from '@/app/_stores/authStore';
+import { useSession } from 'next-auth/react'; // Manter para a função update
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
 import { Input } from '@/app/_components/ui/input';
@@ -21,20 +22,18 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/ui/select';
 import { Loader2 } from 'lucide-react';
 
-// ATUALIZAÇÃO: Adiciona altura e ajusta data de nascimento para string
 const formSchema = z.object({
   name: z.string().min(2, 'O nome deve ter pelo menos 2 caracteres.'),
   email: z.string().email('Email inválido.'),
   cns: z.string().optional(),
-  dataNascimento: z.string().optional(), // Alterado para string para aceitar input de data
-  altura: z.string().optional(), // Novo campo para altura
+  dataNascimento: z.string().optional(),
+  altura: z.string().optional(),
   genero: z.string().optional(),
   tipo_sanguineo: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-// ATUALIZAÇÃO: Interface de dados inclui altura
 interface UserData {
     name: string;
     email: string;
@@ -48,7 +47,8 @@ interface UserData {
 const UserEditPage = () => {
   const { id } = useParams();
   const router = useRouter();
-  const { data: session, update } = useSession();
+  const { session } = useAuthStore();
+  const { update } = useSession(); // Usar o `update` do `useSession` original
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -73,7 +73,6 @@ const UserEditPage = () => {
         form.setValue('name', user.name);
         form.setValue('email', user.email);
         if (user.cns) form.setValue('cns', user.cns);
-        // ATUALIZAÇÃO: Formata a data para o formato YYYY-MM-DD que o input[type=date] espera
         if (user.dataNascimento) {
           const formattedDate = new Date(user.dataNascimento).toISOString().split('T')[0];
           form.setValue('dataNascimento', formattedDate);
@@ -109,6 +108,7 @@ const UserEditPage = () => {
       
       const updatedUser: { name?: string } = await response.json();
 
+      // A função `update` do NextAuth é chamada para garantir a sincronização.
       if (session && session.user.name !== updatedUser.name) {
         await update({ ...session, user: { ...session.user, name: updatedUser.name } });
       }
@@ -137,9 +137,7 @@ const UserEditPage = () => {
               <FormField name="name" control={form.control} render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField name="email" control={form.control} render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input type="email" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField name="cns" control={form.control} render={({ field }) => (<FormItem><FormLabel>CNS/CPF</FormLabel><FormControl><Input {...field} placeholder="Digite o CNS ou CPF" /></FormControl><FormMessage /></FormItem>)} />
-              {/* ATUALIZAÇÃO: Campo de data de nascimento agora é um input de data para digitação manual */}
               <FormField name="dataNascimento" control={form.control} render={({ field }) => (<FormItem><FormLabel>Data de Nascimento</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              {/* NOVO: Campo de altura adicionado para o cálculo do IMC */}
               <FormField name="altura" control={form.control} render={({ field }) => (<FormItem><FormLabel>Altura (m)</FormLabel><FormControl><Input type="number" step="0.01" {...field} placeholder="Ex: 1.75" /></FormControl><FormMessage /></FormItem>)} />
               <FormField name="genero" control={form.control} render={({ field }) => (<FormItem><FormLabel>Gênero</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="Masculino">Masculino</SelectItem><SelectItem value="Feminino">Feminino</SelectItem><SelectItem value="Outro">Outro</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
               <FormField name="tipo_sanguineo" control={form.control} render={({ field }) => (<FormItem><FormLabel>Tipo Sanguíneo</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="A+">A+</SelectItem><SelectItem value="A-">A-</SelectItem><SelectItem value="B+">B+</SelectItem><SelectItem value="B-">B-</SelectItem><SelectItem value="AB+">AB+</SelectItem><SelectItem value="AB-">AB-</SelectItem><SelectItem value="O+">O+</SelectItem><SelectItem value="O-">O-</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />

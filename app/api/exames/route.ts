@@ -1,4 +1,4 @@
-import { prisma } from '@/app/_lib/prisma';
+import { prisma, Prisma } from '@/app/_lib/prisma';
 import { NextResponse, NextRequest } from 'next/server';
 import { Buffer } from 'buffer';
 import {
@@ -14,7 +14,7 @@ interface ResultadoInput {
   referencia?: string;
 }
 
-// GET OTIMIZADO: Busca apenas os dados essenciais para a lista de exames.
+// GET: Versão original e funcional.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -24,48 +24,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
     }
 
-    // Query otimizada: seleciona apenas os campos necessários para a lista.
     const exames = await prisma.exame.findMany({
       where: { userId: userId },
-      select: {
-        id: true,
-        dataExame: true,
-        nome: true, // O nome já está criptografado, será descriptografado no cliente se necessário
-        tipo: true, // O tipo também está criptografado
-        unidades: {
-          select: {
-            nome: true,
-          },
-        },
-        profissional: {
-          select: {
-            nome: true,
-            especialidade: true,
-          },
-        },
-      },
+      include: { unidades: true, profissional: true, resultados: true },
       orderBy: { dataExame: 'desc' },
     });
 
-    // Descriptografa os campos necessários no lado do servidor de forma eficiente
-    const decryptedExames = exames.map(exame => ({
-      ...exame,
-      nome: safeDecrypt(exame.nome),
-      tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
-      // Mantemos os nomes da unidade e profissional como estão (não são criptografados)
-      unidades: exame.unidades ? { nome: exame.unidades.nome } : null,
-      profissional: exame.profissional ? { nome: exame.profissional.nome, especialidade: exame.profissional.especialidade } : null,
-    }));
+    const decryptedExames = exames.map(exame => {
+      const decryptedResultados = exame.resultados.map(res => ({
+        ...res,
+        nome: safeDecrypt(res.nome),
+        valor: safeDecrypt(res.valor),
+        unidade: res.unidade ? safeDecrypt(res.unidade) : null,
+        referencia: res.referencia ? safeDecrypt(res.referencia) : null,
+      }));
+
+      return {
+        ...exame,
+        nome: safeDecrypt(exame.nome),
+        tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+        anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+        nomeArquivo: exame.nomeArquivo ? safeDecrypt(exame.nomeArquivo) : null,
+        resultados: decryptedResultados,
+      };
+    });
 
     return NextResponse.json(decryptedExames, { status: 200 });
-
   } catch (error) {
-    console.error("Erro ao buscar exames (otimizado):", error);
+    console.error("Erro ao buscar exames:", error);
     return NextResponse.json({ error: 'Falha ao buscar exames' }, { status: 500 });
   }
 }
 
-// POST: Cria um novo exame, criptografando todos os campos necessários.
+// POST: Versão final, limpa e robusta.
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -82,7 +73,7 @@ export async function POST(request: Request) {
     const file = formData.get("file") as File | null;
 
     if (!userId || !dataExameStr || !tipo) {
-      return NextResponse.json({ error: "Campos obrigatórios (userId, dataExame, tipo) não foram fornecidos." }, { status: 400 });
+      return NextResponse.json({ error: "Campos obrigatórios não foram fornecidos." }, { status: 400 });
     }
 
     const dataExame = new Date(dataExameStr);
@@ -94,8 +85,7 @@ export async function POST(request: Request) {
         const nomeArquivo = file.name;
         encryptedNomeArquivo = encryptString(nomeArquivo);
         const fileBuffer = await file.arrayBuffer();
-        const originalBuffer = Buffer.from(fileBuffer);
-        arquivoParaSalvar = encryptBuffer(originalBuffer);
+        arquivoParaSalvar = encryptBuffer(Buffer.from(fileBuffer));
     }
 
     const encryptedAnotacao = anotacao ? encryptString(anotacao) : null;
@@ -110,20 +100,44 @@ export async function POST(request: Request) {
         arquivoExame: arquivoParaSalvar ? new Uint8Array(arquivoParaSalvar) : null,
         anotacao: encryptedAnotacao,
         tipo: encryptString(tipo),
-        ...(profissionalId && { profissionalId }),
-        ...(unidadesId && { unidadesId }),
-        ...(consultaId && { consultaId }),
-        ...(condicaoSaudeId && { condicaoSaudeId }),
       },
     });
 
+    const dataToUpdate: Prisma.ExameUpdateInput = {};
+    
+    if (profissionalId && profissionalId.trim() && profissionalId !== 'undefined') {
+      dataToUpdate.profissional = { connect: { id: profissionalId.trim() } };
+    }
+    if (unidadesId && unidadesId.trim() && unidadesId !== 'undefined') {
+      dataToUpdate.unidades = { connect: { id: unidadesId.trim() } };
+    }
+    if (consultaId && consultaId.trim() && consultaId !== 'undefined') {
+      dataToUpdate.consulta = { connect: { id: consultaId.trim() } };
+    }
+    if (condicaoSaudeId && condicaoSaudeId.trim() && condicaoSaudeId !== 'undefined') {
+      dataToUpdate.condicaoSaude = { connect: { id: condicaoSaudeId.trim() } };
+    }
+
+    if (Object.keys(dataToUpdate).length > 0) {
+      try {
+        await prisma.exame.update({
+          where: { id: newExame.id },
+          data: dataToUpdate,
+        });
+      } catch (e) {
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
+          // A associação falhou porque o ID não foi encontrado. 
+          // O erro é ignorado intencionalmente para não impedir a criação do exame.
+          // Opcional: logar para um sistema de monitoramento em produção.
+        } else {
+          throw e;
+        }
+      }
+    }
+
     if (resultadosStr) {
       const resultados: ResultadoInput[] = JSON.parse(resultadosStr);
-
-      const validResults = resultados.filter(
-        (res) => res.nome && res.valor && res.valor.trim() !== ''
-      );
-
+      const validResults = resultados.filter(res => res.nome && res.valor && res.valor.trim() !== '');
       if (validResults.length > 0) {
         await prisma.resultadoExame.createMany({
           data: validResults.map((res) => ({

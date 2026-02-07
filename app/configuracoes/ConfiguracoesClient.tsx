@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import useAuthStore from '@/app/_stores/authStore';
 import { Button } from '@/app/_components/ui/button';
 import Header from '@/app/_components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/_components/ui/card';
@@ -11,7 +11,7 @@ import { toast } from '@/app/_hooks/use-toast';
 import Image from 'next/image';
 
 export default function ConfiguracoesClient() {
-  const { data: session } = useSession();
+  const { session } = useAuthStore();
   const [isCalendarConnected, setIsCalendarConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();

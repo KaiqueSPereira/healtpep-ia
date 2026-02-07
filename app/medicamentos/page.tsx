@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import useAuthStore from '@/app/_stores/authStore';
 import { PlusCircle, Search, Trash2, Edit, Loader2, Pill, Droplet, SprayCan as Spray, Syringe, AlertTriangle } from 'lucide-react';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
@@ -23,7 +23,7 @@ interface Interaction {
 }
 
 export default function MedicamentosPage() {
-  const { data: session } = useSession();
+  const { session } = useAuthStore();
   const [medicamentos, setMedicamentos] = useState<MedicamentoComRelacoes[]>([]);
   const [condicoes, setCondicoes] = useState<CondicaoSaude[]>([]);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);

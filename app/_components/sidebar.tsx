@@ -9,40 +9,46 @@ import {
   LogInIcon,
   LogOutIcon,
   Pill,
+  User as UserIcon, // Renomeado para evitar conflito
 } from "lucide-react";
 import { SheetClose, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Avatar, AvatarImage } from "./ui/avatar";
 import Link from "next/link";
 import { Dialog, DialogTrigger } from "./ui/dialog";
-import { signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
 import SingInDialog from "@/app/login/_components/sing-in-dialog";
-import { User } from "lucide-react";
+import useAuthStore from "../_stores/authStore";
+import { Loader2 } from "lucide-react";
 
 const Sidebarbotton = () => {
-  const { data } = useSession();
-  const handlelogoutclick = () => signOut();
+  const { session, status } = useAuthStore();
+  const handleLogoutClick = () => signOut();
 
   return (
-    <SheetContent className="overflow-y-auto">
+    <SheetContent className="overflow-y-auto flex flex-col">
       <SheetHeader>
         <SheetTitle>Menu</SheetTitle>
       </SheetHeader>
 
-      <div className="items-centerborder-solid flex justify-between gap-3 border-b py-5">
-        {data?.user ? (
-          // Adicionamos o Link aqui
-          <Link href={`/users/${data?.user?.id}`}>
+      <div className="items-center border-solid flex justify-between gap-3 border-b py-5">
+        {status === 'loading' && (
+          <div className="flex items-center justify-center w-full">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        )}
+        {status === 'authenticated' && session?.user ? (
+          <Link href={`/users/${session.user.id}`}>
             <div className="flex items-center gap-3">
               <Avatar>
-                <AvatarImage src={data?.user?.image ?? ""} />
+                <AvatarImage src={session.user.image ?? ""} />
               </Avatar>
               <div className="ml-3 flex flex-col">
-                <p className="font-bold">{data?.user?.name}</p>
-                <p className="text-sm text-gray-400">{data?.user?.email}</p>
+                <p className="font-bold">{session.user.name}</p>
+                <p className="text-sm text-gray-400">{session.user.email}</p>
               </div>
             </div>
-          </Link> // Fechamos o Link
-        ) : (
+          </Link>
+        ) : status === 'unauthenticated' && (
           <>
             <h2 className="font-bold">Olá, faça o seu login</h2>
             <Dialog>
@@ -56,67 +62,48 @@ const Sidebarbotton = () => {
           </>
         )}
       </div>
+
       <div className="flex flex-col gap-2 border-b border-solid py-5">
         <SheetClose asChild>
-          <Button className="justify-startgap-2" variant="ghost" asChild>
+          <Button className="justify-start gap-2" variant="ghost" asChild>
             <Link href="/">
               <HomeIcon size={18} /> Inicio
             </Link>
           </Button>
         </SheetClose>
-        <Button className="justify-startgap-2" variant="ghost">
-          <CalendarIcon size={18} />
-          <Link href="/consulta" className="text-inherit no-underline">
-            Consultas
-          </Link>
+        {/* Outros links de navegação... */}
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Link href="/consulta"><CalendarIcon size={18} /> Consultas</Link>
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost">
-          <Hospital size={18} />
-          <Link href="/unidades" className="text-inherit no-underline">
-            Unidades
-          </Link>
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Link href="/unidades"><Hospital size={18} /> Unidades</Link>
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost">
-          <User size={18} />
-          <Link href="/profissionais" className="text-inherit no-underline">
-            Profissionais
-          </Link>
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Link href="/profissionais"><UserIcon size={18} /> Profissionais</Link>
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost">
-          <ClipboardPlus size={18} />
-          <Link href="/exames" className="text-inherit no-underline">
-            Exames
-          </Link>
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Link href="/exames"><ClipboardPlus size={18} /> Exames</Link>
         </Button>
-        <Button className="flex items-center gap-2" variant="ghost">
-          <Pill size={18} />
-          <Link href="/medicamentos" className="text-inherit no-underline">
-            Medicamentos
-          </Link>
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+            <Link href="/medicamentos"><Pill size={18} /> Medicamentos</Link>
         </Button>
       </div>
-      {/* Moved to bottom using flexbox on parent SheetContent */}
-      <div className="mt-auto paddin-top-4 flex flex-col gap-2 py-5 border-t border-solid">
-  <Button
-    className="flex items-center gap-2"
-    variant="ghost"
-    asChild
-  >
-    <Link href="/docs">
-      <BadgeInfo size={18} /> Sobre
-    </Link>
-  </Button>
 
-  <Button
-    className="flex items-center gap-2"
-    onClick={handlelogoutclick}
-    variant="ghost"
-  >
-    <LogOutIcon size={18} /> Sair da Conta
-  </Button>
+      <div className="mt-auto flex flex-col gap-2 py-5 border-t border-solid">
+        <Button className="justify-start gap-2" variant="ghost" asChild>
+          <Link href="/docs"><BadgeInfo size={18} /> Sobre</Link>
+        </Button>
 
-</div>
-
+        {status === 'authenticated' && (
+          <Button
+            className="justify-start gap-2"
+            onClick={handleLogoutClick}
+            variant="ghost"
+          >
+            <LogOutIcon size={18} /> Sair da Conta
+          </Button>
+        )}
+      </div>
     </SheetContent>
   );
 };

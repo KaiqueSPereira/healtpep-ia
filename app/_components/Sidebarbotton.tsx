@@ -15,11 +15,12 @@ import { SheetClose, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Avatar, AvatarImage } from './ui/avatar';
 import Link from 'next/link';
 import { Dialog, DialogTrigger } from './ui/dialog';
-import { signOut, useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
 import SingInDialog from '@/app/login/_components/sing-in-dialog';
+import useAuthStore from '@/app/_stores/authStore';
 
 const Sidebarbotton = () => {
-  const { data } = useSession();
+  const { session } = useAuthStore();
   const handlelogoutclick = () => signOut();
 
   return (
@@ -29,15 +30,15 @@ const Sidebarbotton = () => {
       </SheetHeader>
 
       <div className="items-center border-solid flex justify-between gap-3 border-b py-5">
-        {data?.user ? (
+        {session?.user && session.user.id ? (
           <SheetClose asChild>
-            <Link href={`/users/${data.user.id}`} className="flex items-center gap-3 w-full">
+            <Link href={`/users/${session.user.id}`} className="flex items-center gap-3 w-full">
               <Avatar>
-                <AvatarImage src={data.user.image ?? ""} />
+                <AvatarImage src={session.user.image ?? ""} />
               </Avatar>
               <div className="flex flex-col">
-                <p className="font-bold">{data.user.name}</p>
-                <p className="text-sm text-gray-400">{data.user.email}</p>
+                <p className="font-bold">{session.user.name}</p>
+                <p className="text-sm text-gray-400">{session.user.email}</p>
               </div>
             </Link>
           </SheetClose>
@@ -67,7 +68,7 @@ const Sidebarbotton = () => {
           </Button>
         </SheetClose>
 
-        {data?.user && (
+        {session?.user && (
           <>
             <SheetClose asChild>
               <Button className="justify-start gap-2" variant="ghost" asChild>
@@ -121,7 +122,7 @@ const Sidebarbotton = () => {
             </Link>
           </Button>
         </SheetClose>
-        {data?.user && (
+        {session?.user && (
           <Button
             className="justify-start gap-2"
             onClick={handlelogoutclick}

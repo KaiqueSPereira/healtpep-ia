@@ -22,7 +22,7 @@ interface ExameParaDescriptografar {
 const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
   include: {
     profissional: true,
-    unidade: { // CORRIGIDO
+    unidade: { 
       include: {
         endereco: true,
       }
@@ -32,7 +32,7 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
     Exame: { 
         include: { 
             profissional: true, 
-            unidades: { // CORRIGIDO
+            unidades: { 
               include: {
                 endereco: true,
               }
@@ -48,7 +48,7 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
         Exame: {
           include: {
             profissional: true,
-            unidades: { // CORRIGIDO
+            unidades: { 
               include: {
                 endereco: true,
               }
@@ -61,7 +61,7 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
     retornos: { 
         include: {
             profissional: true,
-            unidade: { // CORRIGIDO
+            unidade: { 
               include: {
                 endereco: true,
               }
@@ -161,7 +161,7 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
 
     if (tipodeexame !== undefined) {
         if (!tipodeexame) {
-            return NextResponse.json({ error: "O campo 'tipodeexame' é obrigatório e não pode ser vazio." }, { status: 400 });
+            return NextResponse.json({ error: "O campo 'tipode exame' é obrigatório e não pode ser vazio." }, { status: 400 });
         }
         dataToUpdate.tipodeexame = encryptString(tipodeexame);
     }

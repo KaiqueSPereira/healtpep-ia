@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { redirect } from "next/navigation";
-import { useSession } from "next-auth/react";
+import useAuthStore from "./_stores/authStore";
 import Header from "./_components/header";
 import Searchbar from "./_components/searchbar"; // Assuming this is the Search component
 import NovaConsulta from "./consulta/components/novaconsulta";
@@ -49,7 +49,7 @@ interface SearchResults {
 
 
 const Home = () => {
-  const { data: session, status } = useSession();
+  const { session, status } = useAuthStore();
 
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);

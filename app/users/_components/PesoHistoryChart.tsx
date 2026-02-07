@@ -7,10 +7,7 @@ import { Label } from '@/app/_components/ui/label';
 import { Input } from '@/app/_components/ui/input';
 import { Button } from '@/app/_components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
-import { Line } from 'react-chartjs-2';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
 
 interface PesoRegistro {
   id: string;
@@ -67,7 +64,6 @@ export default function PesoHistoryChart({
       setNovaDataPeso('');
       toast({ title: "Sucesso!", description: "Registro de peso adicionado." });
     } catch (err) {
-      // Correção: Trata o erro de forma segura
       const message = err instanceof Error ? err.message : "Não foi possível adicionar o registro.";
       toast({ variant: "destructive", title: "Erro", description: message });
     } finally {
@@ -78,12 +74,18 @@ export default function PesoHistoryChart({
   const safeHistoricoPeso = Array.isArray(historicoPeso) ? historicoPeso : [];
   const sortedHistoricoPeso = [...safeHistoricoPeso].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
-  const datas = sortedHistoricoPeso.map(registro => formatarDataGrafico(registro.data));
-  const pesos = sortedHistoricoPeso.map(registro => parseFloat(registro.peso));
-  const minPeso = pesos.length > 0 ? Math.min(...pesos.filter(p => !isNaN(p))) : 0;
-  const maxPeso = pesos.length > 0 ? Math.max(...pesos.filter(p => !isNaN(p))) : 100;
-  const dadosGraficoChartJS = { labels: datas, datasets: [{ label: 'Peso (kg)', data: pesos, borderColor: 'rgb(136, 132, 216)', backgroundColor: 'rgba(136, 132, 216, 0.5)', tension: 0.1 }] };
-  const chartOptions = { responsive: true, plugins: { legend: { position: 'top' as const } }, scales: { x: { title: { display: true, text: 'Data' } }, y: { title: { display: true, text: 'Peso (kg)' }, min: minPeso > 10 ? minPeso - 5 : 0, max: maxPeso > 0 ? maxPeso + 5 : 100 } } };
+  const transformedData = sortedHistoricoPeso.map(registro => ({
+    date: formatarDataGrafico(registro.data),
+    peso: parseFloat(registro.peso),
+  })).filter(d => !isNaN(d.peso));
+
+  const pesos = transformedData.map(d => d.peso);
+  const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
+  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 100;
+  const yAxisDomain = [
+      minPeso > 10 ? Math.floor(minPeso - 5) : 0,
+      maxPeso > 0 ? Math.ceil(maxPeso + 5) : 100
+  ];
 
   return (
     <Card className="border-none">
@@ -100,10 +102,24 @@ export default function PesoHistoryChart({
           <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : error ? (
           <p className="text-red-500">{error}</p>
-        ) : safeHistoricoPeso.length === 0 ? (
+        ) : transformedData.length === 0 ? (
           <p className="text-center text-muted-foreground pt-4">Nenhum registro de peso encontrado.</p>
         ) : (
-          <div className="w-full mt-4"><Line data={dadosGraficoChartJS} options={chartOptions} /></div>
+          <div className="w-full h-80 mt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={transformedData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" name="Data" />
+                <YAxis domain={yAxisDomain} name="Peso (kg)" />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#8884d8" activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

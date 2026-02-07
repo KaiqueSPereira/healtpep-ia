@@ -1,8 +1,9 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession, signIn } from "next-auth/react";
+import useAuthStore from "@/app/_stores/authStore";
+import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
 import {
@@ -22,13 +23,9 @@ type TratamentoForm = {
   nome: string;
   profissionalId: string;
 };
-declare module "next-auth" {
-  interface Session {
-    accessToken?: string;
-  }
-}
+
 const NewTratamento: React.FC = () => {
-  const { data: session, status } = useSession();
+  const { session, status } = useAuthStore();
   const router = useRouter();
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] =
@@ -41,14 +38,12 @@ const NewTratamento: React.FC = () => {
     },
   });
 
-  // 🔹 Redireciona para login se não estiver autenticado
   useEffect(() => {
     if (status === "unauthenticated") {
       signIn();
     }
   }, [status]);
 
-  // 🔹 Busca os profissionais disponíveis
   useEffect(() => {
     async function fetchProfissionais() {
       try {
@@ -69,8 +64,12 @@ const NewTratamento: React.FC = () => {
   }
 
   const handleSubmit = async (data: TratamentoForm) => {
-    if (!session?.user) {
-      toast({title:"Usuário não autenticado.", variant: "destructive", duration: 5000});
+    if (!session || !session.user || !session.accessToken) {
+      toast({
+        title: "Usuário não autenticado ou sessão inválida.",
+        variant: "destructive",
+        duration: 5000,
+      });
       return;
     }
 
@@ -84,7 +83,7 @@ const NewTratamento: React.FC = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.accessToken}`, // ✅ Enviando o token JWT
+          Authorization: `Bearer ${session.accessToken}`,
         },
         body: JSON.stringify(tratamentoData),
       });
@@ -95,14 +94,22 @@ const NewTratamento: React.FC = () => {
       }
 
       console.log("Tratamento salvo com sucesso.");
-        toast({title:"Tratamento salvo com sucesso.", variant: "default", duration: 5000});
+      toast({
+        title: "Tratamento salvo com sucesso.",
+        variant: "default",
+        duration: 5000,
+      });
 
       setTimeout(() => {
         router.push("/");
       }, 1000);
     } catch (error) {
       console.error("Erro ao salvar o tratamento:", error);
-      toast({title:"Ocorreu um erro ao salvar o tratamento.", variant: "destructive",duration: 5000});
+      toast({
+        title: "Ocorreu um erro ao salvar o tratamento.",
+        variant: "destructive",
+        duration: 5000,
+      });
     }
   };
 

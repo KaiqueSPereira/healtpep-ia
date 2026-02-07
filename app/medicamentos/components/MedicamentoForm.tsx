@@ -8,7 +8,7 @@ import { Textarea } from "@/app/_components/ui/textarea";
 import { toast } from "@/app/_hooks/use-toast";
 import { MedicamentoComRelacoes, CondicaoSaude, Profissional, Consulta } from "@/app/_components/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useSession } from "next-auth/react";
+import useAuthStore from "@/app/_stores/authStore";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { FrequenciaTipo, StatusMedicamento, TipoMedicamento } from '@prisma/client';
@@ -75,7 +75,7 @@ interface AnvisaMed {
 }
 
 export default function MedicamentoForm({ medicamento, onSave, condicoes, profissionais, consultas }: MedicamentoFormProps) {
-    const { data: session } = useSession();
+    const { session } = useAuthStore();
     const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
     const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
@@ -171,11 +171,15 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
     };
 
     const onSubmit = async (data: MedicamentoFormData) => {
+        if (!session?.user?.id) {
+            toast({ title: "Erro de Autenticação", description: "Sua sessão é inválida, por favor, faça o login novamente.", variant: "destructive" });
+            return;
+        }
         try {
             const method = medicamento ? 'PUT' : 'POST';
             const endpoint = medicamento ? `/api/medicamentos/${medicamento.id}` : '/api/medicamentos';
             
-            const payload = { ...data, userId: session?.user.id, dataFim: data.dataFim || null };
+            const payload = { ...data, userId: session.user.id, dataFim: data.dataFim || null };
 
             const response = await fetch(endpoint, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
 

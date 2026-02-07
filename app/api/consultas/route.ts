@@ -106,11 +106,8 @@ export async function POST(req: Request) {
       condicaoSaudeId,
       queixas,
       tipoexame,
-      // CORREÇÃO: Recebe o ID da consulta de origem
       consultaOrigemId,
     } = body;
-
-    const motivoParaCriptografar = tipo === "Exame" ? tipoexame : queixas;
 
     if (!data || !tipo) {
       return NextResponse.json(
@@ -119,7 +116,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const encryptedMotivo = motivoParaCriptografar ? encryptString(motivoParaCriptografar) : "";
+    const encryptedMotivo = queixas ? encryptString(queixas) : "";
     const encryptedTipoExame = tipo === "Exame" && tipoexame ? encryptString(tipoexame) : null;
 
     const novaConsulta = await db.consultas.create({
@@ -132,7 +129,6 @@ export async function POST(req: Request) {
         motivo: encryptedMotivo,
         tipodeexame: encryptedTipoExame,
         condicoes: condicaoSaudeId ? { connect: { id: condicaoSaudeId } } : undefined,
-        // CORREÇÃO: Salva a relação com a consulta de origem se o ID for fornecido
         consultaOrigemId: consultaOrigemId || null,
       },
     });

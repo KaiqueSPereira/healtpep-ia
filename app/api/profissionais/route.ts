@@ -1,11 +1,10 @@
 import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
 
-// Definição do schema para validação dos dados de criação
 const profissionalCreateSchema = z.object({
   nome: z.string().min(1, "O nome e obrigatorio."),
   especialidade: z.string().min(1, "A especialidade e obrigatoria."),
@@ -13,22 +12,37 @@ const profissionalCreateSchema = z.object({
   unidadeIds: z.array(z.string().uuid("ID da unidade invalido.")).optional(),
 });
 
-// Método GET (Listar todos os profissionais)
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || !session.user.id) {
     return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
   }
 
+  const { searchParams } = new URL(req.url);
+  const unidadeId = searchParams.get('unidadeId');
+
   try {
+    const whereCondition: Prisma.ProfissionalWhereInput = {
+      userId: session.user.id,
+    };
+
+    if (unidadeId) {
+      whereCondition.unidades = {
+        some: {
+          id: unidadeId,
+        },
+      };
+    }
+
     const profissionais = await db.profissional.findMany({
-      where: { userId: session.user.id },
+      where: whereCondition,
       include: { unidades: true },
-      orderBy: { nome: 'asc' } // Ordenar por nome
+      orderBy: { nome: 'asc' },
     });
+
     return NextResponse.json(profissionais);
   } catch (error) {
-    console.error("Erro ao buscar todos os profissionais:", error);
+    console.error("Erro ao buscar profissionais:", error);
     return NextResponse.json(
       { error: "Falha ao buscar os profissionais" },
       { status: 500 },
@@ -36,7 +50,6 @@ export async function GET() {
   }
 }
 
-// Método POST (Criar um novo profissional)
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -48,7 +61,6 @@ export async function POST(req: Request) {
     const parsedData = profissionalCreateSchema.parse(body);
     const userId = session.user.id;
 
-    // 1. VERIFICAÇÃO PRÉVIA: Checar se o usuário já cadastrou este profissional
     const existingProfissional = await db.profissional.findFirst({
         where: {
             NumClasse: parsedData.NumClasse,
@@ -56,15 +68,13 @@ export async function POST(req: Request) {
         }
     });
 
-    // 2. RETORNO AMIGÁVEL: Se encontrar, retorna erro 409
     if (existingProfissional) {
         return NextResponse.json(
             { error: "Você já cadastrou um profissional com este número de classe." },
-            { status: 409 } // 409 Conflict
+            { status: 409 }
         );
     }
 
-    // Se não existir, prossegue com a criação
     const novoProfissional = await db.profissional.create({
       data: {
         nome: parsedData.nome,
@@ -89,11 +99,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Dados inválidos", details: error.errors }, { status: 400 });
     }
 
-    // 3. SEGUNDA CAMADA DE SEGURANÇA: Tratar erro de duplicidade do banco de dados
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         return NextResponse.json(
             { error: "Este número de classe já está cadastrado no sistema." },
-            { status: 409 } // 409 Conflict
+            { status: 409 }
         );
     }
 

@@ -8,7 +8,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
 import { Pencil, BrainCircuit, RefreshCw, FileText, Calendar as CalendarIcon } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import useAuthStore from "@/app/_stores/authStore";
 import { toast } from "@/app/_hooks/use-toast";
 import { parseISO } from "date-fns";
 
@@ -32,7 +32,7 @@ export default function ExameDetalhePage() {
   const params = useParams();
   const id = params?.id as string;
   const router = useRouter();
-  const { data: session } = useSession();
+  const { session } = useAuthStore();
   const [exame, setExame] = useState<ExameComDetalhes | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);

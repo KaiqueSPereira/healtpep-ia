@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams} from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import useAuthStore from '@/app/_stores/authStore';
 import Link from 'next/link';
 import Header from '@/app/_components/header';
 import { Button } from '@/app/_components/ui/button';
@@ -34,13 +34,12 @@ interface UserData {
 
 const UserProfilePage = () => {
   const { id } = useParams();
-  const { data: session } = useSession();
+  const { session } = useAuthStore();
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
     if (typeof id !== 'string') return;
-    // A lógica de `!loading` foi removida para permitir o recarregamento
     setLoading(true);
     try {
       const response = await fetch(`/api/pacientes/dashboard/${id}`);
@@ -55,11 +54,10 @@ const UserProfilePage = () => {
   }, [id]);
 
   useEffect(() => {
-    if (id) { // Garante que o ID exista antes de buscar
+    if (id) {
         fetchUser();
     }
   }, [id, fetchUser]);
-
 
   const userHeightForIMC = user?.dadosSaude?.altura ? parseFloat(user.dadosSaude.altura) : null;
   const canEdit = session?.user?.id === id;

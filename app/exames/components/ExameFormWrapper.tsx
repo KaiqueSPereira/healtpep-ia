@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import useAuthStore from "@/app/_stores/authStore";
 import Header from "../../_components/header";
 import TabelaExames from "./TabelaExames";
 import { Button } from "../../_components/ui/button";
@@ -67,7 +67,7 @@ export function ExameFormWrapper({
   const [selectorsKey, setSelectorsKey] = useState(0);
 
   const router = useRouter();
-  const { data: session } = useSession();
+  const { session } = useAuthStore();
   const userId = session?.user?.id;
 
   useEffect(() => {

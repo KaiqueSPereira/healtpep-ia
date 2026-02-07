@@ -9,7 +9,7 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const unidadesMedida = [
   "g/dL", "mg/dL", "milhões/mm³", "mil/mm³", "mm³", "mm/h", "mg/L", "ng/mL", "pg", "fL", "U/L", "mEq/L", "%",
   "uUI/mL", "mL/min", "mg", "μg/dL", "μIU/mL", "μmol/L", "mcmol/L", "mcmol/mol", "mg/g", "IU/L", "μg/mL",
-  "mmol/L", "nmol/L", "10³/ul", "Cópias/ML", "log", "células/μL", "x106/uL", "pg/mL", "µg/dL", "uL",
+  "mmol/L", "nmol/L", "10³/ul", "Cópias/ML", "log", "células/μL", "x10^6/uL", "pg/mL", "µg/dL", "uL",
   "µUI/mL", "mL", "--", "Outro",
 ];
 
@@ -125,7 +125,6 @@ ${texto}
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: prompt }],
             response_format: { type: "json_object" },
-            temperature: 0,
         });
 
         const jsonResponse = response.choices[0]?.message?.content;

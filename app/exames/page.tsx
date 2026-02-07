@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from "react";
-import { useSession } from "next-auth/react";
+import useAuthStore from "../_stores/authStore";
 import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
 import { Loader2 } from "lucide-react";
@@ -38,7 +38,7 @@ type ChartData = {
 };
 
 export default function ExamesPage() {
-    const { data: session, status } = useSession();
+    const { session, status } = useAuthStore();
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -93,9 +93,7 @@ export default function ExamesPage() {
             }
         };
         fetchData();
-    // CORREÇÃO: A dependência agora é o `session.user.id`, que é estável,
-    // em vez do objeto `session` inteiro, que pode mudar a cada renderização.
-    }, [currentView, session?.user?.id, status, toast]); 
+    }, [currentView, session?.user?.id, status, toast]);
 
     const listFilterOptions = useMemo(() => 
         Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
+import useAuthStore from "@/app/_stores/authStore";
+import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/app/_components/ui/button";
 import {
@@ -17,7 +18,7 @@ import { toast } from "@/app/_hooks/use-toast";
 
 type EnderecoForm = {
   CEP: string;
-  numero: string; // Mantém como string para facilitar no formulário
+  numero: string;
   rua: string;
   bairro: string;
   municipio: string;
@@ -26,7 +27,7 @@ type EnderecoForm = {
 };
 
 const EnderecoDialog: React.FC = () => {
-  const { data: session, status } = useSession(); // Verifica se o usuário está autenticado
+  const { session, status } = useAuthStore();
   const form = useForm<EnderecoForm>({
     defaultValues: {
       CEP: "",
@@ -41,7 +42,7 @@ const EnderecoDialog: React.FC = () => {
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      signIn(); // Redireciona para a página de login caso o usuário não esteja autenticado
+      signIn();
     }
   }, [status]);
 
@@ -49,7 +50,6 @@ const EnderecoDialog: React.FC = () => {
     return <div>Carregando...</div>;
   }
 
-  // Função para salvar o endereço
   const handleSubmit = async (data: EnderecoForm) => {
     if (!session?.user?.id) {
       console.error("Usuário não autenticado.");
@@ -60,8 +60,8 @@ const EnderecoDialog: React.FC = () => {
     try {
       const payload = {
         ...data,
-        numero: parseInt(data.numero, 10), // Converte o número para Int
-        userId: session.user.id, // Associa o endereço ao usuário autenticado
+        numero: parseInt(data.numero, 10),
+        userId: session.user.id,
       };
 
       const response = await fetch("/api/enderecos", {
@@ -85,7 +85,6 @@ const EnderecoDialog: React.FC = () => {
     }
   };
 
-  // Função para consultar o CEP
   const checkCEP = (e: React.ChangeEvent<HTMLInputElement>) => {
     const cep = e.target.value.replace(/\D/g, "");
     if (cep.length === 8) {
