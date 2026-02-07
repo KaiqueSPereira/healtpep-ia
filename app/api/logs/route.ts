@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
   try {
     const errorData = await request.json();
-    // Por enquanto, vamos apenas registrar o erro no console do lado do servidor.
-    console.error("Erro do lado do cliente registrado:", errorData);
 
-    // No futuro, você pode salvar isso em um banco de dados, um arquivo ou enviar para um serviço de log.
+    await prisma.errorLog.create({
+      data: {
+        message: errorData.message,
+        stack: errorData.stack,
+        url: errorData.url,
+      },
+    });
 
     return NextResponse.json({ message: "Erro registrado com sucesso" }, { status: 200 });
   } catch (e) {

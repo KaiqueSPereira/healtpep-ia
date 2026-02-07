@@ -363,3 +363,11 @@ model Notification {
 
   @@index([userId])
 }
+
+model ErrorLog {
+  id        String   @id @default(uuid())
+  message   String
+  stack     String?
+  url       String?
+  timestamp DateTime @default(now())
+}
