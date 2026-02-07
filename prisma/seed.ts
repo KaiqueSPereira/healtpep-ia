@@ -1,97 +1,78 @@
 
 import { PrismaClient } from '@prisma/client';
-import Papa from 'papaparse';
-import https from 'https';
 
 const prisma = new PrismaClient();
 
-const ANVISA_CSV_URL = 'https://dados.anvisa.gov.br/dados/TA_PRECOS_MEDICAMENTOS.csv';
+// Lista de permissões fundamentais do sistema
+const permissions = [
+  // --- Administração Geral ---
+  { name: 'view_admin_dashboard', description: 'Acessar o painel de administração' },
+  { name: 'view_error_logs', description: 'Visualizar logs de erro do sistema' },
 
-const agent = new https.Agent({
-  rejectUnauthorized: false
-});
+  // --- Gerenciamento de Usuários ---
+  { name: 'manage_users', description: 'Criar, editar e remover usuários' },
+  { name: 'assign_roles', description: 'Atribuir perfis aos usuários' },
+
+  // --- Gerenciamento de Perfis e Permissões ---
+  { name: 'manage_roles', description: 'Criar, editar e remover perfis (roles)' },
+  { name: 'manage_permissions', description: 'Atribuir permissões aos perfis' },
+  
+  // --- Faturamento e Assinaturas (Exemplos para o Futuro) ---
+  // { name: 'manage_billing', description: 'Acessar e gerenciar faturamento' },
+  // { name: 'view_analytics', description: 'Visualizar analytics da plataforma' },
+];
 
 async function main() {
-  console.log('Iniciando o processo de seeding do banco de dados...');
-  console.log('Limpando a tabela AnvisaMedicamento...');
-  await prisma.anvisaMedicamento.deleteMany({});
-  console.log('Tabela limpa. Baixando e processando o arquivo CSV da ANVISA...');
-  console.log('(Este processo pode demorar alguns minutos, dependendo da sua conexão)...');
+  console.log('Iniciando o processo de seeding para Perfis e Permissões (RBAC)...');
 
-  await new Promise<void>((resolve, reject) => {
-    let recordsToInsert: any[] = [];
-    let recordCount = 0;
-    const batchSize = 1000;
-
-    https.get(ANVISA_CSV_URL, { agent }, (response) => {
-      if (response.statusCode !== 200) {
-        reject(new Error(`Erro ao baixar o arquivo: Status Code ${response.statusCode}`));
-        return;
-      }
-      
-      response.setEncoding('latin1');
-
-      const parseStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
-        header: true,
-      });
-
-      response.pipe(parseStream);
-
-      parseStream.on('data', async (chunk) => {
-        parseStream.pause();
-
-        // CORREÇÃO: Usando os nomes de coluna corretos identificados no passo anterior.
-        const record = {
-          id: chunk['NU_REGISTRO'],
-          nome: chunk['NO_PRODUTO'],
-          principioAtivo: chunk['DS_SUBSTANCIA'],
-        };
-        
-        if (record.id && record.nome && record.principioAtivo) {
-          recordsToInsert.push(record);
-
-          if (recordsToInsert.length >= batchSize) {
-            recordCount += recordsToInsert.length;
-            console.log(`Inserindo lote de ${recordsToInsert.length} registros... Total processado: ${recordCount}`);
-            await prisma.anvisaMedicamento.createMany({
-              data: recordsToInsert,
-              skipDuplicates: true,
-            });
-            recordsToInsert = [];
-          }
-        }
-        parseStream.resume();
-      });
-
-      parseStream.on('finish', async () => {
-        if (recordsToInsert.length > 0) {
-          recordCount += recordsToInsert.length;
-          console.log(`Inserindo lote final de ${recordsToInsert.length} registros... Total processado: ${recordCount}`);
-          await prisma.anvisaMedicamento.createMany({
-            data: recordsToInsert,
-            skipDuplicates: true,
-          });
-        }
-        console.log('---------------------------------------------------');
-        console.log(`Seeding concluído! Total de ${recordCount} medicamentos inseridos.`);
-        console.log('---------------------------------------------------');
-        resolve();
-      });
-
-      parseStream.on('error', (error) => {
-        console.error('Erro ao processar o CSV:', error.message);
-        reject(error);
-      });
-    }).on('error', (err) => {
-      reject(new Error(`Erro na requisição HTTPS: ${err.message}`));
-    });
+  // 1. Criar todas as permissões
+  // O `skipDuplicates` garante que não teremos erro se o seed rodar novamente.
+  await prisma.permission.createMany({
+    data: permissions,
+    skipDuplicates: true,
   });
+  console.log('Permissões criadas/verificadas com sucesso.');
+
+  const allPermissions = await prisma.permission.findMany();
+
+  // 2. Criar o perfil de Administrador e dar todas as permissões a ele
+  const adminRole = await prisma.role.upsert({
+    where: { name: 'ADMIN' },
+    update: {},
+    create: {
+      name: 'ADMIN',
+      description: 'Administrador com acesso total ao sistema.',
+    },
+  });
+
+  // Limpa permissões antigas para garantir um estado limpo
+  await prisma.permissionOnRole.deleteMany({ where: { roleId: adminRole.id } });
+  // Associa todas as permissões ao perfil ADMIN
+  await prisma.permissionOnRole.createMany({
+    data: allPermissions.map(permission => ({
+      roleId: adminRole.id,
+      permissionId: permission.id,
+    })),
+  });
+  console.log(`Perfil 'ADMIN' criado e associado a ${allPermissions.length} permissões.`);
+
+  // 3. Criar o perfil de Usuário padrão (sem permissões especiais iniciais)
+  await prisma.role.upsert({
+    where: { name: 'USER' },
+    update: {},
+    create: {
+      name: 'USER',
+      description: 'Usuário padrão com permissões básicas de uso da plataforma.',
+    },
+  });
+  console.log("Perfil 'USER' criado com sucesso.");
+
+  console.log('Seeding de RBAC finalizado com sucesso!');
 }
 
 main()
-  .catch(async (e) => {
-    console.error('Ocorreu um erro fatal no script de seeding:', e);
-    await prisma.$disconnect();
+  .catch(e => {
+    console.error('Ocorreu um erro durante o seeding de RBAC:', e);
     process.exit(1);
   })
   .finally(async () => {

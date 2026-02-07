@@ -6,25 +6,22 @@ import { Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
 
 // --- Verificação de Sanidade ---
-// Lança um erro claro se o cliente Prisma não inicializou.
-// Isto está muito provavelmente ligado ao aviso do OpenSSL que você está a ver.
 if (!db) {
   throw new Error(
     "O cliente Prisma (db) não foi encontrado ou não inicializou corretamente. " +
-    "Verifique a sua conexão à base de dados e o aviso sobre o OpenSSL nos logs. " +
-    "Resolva o problema do ambiente (ex: instale o OpenSSL) e reinstale as dependências do Prisma."
+    "Verifique a sua conexão à base de dados e o aviso sobre o OpenSSL nos logs. "
   );
 }
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-// Lança um erro claro se as variáveis de ambiente essenciais para a autenticação não estiverem definidas.
 if (!googleClientId || !googleClientSecret) {
-  throw new Error("As variáveis de ambiente GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET são obrigatórias e não foram encontradas.");
+  throw new Error("As variáveis de ambiente GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET são obrigatórias.");
 }
 // --- Fim da Verificação de Sanidade ---
 
+// 1. Declarar a nova estrutura da sessão para o TypeScript
 declare module "next-auth" {
   interface Session {
     user: {
@@ -32,6 +29,8 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      role?: string | null; // O nome do perfil (ex: "ADMIN")
+      permissions?: string[] | null; // A lista de permissões (ex: ["manage_users"])
     };
   }
 }
@@ -44,14 +43,55 @@ export const authOptions: AuthOptions = {
       clientSecret: googleClientSecret,
     }),
   ],
-  callbacks: {
-    async session({ session, user }) {
-      // Garante que session.user tenha um ID
-      session.user = {
-        ...session.user,
-        id: user.id, // Agora o TypeScript reconhece o ID corretamente
-      };
+  
+  // 2. Evento para atribuir o perfil padrão na criação do usuário
+  events: {
+    async createUser(message) {
+      const userRole = await db.role.findUnique({
+        where: { name: 'USER' },
+      });
 
+      if (userRole) {
+        await db.user.update({
+          where: { id: message.user.id },
+          data: { roleId: userRole.id },
+        });
+        console.log(`Perfil padrão 'USER' atribuído ao novo usuário: ${message.user.id}`);
+      } else {
+        console.error("CRÍTICO: O perfil padrão 'USER' não foi encontrado no banco. Novos usuários não terão um perfil.");
+      }
+    },
+  },
+
+  callbacks: {
+    // 3. Injetar o perfil e as permissões no objeto da sessão
+    async session({ session, user }) {
+      if (session.user) {
+        const userFromDb = await db.user.findUnique({
+          where: { id: user.id },
+          include: {
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+        
+        const roleName = userFromDb?.role?.name ?? null;
+        const permissions = userFromDb?.role?.permissions.map(p => p.permission.name) ?? [];
+
+        session.user = {
+          ...session.user,
+          id: user.id,
+          role: roleName,
+          permissions: permissions,
+        };
+      }
       return session;
     },
   },

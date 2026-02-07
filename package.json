@@ -48,6 +48,7 @@
     "healtpep-ia": "file:",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^0.473.0",
     "next": "^16.1.6",
     "next-auth": "^4.24.11",
