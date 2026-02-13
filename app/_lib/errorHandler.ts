@@ -1,6 +1,13 @@
+interface FormattedError {
+  message: string;
+  stack?: string;
+  timestamp: string;
+  url: string;
+}
+
 const LOG_ENDPOINT = '/api/logs';
 
-function formatError(error: any) {
+function formatError(error: Error): FormattedError {
   return {
     message: error.message,
     stack: error.stack,
@@ -9,7 +16,7 @@ function formatError(error: any) {
   };
 }
 
-async function sendErrorLog(errorData: any) {
+async function sendErrorLog(errorData: FormattedError) {
   try {
     await fetch(LOG_ENDPOINT, {
       method: 'POST',

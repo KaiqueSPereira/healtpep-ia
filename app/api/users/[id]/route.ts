@@ -6,11 +6,39 @@ interface Params {
   id: string;
 }
 
+// Define types based on Prisma schema inference
+interface DadosSaude {
+  id: string;
+  userId: string;
+  CNS: string | null;
+  dataNascimento: string | null;
+  sexo: string | null;
+  tipoSanguineo: string | null;
+  altura: string | null;
+  alergias: string[]; // Array of encrypted strings
+}
+
+interface UserWithDadosSaude {
+  id: string;
+  name: string | null;
+  email: string | null;
+  dadosSaude: DadosSaude | null;
+}
+
+// Define the shape of the decrypted data
+type DecryptedDadosSaude = Omit<DadosSaude, 'alergias'> & {
+  alergias: string[]; // Array of decrypted strings
+}
+
+type DecryptedUser = Omit<UserWithDadosSaude, 'dadosSaude'> & {
+  dadosSaude: DecryptedDadosSaude | null;
+}
+
 // Função para descriptografar os dados de saúde do usuário
-const decryptUserData = (user: any) => {
+const decryptUserData = (user: UserWithDadosSaude | null): DecryptedUser | null => {
   if (!user) return null;
 
-  const decryptedUser = { ...user };
+  const decryptedUser: DecryptedUser = JSON.parse(JSON.stringify(user));
 
   // Descriptografa os dados de saúde
   if (decryptedUser.dadosSaude) {
@@ -42,7 +70,7 @@ export async function GET(request: NextRequest, context: { params: Params }) {
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     }
 
-    const decryptedUser = decryptUserData(user);
+    const decryptedUser = decryptUserData(user as UserWithDadosSaude);
 
     return NextResponse.json(decryptedUser, { status: 200 });
 
@@ -89,7 +117,7 @@ export async function PATCH(request: NextRequest, context: { params: Params }) {
       include: { dadosSaude: true },
     });
 
-    const decryptedUser = decryptUserData(updatedUser);
+    const decryptedUser = decryptUserData(updatedUser as UserWithDadosSaude);
 
     return NextResponse.json(decryptedUser, { status: 200 });
 

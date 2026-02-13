@@ -6,7 +6,7 @@ import { Toaster } from "./ui/toaster";
 import AuthProvider from "../_providers/auth";
 import { ThemeProvider } from "next-themes";
 import { useSession } from 'next-auth/react'; // 1. Importar o hook useSession
-import useAuthStore from '../_stores/authStore'; // 2. Importar nosso store
+import useAuthStore, { CustomSession } from '../_stores/authStore'; // 2. Importar nosso store
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -22,7 +22,7 @@ const SyncAuthStore = ({ children }: { children: React.ReactNode }) => {
     // Sempre que a sessão ou o status do NextAuth mudar...
     if (session) {
       // ...atualiza a sessão no nosso store com os dados completos (incluindo a role).
-      setAuthSession(session as any); // Usamos 'as any' para compatibilidade com o tipo customizado
+      setAuthSession(session as CustomSession); // Usamos 'as any' para compatibilidade com o tipo customizado
     }
     // ...e atualiza o status.
     setAuthStatus(status);

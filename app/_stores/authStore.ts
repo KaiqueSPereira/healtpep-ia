@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 // 1. Definição do tipo da sessão customizada (espelhando auth.ts)
 // Esta é a mudança crucial. Agora o store "sabe" sobre role e permissions.
-interface CustomSession {
+export interface CustomSession {
   user: {
     id: string;
     name?: string | null;

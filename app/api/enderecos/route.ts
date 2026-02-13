@@ -2,19 +2,43 @@ import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 import { encryptString, decryptString } from "@/app/_lib/crypto";
 
+// Based on Prisma schema inference
+interface Endereco {
+  id: string;
+  CEP: string;
+  rua: string;
+  bairro: string;
+  municipio: string;
+  numero: number;
+  UF: string;
+  nome: string;
+  unidadeId: string | null;
+}
+
+// Type for the decrypted data. The encrypted fields might be null if decryption fails or they were null.
+type DecryptedEndereco = Omit<Endereco, 'CEP'|'rua'|'bairro'|'municipio'> & {
+    CEP: string | null;
+    rua: string | null;
+    bairro: string | null;
+    municipio: string | null;
+};
+
+
 // Helper para criptografar dados de endereço
-const encryptEnderecoData = (data: any) => {
-  const encryptedData: any = { ...data };
-  if (data.CEP) encryptedData.CEP = encryptString(data.CEP);
-  if (data.rua) encryptedData.rua = encryptString(data.rua);
-  if (data.bairro) encryptedData.bairro = encryptString(data.bairro);
-  if (data.municipio) encryptedData.municipio = encryptString(data.municipio);
-  if (data.numero) encryptedData.numero = parseInt(data.numero, 10);
+const encryptEnderecoData = (data: Record<string, unknown>): Record<string, unknown> => {
+  const encryptedData: Record<string, unknown> = { ...data };
+  if (typeof data.CEP === 'string') encryptedData.CEP = encryptString(data.CEP);
+  if (typeof data.rua === 'string') encryptedData.rua = encryptString(data.rua);
+  if (typeof data.bairro === 'string') encryptedData.bairro = encryptString(data.bairro);
+  if (typeof data.municipio === 'string') encryptedData.municipio = encryptString(data.municipio);
+  if (typeof data.numero === 'string' && !isNaN(parseInt(data.numero, 10))) {
+      encryptedData.numero = parseInt(data.numero, 10);
+  }
   return encryptedData;
 };
 
 // Helper para descriptografar dados de endereço
-const decryptEnderecoData = (endereco: any) => {
+const decryptEnderecoData = (endereco: Endereco | null): DecryptedEndereco | null => {
   if (!endereco) return null;
   return {
     ...endereco,
@@ -65,11 +89,11 @@ export async function GET(req: Request) {
       if (!endereco) {
         return NextResponse.json({ error: "Endereço não encontrado" }, { status: 404 });
       }
-      const decryptedEndereco = decryptEnderecoData(endereco);
+      const decryptedEndereco = decryptEnderecoData(endereco as Endereco);
       return NextResponse.json(decryptedEndereco);
     } else {
       const enderecos = await db.endereco.findMany();
-      const decryptedEnderecos = enderecos.map(decryptEnderecoData);
+      const decryptedEnderecos = enderecos.map(e => decryptEnderecoData(e as Endereco));
       return NextResponse.json(decryptedEnderecos);
     }
   } catch (error) {

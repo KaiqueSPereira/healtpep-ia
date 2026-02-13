@@ -21,22 +21,12 @@ if (!googleClientId || !googleClientSecret) {
 }
 // --- Fim da Verificação de Sanidade ---
 
-// 1. Declarar a nova estrutura da sessão para o TypeScript
-declare module "next-auth" {
-  interface Session {
-    user: {
-      id: string;
-      name?: string | null;
-      email?: string | null;
-      image?: string | null;
-      role?: string | null; // O nome do perfil (ex: "ADMIN")
-      permissions?: string[] | null; // A lista de permissões (ex: ["manage_users"])
-    };
-  }
-}
+// As declarações de tipo estão centralizadas no arquivo `types/next-auth.d.ts`
 
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(db) as Adapter,
+  // Usar estratégia de sessão JWT é crucial para que o callback `jwt` seja invocado.
+  session: { strategy: "jwt" }, 
   providers: [
     GoogleProvider({
       clientId: googleClientId,
@@ -44,7 +34,6 @@ export const authOptions: AuthOptions = {
     }),
   ],
   
-  // 2. Evento para atribuir o perfil padrão na criação do usuário
   events: {
     async createUser(message) {
       const userRole = await db.role.findUnique({
@@ -64,33 +53,34 @@ export const authOptions: AuthOptions = {
   },
 
   callbacks: {
-    // 3. Injetar o perfil e as permissões no objeto da sessão
-    async session({ session, user }) {
-      if (session.user) {
+    async jwt({ token, user }) {
+      if (user) {
         const userFromDb = await db.user.findUnique({
           where: { id: user.id },
           include: {
             role: {
               include: {
-                permissions: {
-                  include: {
-                    permission: true,
-                  },
-                },
+                permissions: { include: { permission: true } },
               },
             },
           },
         });
-        
-        const roleName = userFromDb?.role?.name ?? null;
-        const permissions = userFromDb?.role?.permissions.map(p => p.permission.name) ?? [];
 
-        session.user = {
-          ...session.user,
-          id: user.id,
-          role: roleName,
-          permissions: permissions,
-        };
+        if (userFromDb && userFromDb.role) {
+          // Garante que apenas o NOME (string) do perfil seja injetado no token
+          token.role = userFromDb.role.name;
+          token.permissions = userFromDb.role.permissions.map(p => p.permission.name);
+        }
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      // As informações da sessão agora vêm diretamente do token JWT
+      if (session.user) {
+        session.user.id = token.sub!; 
+        session.user.role = token.role;
+        session.user.permissions = token.permissions;
       }
       return session;
     },

@@ -1,11 +1,9 @@
 'use client';
 
-import useAuthStore from '@/app/_stores/authStore';
 import Header from '@/app/_components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/_components/ui/card';
 
 export default function ConfiguracoesClient() {
-  const { session } = useAuthStore();
 
   return (
     <div className="flex flex-col h-screen bg-background">

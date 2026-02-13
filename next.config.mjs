@@ -1,5 +1,9 @@
+import withBundleAnalyzer from '@next/bundle-analyzer';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Adicionado para resolver o erro de build do Turbopack, conforme sugestão do erro.
+  turbopack: {},
   webpack: (config, { isServer, webpack }) => {
     // Rule from original config for pdfreader
     config.plugins.push(
@@ -30,4 +34,8 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
+
+export default bundleAnalyzer(nextConfig);

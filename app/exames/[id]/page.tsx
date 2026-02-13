@@ -5,12 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco } from "@prisma/client";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
 import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
 import useAuthStore from "@/app/_stores/authStore";
-import { toast } from "@/app/_hooks/use-toast";
-import { parseISO } from "date-fns";
 
 // Tipo para unidade que inclui o endereço
 type UnidadeComEndereco = UnidadeDeSaude & {
