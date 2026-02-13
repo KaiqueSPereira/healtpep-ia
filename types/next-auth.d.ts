@@ -1,26 +1,35 @@
 
-import { DefaultSession, DefaultUser } from 'next-auth';
+import { DefaultSession } from "next-auth";
+import { JWT } from "next-auth/jwt";
 
-// Defina a estrutura do seu objeto 'role'
-interface Role {
-  id: string;
-  name: string;
-}
+// Arquivo central para estender os tipos do NextAuth
 
-// Estenda a interface User para incluir a propriedade 'role'
-declare module 'next-auth' {
-  interface User extends DefaultUser {
-    role?: Role | null; // A role pode ser opcional ou nula
+declare module "next-auth" {
+  /**
+   * Estende a interface da Sessão para incluir as propriedades customizadas.
+   */
+  interface Session {
+    accessToken?: string;
+    user: {
+      /** O ID do usuário no banco de dados. */
+      id: string;
+      /** O perfil do usuário (ex: ADMIN, USER) como uma string. */
+      role: string | null;
+      /** A lista de permissões associadas ao perfil. */
+      permissions?: string[] | null;
+    } & DefaultSession["user"]; 
   }
+}
 
-  interface Session extends DefaultSession {
-    user?: User | null; // Garante que a sessão use o nosso User estendido
+declare module "next-auth/jwt" {
+  /**
+   * Estende o token JWT para incluir as propriedades customizadas.
+   */
+  interface JWT {
+    accessToken?: string;
+    /** O perfil do usuário (ex: ADMIN, USER) como uma string. */
+    role: string | null;
+    /** A lista de permissões associadas ao perfil. */
+    permissions?: string[] | null;
   }
 }
-
-declare module 'next-auth/jwt' {
-    interface JWT {
-        role?: Role | null;
-    }
-}
-

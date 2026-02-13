@@ -1,8 +1,9 @@
 import { db } from "@/app/_lib/prisma";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { encryptString, decryptString } from "@/app/_lib/crypto";
 
-// Based on Prisma schema inference
+// Tipagem baseada no schema do Prisma
 interface Endereco {
   id: string;
   CEP: string;
@@ -15,26 +16,13 @@ interface Endereco {
   unidadeId: string | null;
 }
 
-// Type for the decrypted data. The encrypted fields might be null if decryption fails or they were null.
-type DecryptedEndereco = Omit<Endereco, 'CEP'|'rua'|'bairro'|'municipio'> & {
-    CEP: string | null;
-    rua: string | null;
-    bairro: string | null;
-    municipio: string | null;
-};
-
-
-// Helper para criptografar dados de endereço
-const encryptEnderecoData = (data: Record<string, unknown>): Record<string, unknown> => {
-  const encryptedData: Record<string, unknown> = { ...data };
-  if (typeof data.CEP === 'string') encryptedData.CEP = encryptString(data.CEP);
-  if (typeof data.rua === 'string') encryptedData.rua = encryptString(data.rua);
-  if (typeof data.bairro === 'string') encryptedData.bairro = encryptString(data.bairro);
-  if (typeof data.municipio === 'string') encryptedData.municipio = encryptString(data.municipio);
-  if (typeof data.numero === 'string' && !isNaN(parseInt(data.numero, 10))) {
-      encryptedData.numero = parseInt(data.numero, 10);
-  }
-  return encryptedData;
+// Tipagem para os dados descriptografados
+type DecryptedEndereco = Omit<Endereco, 'CEP' | 'rua' | 'bairro' | 'municipio' | 'nome'> & {
+  CEP: string | null;
+  rua: string | null;
+  bairro: string | null;
+  municipio: string | null;
+  nome: string | null;
 };
 
 // Helper para descriptografar dados de endereço
@@ -46,41 +34,55 @@ const decryptEnderecoData = (endereco: Endereco | null): DecryptedEndereco | nul
     rua: endereco.rua ? decryptString(endereco.rua) : null,
     bairro: endereco.bairro ? decryptString(endereco.bairro) : null,
     municipio: endereco.municipio ? decryptString(endereco.municipio) : null,
+    nome: endereco.nome ? decryptString(endereco.nome) : null,
   };
 };
 
-// Método POST: Criar um novo endereço
-export async function POST(req: Request) {
+// POST: Criar um novo endereço
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
-    const { CEP, numero, rua, bairro, municipio, UF, nome, unidadeId } = body;
+    const body = await request.json();
+    const { CEP, rua, bairro, municipio, numero, UF, unidadeId } = body;
 
-    if (!CEP || !numero || !rua || !bairro || !municipio || !UF || !nome || isNaN(parseInt(numero, 10))) {
-      return NextResponse.json({ error: "Preencha todos os campos corretamente." }, { status: 400 });
+    if (!CEP || !rua || !bairro || !municipio || !numero || !UF || !unidadeId) {
+      return NextResponse.json({ error: "Todos os campos, incluindo unidadeId, são obrigatórios." }, { status: 400 });
     }
 
-    const encryptedData = encryptEnderecoData({ CEP, rua, bairro, municipio });
+    const unidade = await db.unidadeDeSaude.findUnique({ where: { id: unidadeId } });
+    if (!unidade) {
+      return NextResponse.json({ error: "Unidade de saúde não encontrada." }, { status: 404 });
+    }
+
+    const numeroAsInt = parseInt(numero, 10);
+    if (isNaN(numeroAsInt)) {
+      return NextResponse.json({ error: "O campo 'numero' deve ser um número válido." }, { status: 400 });
+    }
 
     const novoEndereco = await db.endereco.create({
       data: {
-        ...encryptedData,
-        numero: parseInt(numero, 10),
+        CEP: encryptString(CEP),
+        rua: encryptString(rua),
+        bairro: encryptString(bairro),
+        municipio: encryptString(municipio),
+        nome: encryptString(unidade.nome),
+        numero: numeroAsInt,
         UF,
-        nome,
-        unidadeId: unidadeId || null,
+        unidadeId: unidadeId,
       },
     });
 
-    return NextResponse.json(novoEndereco);
+    const decryptedEndereco = decryptEnderecoData(novoEndereco as Endereco);
+    return NextResponse.json(decryptedEndereco, { status: 201 });
+
   } catch (error) {
     console.error("Erro ao salvar o endereço:", error);
     return NextResponse.json({ error: "Erro ao salvar o endereço." }, { status: 500 });
   }
 }
 
-// Método GET: Obter endereços ou um endereço específico
-export async function GET(req: Request) {
-  const url = new URL(req.url);
+// GET: Obter endereços
+export async function GET(request: Request) {
+  const url = new URL(request.url);
   const enderecoId = url.searchParams.get("id");
 
   try {
@@ -102,33 +104,57 @@ export async function GET(req: Request) {
   }
 }
 
-// Método PATCH: Atualizar um endereço
-export async function PATCH(req: Request) {
+// PATCH: Atualizar um endereço
+export async function PATCH(request: Request) {
   try {
-    const body = await req.json();
-    const { id, ...dataToUpdate } = body;
+    const body = await request.json();
+    const { id, CEP, rua, bairro, municipio, numero, UF, unidadeId } = body;
 
     if (!id) {
       return NextResponse.json({ error: "ID do endereço é necessário." }, { status: 400 });
     }
 
-    const encryptedData = encryptEnderecoData(dataToUpdate);
+    const dataToUpdate: Prisma.EnderecoUpdateInput = {};
+
+    if (unidadeId) {
+      const unidade = await db.unidadeDeSaude.findUnique({ where: { id: unidadeId } });
+      if (!unidade) {
+        return NextResponse.json({ error: "Unidade de saúde não encontrada." }, { status: 404 });
+      }
+      dataToUpdate.nome = encryptString(unidade.nome);
+      dataToUpdate.unidadeId = unidadeId;
+    }
+
+    if (CEP) dataToUpdate.CEP = encryptString(CEP);
+    if (rua) dataToUpdate.rua = encryptString(rua);
+    if (bairro) dataToUpdate.bairro = encryptString(bairro);
+    if (municipio) dataToUpdate.municipio = encryptString(municipio);
+    if (numero) {
+      const numeroAsInt = parseInt(numero, 10);
+      if (isNaN(numeroAsInt)) {
+        return NextResponse.json({ error: "O campo 'numero' deve ser um número válido." }, { status: 400 });
+      }
+      dataToUpdate.numero = numeroAsInt;
+    }
+    if (UF) dataToUpdate.UF = UF;
 
     const enderecoAtualizado = await db.endereco.update({
       where: { id },
-      data: encryptedData,
+      data: dataToUpdate,
     });
 
-    return NextResponse.json(enderecoAtualizado);
+    const decryptedEndereco = decryptEnderecoData(enderecoAtualizado as Endereco);
+    return NextResponse.json(decryptedEndereco);
+
   } catch (error) {
     console.error("Erro ao atualizar o endereço:", error);
     return NextResponse.json({ error: "Falha ao atualizar o endereço." }, { status: 500 });
   }
 }
 
-// Método DELETE: Deletar um endereço
-export async function DELETE(req: Request) {
-  const url = new URL(req.url);
+// DELETE: Deletar um endereço
+export async function DELETE(request: Request) {
+  const url = new URL(request.url);
   const enderecoId = url.searchParams.get("id");
 
   if (!enderecoId) {
@@ -137,9 +163,12 @@ export async function DELETE(req: Request) {
 
   try {
     await db.endereco.delete({ where: { id: enderecoId } });
-    return NextResponse.json({ message: "Endereço deletado com sucesso!" });
+    return NextResponse.json({ message: "Endereço deletado com sucesso!" }, { status: 200 });
   } catch (error) {
     console.error("Erro ao deletar o endereço:", error);
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+         return NextResponse.json({ error: "Endereço não encontrado." }, { status: 404 });
+    }
     return NextResponse.json({ error: "Falha ao deletar o endereço." }, { status: 500 });
   }
 }

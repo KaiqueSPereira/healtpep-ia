@@ -63,3 +63,29 @@ export async function updateUserRole(userId: string, roleId: string) {
     // Invalida o cache da página de usuários para que a lista seja recarregada com os novos dados
     revalidatePath('/admin/users');
 }
+
+// Ação para deletar um usuário
+export async function deleteUser(userId: string) {
+    const session = await getServerSession(authOptions);
+
+    // Medida de segurança: Apenas administradores com permissão podem deletar usuários
+    if (!session?.user.permissions?.includes('manage_users')) {
+        throw new Error('Acesso negado. Você não tem permissão para deletar usuários.');
+    }
+
+    if (!userId) {
+        throw new Error('ID do usuário é obrigatório.');
+    }
+
+        // Evitar que o usuário se auto-delete
+    if (session.user.id === userId) {
+        throw new Error('Você não pode deletar a si mesmo.');
+    }
+
+    await db.user.delete({
+        where: { id: userId },
+    });
+
+    // Invalida o cache da página de usuários para que a lista seja recarregada
+    revalidatePath('/admin/users');
+}

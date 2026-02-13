@@ -3,15 +3,10 @@ import { NextResponse } from "next/server";
 import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { db } from "@/app/_lib/prisma";
 
-// Interface para os parâmetros da URL
-interface AnotacaoParams {
-  params: { consultaId: string; anotacaoId: string };
-}
-
 // 📌 PATCH - Atualizar uma anotação específica
 export async function PATCH(
   request: Request,
-  { params }: AnotacaoParams,
+  { params }: { params: { consultaId: string; anotacaoId: string } },
 ) {
   try {
     const body = await request.json();
@@ -49,8 +44,8 @@ export async function PATCH(
 
 // 📌 DELETE - Deletar uma anotação específica
 export async function DELETE(
-  _request: Request,
-  { params }: AnotacaoParams,
+  request: Request,
+  { params }: { params: { consultaId: string; anotacaoId: string } },
 ) {
   try {
     await db.anotacoes.delete({ where: { id: params.anotacaoId } }); // Usando db.anotacao

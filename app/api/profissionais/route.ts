@@ -1,6 +1,6 @@
 import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
@@ -12,13 +12,13 @@ const profissionalCreateSchema = z.object({
   unidadeIds: z.array(z.string().uuid("ID da unidade invalido.")).optional(),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session || !session.user || !session.user.id) {
     return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
+  const { searchParams } = new URL(request.url);
   const unidadeId = searchParams.get('unidadeId');
 
   try {
@@ -50,14 +50,14 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
     const parsedData = profissionalCreateSchema.parse(body);
     const userId = session.user.id;
 

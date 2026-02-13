@@ -72,10 +72,6 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
   },
 });
 
-interface ConsultaParams {
-  params: { consultaId: string };
-}
-
 const getUserId = async (): Promise<string | null> => {
   const session = await getServerSession(authOptions);
   return session?.user?.id || null;
@@ -99,7 +95,7 @@ const decryptAnotacoes = (anotacoes: AnotacaoParaDescriptografar[] | undefined) 
     }));
 };
 
-export async function GET(_request: Request, { params }: ConsultaParams) {
+export async function GET(request: Request, { params }: { params: { consultaId: string } }) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -140,7 +136,7 @@ export async function GET(_request: Request, { params }: ConsultaParams) {
   }
 }
 
-export async function PATCH(request: Request, { params }: ConsultaParams) {
+export async function PATCH(request: Request, { params }: { params: { consultaId: string } }) {
   try {
     const userId = await getUserId();
     if (!userId) {
@@ -183,7 +179,7 @@ export async function PATCH(request: Request, { params }: ConsultaParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: ConsultaParams) {
+export async function DELETE(request: Request, { params }: { params: { consultaId: string } }) {
   try {
     const userId = await getUserId();
     if (!userId) {

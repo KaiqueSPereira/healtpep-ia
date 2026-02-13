@@ -27,7 +27,7 @@ const medicamentoUpdateSchema = z.object({
   consultaId: z.string().optional().nullable(),
 });
 
-export async function GET(req: Request, { params }: { params: { Id: string } }) {
+export async function GET(request: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -62,7 +62,7 @@ export async function GET(req: Request, { params }: { params: { Id: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { Id: string } }) {
+export async function PATCH(request: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -74,7 +74,7 @@ export async function PATCH(req: Request, { params }: { params: { Id: string } }
       return new NextResponse('Medicamento não encontrado ou não autorizado', { status: 404 });
     }
 
-    const json = await req.json();
+    const json = await request.json();
     const body = medicamentoUpdateSchema.parse(json);
 
     const { nome, principioAtivo, posologia, forma, ...restOfBody } = body;
@@ -104,7 +104,7 @@ export async function PATCH(req: Request, { params }: { params: { Id: string } }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { Id: string } }) {
+export async function DELETE(request: Request, { params }: { params: { Id: string } }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {

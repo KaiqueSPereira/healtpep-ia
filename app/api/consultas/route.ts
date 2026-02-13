@@ -14,9 +14,9 @@ const getUserSessionAndId = async (): Promise<{ session: Session | null, userId:
   return { session, userId: session.user.id };
 };
 
-export async function GET(req: Request) {
+export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
 
     if (searchParams.get("tipo") === "true") {
       const consultaTipos: { tipo: string }[] = await db.$queryRaw`
@@ -88,7 +88,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     const { session, userId } = await getUserSessionAndId();
 
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    const body = await req.json();
+    const body = await request.json();
 
     const {
       data,

@@ -2,9 +2,9 @@ import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 
 // Método POST (mantido para a rota sem ID) - Note: Este POST aqui é incomum. A criação geralmente seria em /unidadesaude/route.ts
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json();
+    const body = await request.json();
     const { nome, tipo, enderecoId, telefone } = body;
 
     // Validação dos campos obrigatórios
@@ -67,10 +67,10 @@ export async function POST(req: Request) {
 
 
 // Método PATCH
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params; // Get ID from URL parameters
-    const body = await req.json();
+    const body = await request.json();
     const { nome, tipo, endereco, telefone } = body;
 
     if (!id) {

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
@@ -16,8 +16,8 @@ interface ResultadoExameInput {
 
 // GET (Buscando um exame específico) - Permanece o mesmo
 export async function GET(
-  req: NextRequest,
-  context: { params: { id: string } },
+  request: Request,
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
@@ -26,7 +26,7 @@ export async function GET(
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const id = context.params.id;
+  const id = params.id;
 
   if (!id) {
     return NextResponse.json({ error: "ID inválido" }, { status: 400 });
@@ -103,15 +103,15 @@ export async function GET(
 
 // PUT (Atualizando um exame) - CORRIGIDO PARA USAR FORMDATA
 export async function PUT(
-  req: NextRequest,
-  context: { params: { id: string } },
+  request: Request,
+  { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const id = context.params.id;
+  const id = params.id;
   if (!id) {
     return NextResponse.json(
       { error: "ID do exame é obrigatório na URL" },
@@ -120,7 +120,7 @@ export async function PUT(
   }
 
   try {
-    const formData = await req.formData();
+    const formData = await request.formData();
     
     // Extrai os campos do FormData
     const anotacao = formData.get("anotacao") as string | null;
@@ -241,15 +241,15 @@ export async function PUT(
 
 // DELETE (Deletando um exame) - Permanece o mesmo
 export async function DELETE(
-    req: NextRequest,
-    context: { params: { id: string } },
+    request: Request,
+    { params }: { params: { id: string } },
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const id = context.params.id;
+  const id = params.id;
 
   try {
     await prisma.exame.delete({ where: { id: id, userId: session.user.id } });

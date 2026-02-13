@@ -1,12 +1,7 @@
 import { prisma } from '@/app/_lib/prisma';
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse} from 'next/server';
 import { encryptString, decryptString } from '@/app/_lib/crypto';
 
-interface Params {
-  id: string;
-}
-
-// Define types based on Prisma schema inference
 interface DadosSaude {
   id: string;
   userId: string;
@@ -54,9 +49,9 @@ const decryptUserData = (user: UserWithDadosSaude | null): DecryptedUser | null 
   return decryptedUser;
 };
 
-export async function GET(request: NextRequest, context: { params: Params }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = context.params.id;
+    const userId = params.id;
     if (!userId) {
       return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
     }
@@ -81,9 +76,9 @@ export async function GET(request: NextRequest, context: { params: Params }) {
   }
 }
 
-export async function PATCH(request: NextRequest, context: { params: Params }) {
+export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const userId = context.params.id;
+    const userId = params.id;
     const body = await request.json();
 
     if (!userId) {

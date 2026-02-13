@@ -75,14 +75,14 @@ export async function GET() {
 }
 
 // --- FUNÇÃO POST: CRIPTOGRAFAR E CRIAR NOVO MEDICAMENTO ---
-export async function POST(req: Request) {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return new NextResponse('Não autorizado', { status: 401 });
     }
 
-    const json = await req.json();
+    const json = await request.json();
     const body = medicamentoCreateSchema.parse(json);
 
     // Criptografa os dados antes de salvar no banco

@@ -1,14 +1,9 @@
 // app/api/profissional/[profissionalId]/route.ts
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { ApiRouteHandler } from "../../types"; // Certifique-se que esta importação está correta
 import { z } from "zod"; // Importar Zod para validação no PATCH
 import { Prisma } from "@prisma/client";
 import { decryptString } from "@/app/_lib/crypto";
-
-type ProfissionalParams = {
-  profissionalId: string;
-};
 
 // Schema para validação parcial dos dados no PATCH
 const profissionalPatchSchema = z.object({
@@ -20,10 +15,10 @@ const profissionalPatchSchema = z.object({
 }).strict().partial(); // Permitir apenas campos definidos e torná-los todos opcionais
 
 // Método GET (Buscar um profissional específico por ID)
-export const GET: ApiRouteHandler<ProfissionalParams> = async (
-  _request,
-  { params },
-) => {
+export async function GET(
+  request: Request,
+  { params }: { params: { profissionalId: string } },
+) {
   try {
     const profissional = await db.profissional.findUnique({
       where: { id: params.profissionalId },
@@ -72,13 +67,13 @@ export const GET: ApiRouteHandler<ProfissionalParams> = async (
     { status: 500 },
   );
 }
-};
+}
 
 // Método PATCH (Atualizar os dados principais de um profissional por ID)
-export const PATCH: ApiRouteHandler<ProfissionalParams> = async (
-  request,
-  { params },
-) => {
+export async function PATCH(
+  request: Request,
+  { params }: { params: { profissionalId: string } },
+) {
   try {
     const { profissionalId } = params;
     const body = await request.json();
@@ -115,13 +110,13 @@ export const PATCH: ApiRouteHandler<ProfissionalParams> = async (
       { status: 500 },
     );
   }
-};
+}
 
 // Método DELETE (Excluir um profissional específico por ID)
-export const DELETE: ApiRouteHandler<ProfissionalParams> = async (
-  _request,
-  { params },
-) => {
+export async function DELETE(
+  request: Request,
+  { params }: { params: { profissionalId: string } },
+) {
   try {
     const { profissionalId } = params;
 
@@ -147,4 +142,4 @@ export const DELETE: ApiRouteHandler<ProfissionalParams> = async (
       { status: 500 },
     );
   }
-};
+}

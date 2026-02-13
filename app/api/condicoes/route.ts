@@ -1,6 +1,6 @@
 
 import { prisma } from '@/app/_lib/prisma';
-import { NextResponse, NextRequest } from 'next/server';
+import { NextResponse} from 'next/server';
 import { z } from 'zod';
 import { encryptString, decryptString } from '@/app/_lib/crypto';
 
@@ -14,7 +14,7 @@ const condicaoCreateSchema = z.object({
   profissionalId: z.string().optional(), // Validação para o ID do profissional
 });
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
