@@ -1,60 +1,26 @@
-import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
+import dynamic from 'next/dynamic';
+import { Loader2 } from 'lucide-react';
+
+const ExameLineChartContent = dynamic(() => import('./ExameLineChartContent'), {
+  loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+  ssr: false,
+});
 
 interface ExameLineChartProps {
   data: {
-    labels: string[]; // Datas dos exames
+    labels: string[];
     datasets: {
-      label: string; // Nome do resultado (ex: "Glicose")
-      data: number[]; // Valores do resultado
+      label: string;
+      data: number[];
       borderColor: string;
       backgroundColor: string;
     }[];
   };
-  title: string; // Título do gráfico
+  title: string;
 }
 
 const ExameLineChart = ({ data, title }: ExameLineChartProps) => {
-  // Transforma os dados do formato Chart.js para o formato Recharts
-  const transformedData = data.labels.map((label, index) => {
-    const dataPoint: { [key: string]: string | number } = { date: label };
-    data.datasets.forEach(dataset => {
-      dataPoint[dataset.label] = dataset.data[index];
-    });
-    return dataPoint;
-  });
-
-  return (
-    <div className="w-full h-80">
-      <h3 className="text-lg font-semibold text-center mb-4">{title}</h3>
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart
-          data={transformedData}
-          margin={{
-            top: 5,
-            right: 30,
-            left: 20,
-            bottom: 5,
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          {data.datasets.map(dataset => (
-            <Line
-              key={dataset.label}
-              type="monotone"
-              dataKey={dataset.label}
-              stroke={dataset.borderColor}
-              fill={dataset.backgroundColor}
-              activeDot={{ r: 8 }}
-            />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
-  );
+  return <ExameLineChartContent data={data} title={title} />;
 };
 
 export default ExameLineChart;

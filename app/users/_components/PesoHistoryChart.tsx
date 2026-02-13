@@ -7,7 +7,13 @@ import { Label } from '@/app/_components/ui/label';
 import { Input } from '@/app/_components/ui/input';
 import { Button } from '@/app/_components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
+import dynamic from 'next/dynamic';
+
+const PesoHistoryChartContent = dynamic(() => import('./PesoHistoryChartContent'), {
+  loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+  ssr: false,
+});
+
 
 interface PesoRegistro {
   id: string;
@@ -37,17 +43,6 @@ export default function PesoHistoryChart({
   const [novaDataPeso, setNovaDataPeso] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-
-  const formatarDataGrafico = (dataString: string): string => {
-    try {
-      const date = new Date(dataString);
-      date.setUTCHours(0, 0, 0, 0);
-      if (isNaN(date.getTime())) return "Inválido";
-      return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
-    } catch {
-      return dataString;
-    }
-  };
   
   const handleAddPeso = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,21 +67,7 @@ export default function PesoHistoryChart({
   };
 
   const safeHistoricoPeso = Array.isArray(historicoPeso) ? historicoPeso : [];
-  const sortedHistoricoPeso = [...safeHistoricoPeso].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-
-  const transformedData = sortedHistoricoPeso.map(registro => ({
-    date: formatarDataGrafico(registro.data),
-    peso: parseFloat(registro.peso),
-  })).filter(d => !isNaN(d.peso));
-
-  const pesos = transformedData.map(d => d.peso);
-  const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
-  const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 100;
-  const yAxisDomain = [
-      minPeso > 10 ? Math.floor(minPeso - 5) : 0,
-      maxPeso > 0 ? Math.ceil(maxPeso + 5) : 100
-  ];
-
+  
   return (
     <Card className="border-none">
       <CardHeader><CardTitle>Histórico de Peso</CardTitle></CardHeader>
@@ -102,24 +83,10 @@ export default function PesoHistoryChart({
           <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>
         ) : error ? (
           <p className="text-red-500">{error}</p>
-        ) : transformedData.length === 0 ? (
+        ) : safeHistoricoPeso.length === 0 ? (
           <p className="text-center text-muted-foreground pt-4">Nenhum registro de peso encontrado.</p>
         ) : (
-          <div className="w-full h-80 mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={transformedData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" name="Data" />
-                <YAxis domain={yAxisDomain} name="Peso (kg)" />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#8884d8" activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <PesoHistoryChartContent historicoPeso={safeHistoricoPeso} />
         )}
       </CardContent>
     </Card>

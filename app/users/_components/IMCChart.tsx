@@ -1,10 +1,15 @@
-// app/users/_components/IMCChart.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for the chart component
+const IMCChartContent = dynamic(() => import('./IMCChartContent'), {
+  loading: () => <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin" /></div>,
+  ssr: false,
+});
 
 interface PesoRegistro {
   id: string;
@@ -22,30 +27,6 @@ interface IMCChartProps {
   loadingHistorico: boolean;
   errorHistorico: string | null;
 }
-
-const calcularIMC = (peso: number, alturaEmMetros: number): string | null => {
-  if (alturaEmMetros <= 0 || peso <= 0) return null;
-  const imc = peso / (alturaEmMetros * alturaEmMetros);
-  return imc.toFixed(2);
-};
-
-const determinarFaixaIMC = (imc: number): string => {
-  if (imc < 18.5) return 'Abaixo do peso';
-  if (imc >= 18.5 && imc < 25) return 'Peso normal';
-  if (imc >= 25 && imc < 30) return 'Sobrepeso';
-  if (imc >= 30 && imc < 35) return 'Obesidade Grau 1';
-  if (imc >= 35 && imc < 40) return 'Obesidade Grau 2';
-  return 'Obesidade Grau 3 (Mórbida)';
-};
-
-const imcLabels = ['Abaixo do peso', 'Peso normal', 'Sobrepeso', 'Obesidade Grau 1', 'Obesidade Grau 2', 'Obesidade Grau 3 (Mórbida)'];
-const imcValues = [18.5, 6.5, 5, 5, 5, 10]; // Representa a largura de cada faixa no gráfico
-const imcColors = ['#3498db', '#2ecc71', '#f1c40f', '#e67e22', '#d35400', '#c0392b'];
-
-const pieData = imcLabels.map((label, index) => ({
-  name: label,
-  value: imcValues[index],
-}));
 
 export default function IMCChart({ userHeight, historicoPeso, loadingHistorico, errorHistorico }: IMCChartProps) {
   const [ultimoIMCCalculado, setUltimoIMCCalculado] = useState<string | null>(null);
@@ -86,39 +67,27 @@ export default function IMCChart({ userHeight, historicoPeso, loadingHistorico, 
         ) : ultimoIMCCalculado === null ? (
            <p className="text-orange-500">Não foi possível calcular o IMC.</p>
         ) : (
-          <div className="relative w-full h-48 flex justify-center items-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  cx="50%"
-                  cy="100%" // Posiciona o centro na base do container
-                  startAngle={180}
-                  endAngle={0}
-                  innerRadius="70%"
-                  outerRadius="100%"
-                  paddingAngle={2}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell 
-                      key={`cell-${index}`} 
-                      fill={faixaIMCUltimoRegistro === entry.name ? imcColors[index] : `${imcColors[index]}80`} 
-                      stroke={faixaIMCUltimoRegistro === entry.name ? '#ffffff' : 'transparent'}
-                      strokeWidth={2}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value, name) => [null, name]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-full text-center">
-              <p className="text-2xl font-bold">{ultimoIMCCalculado}</p>
-              <p className="text-sm text-gray-600">{faixaIMCUltimoRegistro}</p>
-            </div>
-          </div>
+          <IMCChartContent 
+            ultimoIMCCalculado={ultimoIMCCalculado}
+            faixaIMCUltimoRegistro={faixaIMCUltimoRegistro}
+          />
         )}
       </CardContent>
     </Card>
   );
 }
+
+// Helper functions can remain in this file or be moved to a utils file
+const calcularIMC = (peso: number, alturaEmMetros: number): string | null => {
+  if (alturaEmMetros <= 0 || peso <= 0) return null;
+  const imc = peso / (alturaEmMetros * alturaEmMetros);
+  return imc.toFixed(2);
+};
+
+const determinarFaixaIMC = (imc: number): string => {
+  if (imc < 18.5) return 'Abaixo do peso';
+  if (imc >= 18.5 && imc < 25) return 'Sobrepeso';
+  if (imc >= 25 && imc < 30) return 'Obesidade Grau 1';
+  if (imc >= 35 && imc < 40) return 'Obesidade Grau 2';
+  return 'Obesidade Grau 3 (Mórbida)';
+};
