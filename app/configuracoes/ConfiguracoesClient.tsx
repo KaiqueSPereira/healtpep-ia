@@ -1,55 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import useAuthStore from '@/app/_stores/authStore';
-import { Button } from '@/app/_components/ui/button';
 import Header from '@/app/_components/header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { CheckCircle, Link as LinkIcon, Loader2 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
-import { toast } from '@/app/_hooks/use-toast';
-import Image from 'next/image';
 
 export default function ConfiguracoesClient() {
   const { session } = useAuthStore();
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const searchParams = useSearchParams();
-
-  useEffect(() => {
-    if (searchParams.get('calendar') === 'success') {
-      toast({
-        title: "Sucesso!",
-        description: "Sua conta do Google Agenda foi conectada.",
-        variant: "default",
-      });
-    }
-
-    const checkConnectionStatus = async () => {
-      if (!session) return;
-      setLoading(true);
-      try {
-        const response = await fetch('/api/google-calendar/status');
-        if (response.ok) {
-          const data = await response.json();
-          setIsCalendarConnected(data.isConnected);
-        } else {
-          setIsCalendarConnected(false);
-        }
-      } catch (error) {
-        setIsCalendarConnected(false);
-        console.error("Erro ao verificar status do Google Calendar:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkConnectionStatus();
-  }, [session, searchParams]);
-
-  const handleConnect = () => {
-    window.location.href = '/api/google-calendar';
-  };
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -66,30 +22,8 @@ export default function ConfiguracoesClient() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                    <Image src="/google-calendar.png" alt="Google Calendar" width={40} height={40} />
-                    <div>
-                        <h3 className="font-semibold">Google Agenda</h3>
-                        <p className="text-sm text-muted-foreground">
-                            Sincronize suas consultas e exames com sua agenda pessoal.
-                        </p>
-                    </div>
-                </div>
-                
-                {loading ? (
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                ) : isCalendarConnected ? (
-                    <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle className="h-5 w-5" />
-                        <span className="font-medium">Conectado</span>
-                    </div>
-                ) : (
-                    <Button onClick={handleConnect} variant="outline">
-                        <LinkIcon className="mr-2 h-4 w-4" />
-                        Conectar
-                    </Button>
-                )}
+              <div className="flex items-center justify-center p-4 border rounded-lg">
+                <p className="text-sm text-muted-foreground">Nenhuma integração disponível no momento.</p>
               </div>
             </CardContent>
           </Card>

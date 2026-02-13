@@ -6,7 +6,7 @@ import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, En
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
-import { Pencil, BrainCircuit, RefreshCw, FileText, Calendar as CalendarIcon } from "lucide-react";
+import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
 import Link from "next/link";
 import useAuthStore from "@/app/_stores/authStore";
 import { toast } from "@/app/_hooks/use-toast";
@@ -38,9 +38,6 @@ export default function ExameDetalhePage() {
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
-  const [isAddingToCalendar, setIsAddingToCalendar] = useState(false);
 
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -100,21 +97,13 @@ export default function ExameDetalhePage() {
     const fetchExameDetails = async () => {
       try {
         setLoading(true);
-        const [resExame, calendarStatusResponse] = await Promise.all([
-            fetch(`/api/exames/${id}`),
-            fetch('/api/google-calendar/status')
-        ]);
+        const resExame = await fetch(`/api/exames/${id}`);
 
         if (!resExame.ok) throw new Error(`Erro ao buscar detalhes do exame`);
         
         const dataExame = await resExame.json();
         const examData: ExameComDetalhes = dataExame?.exame;
         setExame(examData);
-
-        if (calendarStatusResponse.ok) {
-            const calendarData = await calendarStatusResponse.json();
-            setIsCalendarConnected(calendarData.isConnected);
-        }
 
         if (examData && !examData.analiseIA) {
           triggerAnalysis();
@@ -138,41 +127,6 @@ export default function ExameDetalhePage() {
       }
     };
   }, [id, triggerAnalysis]);
-
-  const handleAddToCalendar = async () => {
-    if (!exame) return;
-
-    setIsAddingToCalendar(true);
-    try {
-        const startTime = parseISO(exame.dataExame.toString());
-        const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
-
-        const description = `Exame solicitado por ${exame.profissional?.nome || 'profissional não especificado'}.\n` +
-                            `Local: ${exame.unidades?.nome || 'não especificado'}.\n` +
-                            `Endereço: ${exame.unidades?.endereco ? `${exame.unidades.endereco.rua}, ${exame.unidades.endereco.numero} - ${exame.unidades.endereco.bairro}, ${exame.unidades.endereco.municipio}` : 'não especificado'}`;
-
-        const response = await fetch('/api/google-calendar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                summary: `Exame: ${exame.nome}`,
-                description: description,
-                start: startTime.toISOString(),
-                end: endTime.toISOString(),
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error('Falha ao criar o evento no Google Agenda.');
-        }
-
-        toast({ title: "Sucesso!", description: "Exame adicionado ao seu Google Agenda." });
-    } catch (error) {
-        toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
-    } finally {
-        setIsAddingToCalendar(false);
-    }
-  };
 
   const handleRefreshAnalysis = () => {
     setExame(prev => prev ? { ...prev, analiseIA: null } : null);
@@ -218,24 +172,6 @@ export default function ExameDetalhePage() {
               </Link>
             </Button>
           </div>
-
-          {isCalendarConnected && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Integração</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={handleAddToCalendar} disabled={isAddingToCalendar} className="w-full">
-                        {isAddingToCalendar ? "Adicionando..." : (
-                            <>
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                Adicionar ao Google Agenda
-                            </>                        
-                        )}
-                    </Button>
-                </CardContent>
-            </Card>
-          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">
