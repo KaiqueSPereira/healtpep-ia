@@ -176,7 +176,7 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
             return;
         }
         try {
-            const method = medicamento ? 'PUT' : 'POST';
+            const method = medicamento ? 'PATCH' : 'POST';
             const endpoint = medicamento ? `/api/medicamentos/${medicamento.id}` : '/api/medicamentos';
             
             const payload = { ...data, userId: session.user.id, dataFim: data.dataFim || null };

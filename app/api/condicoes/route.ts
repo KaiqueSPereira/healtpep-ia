@@ -1,80 +1,108 @@
 
+import { NextResponse } from 'next/server';
 import { prisma } from '@/app/_lib/prisma';
-import { NextResponse} from 'next/server';
-import { z } from 'zod';
-import { encryptString, decryptString } from '@/app/_lib/crypto';
+import { decryptString, encryptString } from '@/app/_lib/crypto';
 
-const condicaoCreateSchema = z.object({
-  userId: z.string().min(1, 'O ID do usuário é obrigatório.'),
-  nome: z.string().min(2, "O nome da condição é obrigatório."),
-  dataInicio: z.coerce.date({ required_error: "A data de início é obrigatória." }),
-  cidCodigo: z.string().optional(),
-  cidDescricao: z.string().optional(),
-  observacoes: z.string().optional(),
-  profissionalId: z.string().optional(), // Validação para o ID do profissional
-});
-
+// GET: Retorna todas as condições de saúde
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('userId');
+    const condicoes = await prisma.condicaoSaude.findMany();
 
-    if (!userId) {
-      return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
-    }
-
-    const condicoes = await prisma.condicaoSaude.findMany({
-      where: { userId: userId },
-      include: { profissional: true }, // Inclui o profissional vinculado
-      orderBy: { dataInicio: 'desc' },
-    });
-
-    const decryptedCondicoes = condicoes.map(cond => ({
-      ...cond,
-      nome: decryptString(cond.nome),
-      observacoes: cond.observacoes ? decryptString(cond.observacoes) : null,
-      // O profissional não precisa de descriptografia
+    const decryptedCondicoes = condicoes.map(condicao => ({
+      ...condicao,
+      nome: decryptString(condicao.nome),
+      objetivo: condicao.objetivo ? decryptString(condicao.objetivo) : null,
+      observacoes: condicao.observacoes ? decryptString(condicao.observacoes) : null,
     }));
 
-    return NextResponse.json(decryptedCondicoes, { status: 200 });
+    return NextResponse.json(decryptedCondicoes);
   } catch (error) {
-    console.error("Erro ao buscar condições de saúde:", error);
-    return NextResponse.json({ error: 'Falha ao buscar condições de saúde' }, { status: 500 });
+    console.error('Erro ao buscar condições de saúde:', error);
+    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
 
-export async function POST(request: Request) {
+
+// DELETE: Deleta uma condição de saúde específica
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const condicaoId = params.id;
+
+  if (!condicaoId) {
+    return new NextResponse(JSON.stringify({ error: 'ID da condição é obrigatório' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  try {
+    await prisma.condicaoSaude.delete({ where: { id: condicaoId } });
+    return new NextResponse(null, { status: 204 }); // Sucesso, sem conteúdo
+  } catch (error) {
+    console.error('Erro ao deletar condição de saúde:', error);
+    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
+// PATCH: Atualiza uma condição de saúde específica
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const condicaoId = params.id;
+
+  if (!condicaoId) {
+    return new NextResponse(JSON.stringify({ error: 'ID da condição é obrigatório' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const body = await request.json();
-    const validation = condicaoCreateSchema.safeParse(body);
+    const { nome, objetivo, observacoes, profissionalId } = body;
 
-    if (!validation.success) {
-      return NextResponse.json({ errors: validation.error.flatten().fieldErrors }, { status: 400 });
-    }
+    const dataToUpdate: {
+      nome?: string;
+      objetivo?: string | null;
+      observacoes?: string | null;
+      profissionalId?: string | null;
+    } = {};
 
-    const { userId, nome, dataInicio, cidCodigo, cidDescricao, observacoes, profissionalId } = validation.data;
+    if (nome) dataToUpdate.nome = encryptString(nome);
+    if (objetivo) dataToUpdate.objetivo = encryptString(objetivo);
+    if (observacoes) dataToUpdate.observacoes = encryptString(observacoes);
+    // Permite definir o profissionalId como null se ele for removido
+    if (profissionalId !== undefined) dataToUpdate.profissionalId = profissionalId;
 
-    const newCondicao = await prisma.condicaoSaude.create({
-      data: {
-        userId,
-        nome: encryptString(nome),
-        dataInicio,
-        cidCodigo,
-        cidDescricao,
-        observacoes: observacoes ? encryptString(observacoes) : undefined,
-        profissionalId: profissionalId || null, // Salva o ID do profissional
-      },
+
+    const updatedCondicao = await prisma.condicaoSaude.update({
+      where: { id: condicaoId },
+      data: dataToUpdate,
     });
 
-    const decryptedResponse = {
-        ...newCondicao,
-        nome: decryptString(newCondicao.nome),
-        observacoes: newCondicao.observacoes ? decryptString(newCondicao.observacoes) : null,
+    const decryptedCondicao = {
+      ...updatedCondicao,
+      nome: decryptString(updatedCondicao.nome),
+      objetivo: updatedCondicao.objetivo ? decryptString(updatedCondicao.objetivo) : null,
+      observacoes: updatedCondicao.observacoes ? decryptString(updatedCondicao.observacoes) : null,
     };
 
-    return NextResponse.json(decryptedResponse, { status: 201 });
+    return NextResponse.json(decryptedCondicao);
+
   } catch (error) {
-    console.error("Erro ao criar condição de saúde:", error);
-    return NextResponse.json({ error: 'Falha ao criar condição de saúde' }, { status: 500 });
+    console.error('Erro ao atualizar condição de saúde:', error);
+    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }

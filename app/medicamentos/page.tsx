@@ -49,7 +49,7 @@ export default function MedicamentosPage() {
       setLoading(true);
       const [medicamentosRes, condicoesRes, profissionaisRes, consultasRes] = await Promise.all([
         fetch(`/api/medicamentos`),
-        fetch(`/api/condicoessaude`),
+        fetch(`/api/condicoes`),
         fetch(`/api/profissionais`),
         fetch(`/api/consultas`)
       ]);
