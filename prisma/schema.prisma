@@ -1,4 +1,3 @@
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -9,102 +8,64 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ENUMS
-enum TipoAnexo {
-  Encaminhamento
-  Atestado_Declaracao
-  Receita_Medica
-  Relatorio
-  Outro
-}
-
-enum StatusMedicamento {
-  Ativo
-  Concluido
-  Suspenso
-}
-
-enum FrequenciaTipo {
-  Hora
-  Dia
-  Semana
-  Mes
-}
-
-enum TipoMedicamento {
-  Uso_Continuo
-  Tratamento_Clinico
-  Esporadico
-}
-
-// MODELOS DE CONTROLE DE ACESSO (RBAC)
-
 model Role {
-  id          String           @id @default(cuid())
-  name        String           @unique
+  id          String             @id @default(cuid())
+  name        String             @unique
   description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   permissions PermissionOnRole[]
   users       User[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model Permission {
-  id          String           @id @default(cuid())
-  name        String           @unique // Ex: "manage_users", "view_billing"
+  id          String             @id @default(cuid())
+  name        String             @unique
   description String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
   roles       PermissionOnRole[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 model PermissionOnRole {
   roleId       String
   permissionId String
-  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
 }
 
-
-// MODELOS PRINCIPAIS
-
 model User {
-  id             String          @id @default(cuid())
+  id             String           @id @default(cuid())
   name           String?
-  email          String          @unique
+  email          String           @unique
   emailVerified  DateTime?
   image          String?
-
-  roleId         String?      // Relacionamento com o perfil
-  role           Role?        @relation(fields: [roleId], references: [id])
-
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  roleId         String?
   accounts       Account[]
   Authenticator  Authenticator[]
-  consultas      Consultas[]
-  endereco       Endereco[]
-  sessions       Session[]
   condicoesSaude CondicaoSaude[]
-  exames         Exame[]
+  consultas      Consultas[]
   dadosSaude     DadosSaude?
-  historicoPeso  PesoHistorico[]
-  profissionais  Profissional[]
-  unidades       UnidadeDeSaude[]
+  endereco       Endereco[]
+  exames         Exame[]
   medicamentos   Medicamento[]
   notifications  Notification[]
+  historicoPeso  PesoHistorico[]
+  profissionais  Profissional[]
+  sessions       Session[]
+  unidades       UnidadeDeSaude[]
+  role           Role?            @relation(fields: [roleId], references: [id])
 
   @@index([roleId])
 }
 
 model AnvisaMedicamento {
-  id             String @id @unique // Número do processo
+  id             String @id @unique
   nome           String
   principioAtivo String
 
@@ -128,9 +89,9 @@ model PesoHistorico {
   peso      String
   data      String
   userId    String
-  usuario   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  usuario   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
@@ -191,7 +152,6 @@ model Authenticator {
 model Consultas {
   id               String          @id @default(uuid())
   data             DateTime
-  motivo           String
   tipodeexame      String?
   tipo             Consultatype
   createdAt        DateTime        @default(now())
@@ -199,18 +159,18 @@ model Consultas {
   userId           String
   profissionalId   String?
   unidadeId        String?
+  motivo           String
   consultaOrigemId String?
-  consultaOrigem   Consultas?      @relation("ConsultaRetorno", fields: [consultaOrigemId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  anexos           AnexoConsulta[]
+  Anotacoes        Anotacoes[]
+  consultaOrigem   Consultas?      @relation("ConsultaRetorno", fields: [consultaOrigemId], references: [id], onUpdate: NoAction)
   retornos         Consultas[]     @relation("ConsultaRetorno")
-
   profissional     Profissional?   @relation(fields: [profissionalId], references: [id])
   unidade          UnidadeDeSaude? @relation(fields: [unidadeId], references: [id])
   usuario          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   Exame            Exame[]
-  Anotacoes        Anotacoes[]
-  condicoes        CondicaoSaude[]
-  anexos           AnexoConsulta[]
   medicamentos     Medicamento[]
+  condicoes        CondicaoSaude[] @relation("CondicaoSaudeToConsultas")
 
   @@index([userId])
   @@index([profissionalId])
@@ -250,74 +210,62 @@ model Endereco {
 }
 
 model Profissional {
-  id             String         @id @default(uuid())
+  id             String           @id @default(uuid())
   nome           String
   especialidade  String
-  NumClasse      String         @unique
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  consultas      Consultas[]
-  condicoesSaude CondicaoSaude[]  @relation("ProfissionalCondicoes")
-  unidades       UnidadeDeSaude[] @relation("ProfissionalUnidades")
-  exames         Exame[]
+  NumClasse      String           @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   userId         String?
-  usuario        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  condicoesSaude CondicaoSaude[]  @relation("ProfissionalCondicoes")
+  consultas      Consultas[]
+  exames         Exame[]
   medicamentos   Medicamento[]
+  usuario        User?            @relation(fields: [userId], references: [id])
+  unidades       UnidadeDeSaude[] @relation("ProfissionalUnidades")
 
   @@index([userId])
 }
 
 model CondicaoSaude {
-  id             String       @id @default(uuid())
+  id             String        @id @default(uuid())
   nome           String
   objetivo       String?
   dataInicio     DateTime
   observacoes    String?
   cidCodigo      String?
   cidDescricao   String?
-
   userId         String
   profissionalId String?
-
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  exames         Exame[]
-  consultas      Consultas[]
-  medicamentos   Medicamento[]
-
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
   profissional   Profissional? @relation("ProfissionalCondicoes", fields: [profissionalId], references: [id])
   usuario        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exames         Exame[]
+  medicamentos   Medicamento[]
+  consultas      Consultas[]   @relation("CondicaoSaudeToConsultas")
 
   @@index([userId])
   @@index([profissionalId])
 }
 
-
 model UnidadeDeSaude {
-  id            String         @id @default(uuid())
-  nome          String
-  tipo          String?
-  telefone      String?
-  enderecoId    String?        @unique
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  consultas     Consultas[]
-  endereco      Endereco?      @relation(fields: [enderecoId], references: [id])
-  profissionais Profissional[] @relation("ProfissionalUnidades")
-  exames        Exame[]
-  userId        String?
-  usuario       User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id             String                     @id @default(uuid())
+  nome           String
+  tipo           String?
+  enderecoId     String?                    @unique
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  telefone       String?
+  userId         String?
+  abastecimentos AbastecimentoMedicamento[]
+  consultas      Consultas[]
+  exames         Exame[]
+  endereco       Endereco?                  @relation(fields: [enderecoId], references: [id])
+  usuario        User?                      @relation(fields: [userId], references: [id])
+  profissionais  Profissional[]             @relation("ProfissionalUnidades")
 
   @@index([userId])
-}
-
-enum Consultatype {
-  Rotina
-  Exame
-  Emergencia
-  Retorno
-  Tratamento
 }
 
 model Exame {
@@ -327,20 +275,20 @@ model Exame {
   dataExame       DateTime
   arquivoExame    Bytes?
   anotacao        String?
-  analiseIA       String?
   userId          String
   profissionalId  String?
   consultaId      String?
   unidadesId      String?
-  condicaoSaudeId String?
-  tipo            String?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+  tipo            String?
+  analiseIA       String?
+  condicaoSaudeId String?
   condicaoSaude   CondicaoSaude?   @relation(fields: [condicaoSaudeId], references: [id])
+  consulta        Consultas?       @relation(fields: [consultaId], references: [id])
+  profissional    Profissional?    @relation(fields: [profissionalId], references: [id])
+  unidades        UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
   usuario         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  profissional    Profissional?    @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
-  consulta        Consultas?       @relation(fields: [consultaId], references: [id], onDelete: SetNull)
-  unidades        UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id], onDelete: SetNull)
   resultados      ResultadoExame[]
 
   @@index([userId])
@@ -366,50 +314,46 @@ model ResultadoExame {
 model AnexoConsulta {
   id          String    @id @default(uuid())
   nomeArquivo String
-  arquivo     Bytes?
-  mimetype    String?
   tipo        TipoAnexo
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   consultaId  String
+  arquivo     Bytes?
+  mimetype    String?
   consulta    Consultas @relation(fields: [consultaId], references: [id], onDelete: Cascade)
 
   @@index([consultaId])
 }
 
 model Medicamento {
-  id               String            @id @default(uuid())
-  nome             String
-  principioAtivo   String?
-  linkBula         String?
-  posologia        String?
-  forma            String?
-  tipo             TipoMedicamento
-  dataInicio       DateTime
-  dataFim          DateTime?
-  status           StatusMedicamento
-  estoque          Int?              @default(0)
-  quantidadeCaixa  Int?
-  quantidadeDose   Float?
-  frequenciaNumero Int?
-  frequenciaTipo   FrequenciaTipo?
-
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-
-  userId           String
-  usuario          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  profissionalId   String?
-  profissional     Profissional?     @relation(fields: [profissionalId], references: [id], onDelete: SetNull)
-
-  consultaId       String?
-  consulta         Consultas?        @relation(fields: [consultaId], references: [id], onDelete: SetNull)
-
-  condicaoSaudeId  String?
-  condicaoSaude    CondicaoSaude?    @relation(fields: [condicaoSaudeId], references: [id], onDelete: SetNull)
-
-  notifications    Notification[]
+  id                       String                  @id @default(uuid())
+  nome                     String
+  posologia                String?
+  dataInicio               DateTime
+  dataFim                  DateTime?
+  status                   StatusMedicamento
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  userId                   String
+  profissionalId           String?
+  consultaId               String?
+  estoque                  Int?                    @default(0)
+  frequenciaNumero         Int?
+  frequenciaTipo           FrequenciaTipo?
+  quantidadeCaixa          Int?
+  quantidadeDose           Float?
+  forma                    String?
+  tipo                     TipoMedicamento
+  condicaoSaudeId          String?
+  linkBula                 String?
+  principioAtivo           String?
+  ultimaAtualizacaoEstoque DateTime?
+  abastecimentos           AbastecimentoMedicamento[]
+  condicaoSaude            CondicaoSaude?             @relation(fields: [condicaoSaudeId], references: [id])
+  consulta                 Consultas?                 @relation(fields: [consultaId], references: [id])
+  profissional             Profissional?              @relation(fields: [profissionalId], references: [id])
+  usuario                  User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notifications            Notification[]
 
   @@index([userId])
   @@index([profissionalId])
@@ -418,22 +362,18 @@ model Medicamento {
 }
 
 model Notification {
-  id             String       @id @default(cuid())
-  type           String       // Campo alterado para String para maior flexibilidade
-  title          String
-  message        String
-  isRead         Boolean      @default(false)
-  createdAt      DateTime     @default(now())
-
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  medicamentoId  String?
-  medicamento    Medicamento? @relation(fields: [medicamentoId], references: [id], onDelete: SetNull)
-
-  // Campos para relacionar a notificação a um evento específico
-  relatedId      String?
-  relatedModel   String?      // Ex: "Consulta", "Exame"
+  id            String       @id @default(cuid())
+  title         String
+  message       String
+  isRead        Boolean      @default(false)
+  createdAt     DateTime     @default(now())
+  userId        String
+  medicamentoId String?
+  relatedId     String?
+  relatedModel  String?
+  type          String
+  medicamento   Medicamento? @relation(fields: [medicamentoId], references: [id])
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([medicamentoId])
@@ -446,4 +386,55 @@ model ErrorLog {
   stack     String?
   url       String?
   timestamp DateTime @default(now())
+}
+
+model AbastecimentoMedicamento {
+  id               String          @id @default(uuid())
+  data             String
+  quantidade       String
+  observacoes      String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  medicamentoId    String
+  unidadeDeSaudeId String?
+  medicamento      Medicamento     @relation(fields: [medicamentoId], references: [id], onDelete: Cascade)
+  unidadeDeSaude   UnidadeDeSaude? @relation(fields: [unidadeDeSaudeId], references: [id])
+
+  @@index([medicamentoId])
+  @@index([unidadeDeSaudeId])
+}
+
+enum TipoAnexo {
+  Encaminhamento
+  Atestado_Declaracao
+  Receita_Medica
+  Relatorio
+  Outro
+}
+
+enum StatusMedicamento {
+  Ativo
+  Concluido
+  Suspenso
+}
+
+enum FrequenciaTipo {
+  Hora
+  Dia
+  Semana
+  Mes
+}
+
+enum TipoMedicamento {
+  Uso_Continuo
+  Tratamento_Clinico
+  Esporadico
+}
+
+enum Consultatype {
+  Rotina
+  Exame
+  Emergencia
+  Retorno
+  Tratamento
 }

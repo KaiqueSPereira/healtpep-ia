@@ -21,6 +21,7 @@ import { Command, CommandEmpty, CommandGroup, CommandItem } from "@/app/_compone
 import { cn } from "@/app/_lib/utils";
 import { Pill, CircleDot, Beaker, Droplets, Syringe, SprayCan, Calculator } from 'lucide-react';
 import { PopoverAnchor } from "@radix-ui/react-popover";
+import { useDebounce } from "@/app/_hooks/use-debounce";
 
 const formasFarmaceuticas = [
   { name: 'Comprimido', icon: <Pill className="h-6 w-6 mb-1" /> },
@@ -93,11 +94,13 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
         }
     });
     
+    const nomeValue = watch("nome");
+    const debouncedNome = useDebounce(nomeValue, 500);
+
     const status = watch("status");
     const tipo = watch("tipo");
     const forma = watch("forma");
 
-    // Observar campos para habilitar/desabilitar botão de cálculo
     const estoque = watch("estoque");
     const quantidadeDose = watch("quantidadeDose");
     const frequenciaNumero = watch("frequenciaNumero");
@@ -117,18 +120,23 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
         }
     }, [medicamento, setValue]);
 
-    const triggerAnvisaSearch = async () => {
-        const nome = getValues("nome");
-        if (nome && nome.length >= 3) {
-            setIsAnvisaLoading(true);
-            setIsPopoverOpen(true);
-            try {
-                const res = await fetch(`/api/medicamentos/br-search?name=${encodeURIComponent(nome)}`);
-                const data = await res.json();
-                setAnvisaResults(data);
-            } catch { setAnvisaResults([]); } finally { setIsAnvisaLoading(false); }
-        }
-    };
+    useEffect(() => {
+        const triggerAnvisaSearch = async () => {
+            if (debouncedNome && debouncedNome.length >= 3) {
+                setIsAnvisaLoading(true);
+                setIsPopoverOpen(true);
+                try {
+                    const res = await fetch(`/api/medicamentos/br-search?name=${encodeURIComponent(debouncedNome)}`);
+                    const data = await res.json();
+                    setAnvisaResults(data);
+                } catch { setAnvisaResults([]); } finally { setIsAnvisaLoading(false); }
+            } else {
+                setAnvisaResults([]);
+                setIsPopoverOpen(false);
+            }
+        };
+        triggerAnvisaSearch();
+    }, [debouncedNome]);
 
     const handleSelectAnvisaMed = (med: AnvisaMed) => {
         setValue("nome", med.nomeComercial, { shouldValidate: true });
@@ -161,7 +169,7 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
         }
 
         const duracaoEmDias = Math.floor(estoque! / dosesPorDia);
-        const dataInicioDate = new Date(dataInicio! + 'T00:00:00'); // Garante que a hora não influencie o cálculo
+        const dataInicioDate = new Date(dataInicio! + 'T00:00:00');
         const dataFimDate = new Date(dataInicioDate.setDate(dataInicioDate.getDate() + duracaoEmDias));
         const dataFimString = dataFimDate.toISOString().split('T')[0];
 
@@ -203,7 +211,7 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
                     <div className="space-y-2">
                         <Label htmlFor="nome">Nome do Medicamento</Label>
                         <PopoverAnchor asChild>
-                             <Input id="nome" {...register("nome")} onBlur={triggerAnvisaSearch} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); triggerAnvisaSearch(); } }} autoComplete="off" />
+                             <Input id="nome" {...register("nome")} autoComplete="off" />
                         </PopoverAnchor>
                         {errors.nome && <p className="text-red-500 text-sm">{errors.nome.message}</p>}
                     </div>

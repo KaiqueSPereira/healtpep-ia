@@ -1,12 +1,18 @@
 'use client';
+
+import { useState } from 'react';
+import Link from 'next/link'; // Importando o componente Link
 import { MedicamentoComRelacoes } from "@/app/_components/types";
 import { format } from 'date-fns';
+import AbastecimentoSection from './AbastecimentoSection';
+import { Button } from '@/app/_components/ui/button'; // Importando o Button
 
 interface MedicamentoDetailsProps {
     medicamento: MedicamentoComRelacoes;
 }
 
-export default function MedicamentoDetails({ medicamento }: MedicamentoDetailsProps) {
+export default function MedicamentoDetails({ medicamento: initialMedicamento }: MedicamentoDetailsProps) {
+    const [medicamento, setMedicamento] = useState(initialMedicamento);
 
     const DetailItem = ({ label, value }: { label: string, value: string | number | undefined | null }) => (
         <div className="py-2">
@@ -14,6 +20,15 @@ export default function MedicamentoDetails({ medicamento }: MedicamentoDetailsPr
             <p className="text-md text-foreground">{value || 'N/A'}</p>
         </div>
     );
+
+    // Função corrigida para aceitar o novo estoque total
+    const handleAbastecimentoSuccess = (novoEstoque: number) => {
+        setMedicamento(prev => ({
+            ...prev,
+            estoque: novoEstoque, // Apenas define o novo valor vindo do servidor
+            ultimaAtualizacaoEstoque: new Date(),
+        }));
+    };
 
     return (
         <div className="p-4 bg-card text-card-foreground rounded-lg">
@@ -37,20 +52,44 @@ export default function MedicamentoDetails({ medicamento }: MedicamentoDetailsPr
 
             <div className="mt-6 border-t pt-4">
                 <h4 className="font-semibold text-lg mb-2 text-foreground">Estoque</h4>
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <DetailItem label="Estoque Atual" value={medicamento.estoque} />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4">
+                    <DetailItem label="Estoque Atual" value={medicamento.estoque} /> 
                     <DetailItem label="Unidades por Caixa" value={medicamento.quantidadeCaixa} />
+                    {medicamento.ultimaAtualizacaoEstoque && (
+                        <DetailItem 
+                            label="Última Atualização" 
+                            value={format(new Date(medicamento.ultimaAtualizacaoEstoque), 'dd/MM/yyyy HH:mm')} 
+                        />
+                    )}
                 </div>
             </div>
+            
+            <AbastecimentoSection 
+                medicamentoId={medicamento.id} 
+                onAbastecimentoSuccess={handleAbastecimentoSuccess} 
+            />
 
+            {/* Seção de "Origem e Contexto" aprimorada */}
             {(medicamento.profissional || medicamento.consulta || medicamento.condicaoSaude) &&
                 <div className="mt-6 border-t pt-4">
-                    <h4 className="font-semibold text-lg mb-2 text-foreground">Informações Associadas</h4>
+                    <h4 className="font-semibold text-lg mb-2 text-foreground">Origem e Contexto</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                        {medicamento.profissional && <DetailItem label="Prescrito por" value={medicamento.profissional.nome} />}
-                        {medicamento.condicaoSaude && <DetailItem label="Condição de Saúde" value={medicamento.condicaoSaude.nome} />}
-                        {medicamento.consulta && <DetailItem label="Consulta de Origem" value={`${format(new Date(medicamento.consulta.data), 'dd/MM/yyyy')} - ${medicamento.consulta.motivo}`} />}
+                        {medicamento.condicaoSaude && <DetailItem label="Tratamento para" value={medicamento.condicaoSaude.nome} />}
+                        {medicamento.profissional && <DetailItem label="Profissional Responsável" value={medicamento.profissional.nome} />}
                     </div>
+
+                    {/* Card de destaque para a consulta associada */}
+                    {medicamento.consulta && (
+                         <div className="mt-4 p-4 rounded-md border bg-muted/50">
+                            <p className="text-sm font-medium text-muted-foreground">Associado à consulta de {format(new Date(medicamento.consulta.data), 'dd/MM/yyyy')}</p>
+                            <p className="text-lg font-semibold text-foreground">{medicamento.consulta.motivo}</p>
+                             <Link href={`/consultas/${medicamento.consulta.id}`} passHref>
+                                <Button variant="outline" size="sm" className="mt-2">
+                                    Ver Detalhes da Consulta
+                                </Button>
+                            </Link>
+                         </div>
+                    )}
                 </div>
             }
         </div>
