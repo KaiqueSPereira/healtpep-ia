@@ -1,4 +1,4 @@
-'use server';
+import 'server-only';
 
 import { db } from "@/app/_lib/prisma";
 import { manageableResources } from '@/app/admin/_config/resources';
