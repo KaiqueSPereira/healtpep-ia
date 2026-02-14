@@ -1,48 +1,65 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/_lib/auth";
 import { safeDecrypt } from "@/app/_lib/crypto";
+import { Exame, ResultadoExame } from "@prisma/client";
 
-export async function GET() {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
+type ExameComResultados = Exame & {
+    resultados: ResultadoExame[];
+};
 
-  if (!userId) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  }
+export async function GET(request: NextRequest) {
+    const userId = request.nextUrl.searchParams.get('userId');
 
-  try {
-    const exames = await prisma.exame.findMany({
-      where: { userId },
-      include: { 
-        resultados: true 
-      },
-      orderBy: { dataExame: 'asc' },
-    });
+    if (!userId) {
+        return NextResponse.json({ error: "O ID do usuário é obrigatório." }, { status: 400 });
+    }
 
-    // Decrypt the sensitive fields before sending them to the client
-    const decryptedExames = exames.map(exame => {
-        const decryptedResultados = exame.resultados.map(resultado => {
-            const nome = safeDecrypt(resultado.nome);
-            const valor = safeDecrypt(resultado.valor);
-            return {
-                ...resultado,
-                nome: nome !== null ? nome : resultado.nome, // fallback to original if decryption fails
-                valor: valor !== null ? valor : resultado.valor, // fallback to original if decryption fails
-            };
+    try {
+        const exames: ExameComResultados[] = await prisma.exame.findMany({
+            where: { userId: userId },
+            include: {
+                resultados: true
+            },
+            orderBy: { dataExame: 'asc' },
         });
 
-        return {
-            ...exame,
-            resultados: decryptedResultados
-        };
-    });
-    
-    return NextResponse.json(decryptedExames, { status: 200 });
+        const decryptedExames = exames.map((exame: ExameComResultados) => {
+            const decryptedResultados = exame.resultados
+                .map((resultado: ResultadoExame) => {
+                    if (resultado.nome === null || resultado.valor === null) {
+                        return null;
+                    }
 
-  } catch (error) {
-    console.error("Erro ao buscar dados de exames para gráficos:", error);
-    return NextResponse.json({ error: "Erro interno ao processar dados para gráficos." }, { status: 500 });
-  }
+                    const nome = safeDecrypt(resultado.nome);
+                    const valor = safeDecrypt(resultado.valor);
+
+                    if (nome === null || valor === null) {
+                        return null;
+                    }
+
+                    return {
+                        id: resultado.id,
+                        nome,
+                        valor,
+                    };
+                })
+                .filter(Boolean as unknown as <T>(value: T | null | undefined) => value is T);
+            
+            // Decrypt the exam type
+            const decryptedTipo = exame.tipo ? safeDecrypt(exame.tipo) : null;
+
+            return {
+                id: exame.id,
+                dataExame: exame.dataExame,
+                tipo: decryptedTipo,
+                resultados: decryptedResultados,
+            };
+        });
+        
+        return NextResponse.json(decryptedExames, { status: 200 });
+
+    } catch (error) {
+        console.error("Erro ao buscar dados de exames para gráficos:", error);
+        return NextResponse.json({ error: "Erro interno ao processar dados para gráficos." }, { status: 500 });
+    }
 }

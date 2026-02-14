@@ -21,20 +21,38 @@ export type ExameCompleto = Exame & {
     resultados: ResultadoExame[];
 };
 
-type ExameGraficos = Exame & {
-    resultados: ResultadoExame[];
+type ExameGraficos = {
+    id: string;
+    dataExame: Date;
+    tipo: string;
+    resultados: { id: string; nome: string; valor: string; }[];
 };
+
+type ChartKeyword = 'Sangue' | 'Urina';
 
 type ChartData = {
     labels: string[];
     datasets: {
         label: string;
-        data: (number | typeof NaN)[];
+        data: (number | null)[];
         borderColor: string;
         backgroundColor: string;
         tension: number;
         spanGaps: boolean;
     }[];
+};
+
+const parseExameValue = (value: string | number | null): number | null => {
+    if (value === null || value === undefined) return null;
+    const strValue = String(value).trim().toUpperCase();
+    if (strValue === 'POSITIVO' || strValue === 'PRESENTE' || strValue === 'REAGENTE') return 1;
+    if (strValue === 'NEGATIVO' || strValue === 'AUSENTE' || strValue === 'NÃO REAGENTE') return 0;
+    let cleanedValue = strValue.replace(/<|>/g, '').replace(/,/g, '.');
+    if (cleanedValue.indexOf('.') !== cleanedValue.lastIndexOf('.')) {
+        cleanedValue = cleanedValue.replace(/\.(?=\d{3})/g, '');
+    }
+    const numericValue = parseFloat(cleanedValue);
+    return isNaN(numericValue) ? null : numericValue;
 };
 
 export default function ExamesPage() {
@@ -46,7 +64,7 @@ export default function ExamesPage() {
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
-    const [selectedChartType, setSelectedChartType] = useState<'Urina' | 'Sangue'>('Sangue');
+    const [selectedChartType, setSelectedChartType] = useState<ChartKeyword>('Sangue');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
     const [chartData, setChartData] = useState<ChartData | null>(null);
     const [examToDelete, setExamToDelete] = useState<string | null>(null);
@@ -55,26 +73,21 @@ export default function ExamesPage() {
 
     useEffect(() => {
         if (status === 'loading') return;
-
         if (status === 'unauthenticated') {
             toast({ title: "Você precisa estar logado para ver seus exames.", variant: "destructive" });
             setLoading(false);
             return;
         }
-
         const fetchData = async () => {
             setLoading(true);
             const userId = session?.user?.id;
-
             if (!userId) {
                 toast({ title: "Não foi possível obter a identificação do usuário.", variant: "destructive" });
                 setLoading(false);
                 return;
             }
-
             const viewUrl = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
             const url = `${viewUrl}?userId=${userId}`;
-
             try {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
@@ -95,15 +108,12 @@ export default function ExamesPage() {
         fetchData();
     }, [currentView, session?.user?.id, status, toast]);
 
-    const listFilterOptions = useMemo(() => 
-        Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), 
-        [examesListaData]
-    );
+    const listFilterOptions = useMemo(() => Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), [examesListaData]);
 
     const chartComponentOptions = useMemo(() => {
         if (currentView !== 'charts' || !selectedChartType) return [];
         const componentNames = examesGraficosData
-            .filter(exame => exame.tipo === selectedChartType)
+            .filter(exame => exame.tipo && exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase()))
             .flatMap(exame => exame.resultados?.map(res => res.nome) || []);
         return Array.from(new Set(componentNames.filter(Boolean))).sort();
     }, [examesGraficosData, currentView, selectedChartType]);
@@ -113,12 +123,12 @@ export default function ExamesPage() {
             setSelectedListTypes(listFilterOptions);
         }
     }, [currentView, listFilterOptions, selectedListTypes.length]);
-    
+
     useEffect(() => {
-        if (chartComponentOptions.length > 0 && selectedChartComponents.length === 0) {
+        if (currentView === 'charts') {
             setSelectedChartComponents(chartComponentOptions);
         }
-    }, [chartComponentOptions, selectedChartComponents.length]);
+    }, [chartComponentOptions, currentView]);
 
     const filteredListExams = useMemo(() => {
         if (currentView !== 'list') return [];
@@ -134,13 +144,13 @@ export default function ExamesPage() {
     }, [examesListaData, selectedListTypes, startDate, endDate, currentView]);
 
     useEffect(() => {
-        if (currentView !== 'charts' || !selectedChartType || examesGraficosData.length === 0 || selectedChartComponents.length === 0) {
+        if (currentView !== 'charts' || selectedChartComponents.length === 0) {
             setChartData(null);
             return;
         }
 
         const relevantExams = examesGraficosData.filter(exame => {
-            if (exame.tipo !== selectedChartType) return false;
+            if (!exame.tipo || !exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase())) return false;
             const examDate = new Date(exame.dataExame);
             if (isNaN(examDate.getTime())) return false;
             const start = startDate ? new Date(startDate).getTime() : -Infinity;
@@ -148,38 +158,40 @@ export default function ExamesPage() {
             return examDate.getTime() >= start && examDate.getTime() <= end;
         });
 
-        const processedData: { [componentName: string]: { dates: string[], values: number[] } } = {};
+        const componentData = new Map<string, Map<string, number>>();
         relevantExams.forEach(exame => {
+            const dateStr = new Date(exame.dataExame).toISOString().split('T')[0];
             exame.resultados?.forEach(resultado => {
                 if (resultado.nome && selectedChartComponents.includes(resultado.nome)) {
-                    const numericValue = parseFloat(resultado.valor);
-                    if (!isNaN(numericValue)) {
-                        if (!processedData[resultado.nome]) processedData[resultado.nome] = { dates: [], values: [] };
-                        const dateStr = new Date(exame.dataExame).toISOString().split('T')[0];
-                        processedData[resultado.nome].dates.push(dateStr);
-                        processedData[resultado.nome].values.push(numericValue);
+                    const numericValue = parseExameValue(resultado.valor);
+                    if (numericValue !== null) {
+                        if (!componentData.has(resultado.nome)) {
+                            componentData.set(resultado.nome, new Map());
+                        }
+                        componentData.get(resultado.nome)!.set(dateStr, numericValue);
                     }
                 }
             });
         });
 
-        const allDates = Array.from(new Set(Object.values(processedData).flatMap(data => data.dates))).sort();
+        const allDates = Array.from(new Set(Array.from(componentData.values()).flatMap(dateMap => Array.from(dateMap.keys())))).sort();
         if (allDates.length === 0) {
             setChartData(null);
             return;
         }
 
-        setChartData({
-            labels: allDates.map(date => new Date(date + 'T00:00:00').toLocaleDateString()),
-            datasets: Object.entries(processedData).map(([componentName, data], index) => ({
+        const finalChartData: ChartData = {
+            labels: allDates.map(date => new Date(date + 'T00:00:00Z').toLocaleDateString()),
+            datasets: Array.from(componentData.entries()).map(([componentName, dateMap], index) => ({
                 label: componentName,
-                data: allDates.map(date => data.dates.includes(date) ? data.values[data.dates.indexOf(date)] : NaN),
+                data: allDates.map(date => dateMap.get(date) ?? null),
                 borderColor: `hsl(${index * 60 % 360}, 70%, 50%)`,
                 backgroundColor: `hsla(${index * 60 % 360}, 70%, 50%, 0.2)`,
                 tension: 0.1,
                 spanGaps: true,
             })),
-        });
+        };
+        setChartData(finalChartData);
 
     }, [currentView, examesGraficosData, selectedChartType, selectedChartComponents, startDate, endDate]);
 
@@ -187,7 +199,7 @@ export default function ExamesPage() {
         setExamToDelete(examId);
         setIsConfirmDeleteDialogOpen(true);
     };
-
+    
     const handleConfirmDelete = async () => {
         if (!examToDelete) return;
         try {
@@ -203,7 +215,7 @@ export default function ExamesPage() {
             setExamToDelete(null);
         }
     };
-    
+
     return (
         <div className="flex min-h-screen flex-col">
             <Header />
@@ -215,7 +227,6 @@ export default function ExamesPage() {
                         <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
                     </div>
                 </div>
-
                 <div className="flex flex-wrap items-end gap-4 rounded-lg border p-4">
                     <div className="flex items-end gap-4">
                         <div>
@@ -227,57 +238,28 @@ export default function ExamesPage() {
                             <Input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1" />
                         </div>
                     </div>
-
-                    {currentView === 'list' && listFilterOptions.length > 0 && (
-                        <ExameTypeFilter
-                            allTypes={listFilterOptions}
-                            selectedTypes={selectedListTypes}
-                            onTypeChange={setSelectedListTypes}
-                        />
-                    )}
-
+                    {currentView === 'list' && listFilterOptions.length > 0 && <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={setSelectedListTypes} />}
                     {currentView === 'charts' && (
                         <div className="flex items-end gap-4">
-                             <div className="flex items-center gap-2 rounded-md border bg-gray-50 p-2">
+                             <div className="flex items-center gap-2 rounded-md border p-2">
                                <Button variant={selectedChartType === 'Sangue' ? 'default' : 'outline'} onClick={() => setSelectedChartType('Sangue')}>Sangue</Button>
                                <Button variant={selectedChartType === 'Urina' ? 'default' : 'outline'} onClick={() => setSelectedChartType('Urina')}>Urina</Button>
                              </div>
-                            {selectedChartType && chartComponentOptions.length > 0 && (
-                                <ExameTypeFilter
-                                    allTypes={chartComponentOptions}
-                                    selectedTypes={selectedChartComponents}
-                                    onTypeChange={setSelectedChartComponents}
-                                />
-                            )}
+                            {chartComponentOptions.length > 0 && <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={setSelectedChartComponents} />}
                         </div>
                     )}
                 </div>
-
                 {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
                     <>
-                        {currentView === 'list' && (
-                            <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />
-                        )}
-
-                        {currentView === 'charts' && (
-                            !selectedChartType ? <p className="text-center text-gray-500 py-10">Selecione &quot;Sangue&quot; ou &quot;Urina&quot; para ver o gráfico.</p> : (
-                            chartData && chartData.datasets.length > 0 ? <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} /> :
-                            <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
-                        ))}
+                        {currentView === 'list' && <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />}
+                        {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} /> : <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados. Tente selecionar mais componentes ou um período de tempo diferente.</p>)}
                     </>
                 )}
             </main>
-            
             <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
                 <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                        <AlertDialogDescription>Esta ação não pode ser desfeita e excluirá permanentemente o exame.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction>
-                    </AlertDialogFooter>
+                    <AlertDialogHeader><AlertDialogTitle>Tem certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita e excluirá permanentemente o exame.</AlertDialogDescription></AlertDialogHeader>
+                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction></AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
         </div>
