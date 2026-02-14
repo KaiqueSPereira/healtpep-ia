@@ -5,8 +5,9 @@ import {
   safeDecrypt,
   encrypt as encryptBuffer
 } from '@/app/_lib/crypto';
-import { prisma } from '@/app/_lib/prisma';
+import { db } from '@/app/_lib/prisma';
 import { Prisma } from '@prisma/client';
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
 
 interface ResultadoInput {
   nome: string;
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'O ID do usuário é obrigatório.' }, { status: 400 });
     }
 
-    const exames = await prisma.exame.findMany({
+    const exames = await db.exame.findMany({
       where: { userId: userId },
       include: { unidades: true, profissional: true, resultados: true },
       orderBy: { dataExame: 'desc' },
@@ -57,12 +58,28 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Versão final, limpa e robusta.
+// POST: Versão final, limpa e robusta, com verificação de permissão.
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
 
     const userId = formData.get("userId") as string;
+
+    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+    if (!userId) {
+      return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
+    }
+    
+    const permissions = await getPermissionsForUser(userId);
+  
+    if (await permissions.hasReachedLimit('exams')) {
+      return NextResponse.json(
+        { error: "Você atingiu o limite de exames para o seu plano." },
+        { status: 403 } // 403 Forbidden
+      );
+    }
+    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
+
     const profissionalId = formData.get("profissionalId") as string | null;
     const unidadesId = formData.get("unidadesId") as string | null;
     const consultaId = formData.get("consultaId") as string | null;
@@ -73,7 +90,7 @@ export async function POST(request: Request) {
     const resultadosStr = formData.get("resultados") as string | null;
     const file = formData.get("file") as File | null;
 
-    if (!userId || !dataExameStr || !tipo) {
+    if (!dataExameStr || !tipo) {
       return NextResponse.json({ error: "Campos obrigatórios não foram fornecidos." }, { status: 400 });
     }
 
@@ -92,7 +109,7 @@ export async function POST(request: Request) {
     const encryptedAnotacao = anotacao ? encryptString(anotacao) : null;
     const nomeExame = tipo || file?.name || 'Exame sem nome';
 
-    const newExame = await prisma.exame.create({
+    const newExame = await db.exame.create({
       data: {
         userId,
         dataExame,
@@ -121,7 +138,7 @@ export async function POST(request: Request) {
 
     if (Object.keys(dataToUpdate).length > 0) {
       try {
-        await prisma.exame.update({
+        await db.exame.update({
           where: { id: newExame.id },
           data: dataToUpdate,
         });
@@ -129,7 +146,6 @@ export async function POST(request: Request) {
         if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
           // A associação falhou porque o ID não foi encontrado. 
           // O erro é ignorado intencionalmente para não impedir a criação do exame.
-          // Opcional: logar para um sistema de monitoramento em produção.
         } else {
           throw e;
         }
@@ -140,7 +156,7 @@ export async function POST(request: Request) {
       const resultados: ResultadoInput[] = JSON.parse(resultadosStr);
       const validResults = resultados.filter(res => res.nome && res.valor && res.valor.trim() !== '');
       if (validResults.length > 0) {
-        await prisma.resultadoExame.createMany({
+        await db.resultadoExame.createMany({
           data: validResults.map((res) => ({
             exameId: newExame.id,
             nome: encryptString(res.nome),
