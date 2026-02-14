@@ -9,7 +9,7 @@ import { Input } from '@/app/_components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/app/_components/ui/dialog';
 import MedicamentoForm from './components/MedicamentoForm';
 import MedicamentoDetails from './components/MedicamentoDetails';
-import { MedicamentoComRelacoes, CondicaoSaude, Profissional, Consulta } from '@/app/_components/types';
+import { MedicamentoComRelacoes } from '@/app/_components/types';
 import { toast } from '@/app/_hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
 import { Badge } from '@/app/_components/ui/badge';
@@ -25,9 +25,6 @@ interface Interaction {
 export default function MedicamentosPage() {
   const { session } = useAuthStore();
   const [medicamentos, setMedicamentos] = useState<MedicamentoComRelacoes[]>([]);
-  const [condicoes, setCondicoes] = useState<CondicaoSaude[]>([]);
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-  const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -47,27 +44,13 @@ export default function MedicamentosPage() {
     if (!session?.user?.id) return;
     try {
       setLoading(true);
-      const [medicamentosRes, condicoesRes, profissionaisRes, consultasRes] = await Promise.all([
-        fetch(`/api/medicamentos`),
-        fetch(`/api/condicoes`),
-        fetch(`/api/profissionais`),
-        fetch(`/api/consultas`)
-      ]);
+      const medicamentosRes = await fetch(`/api/medicamentos`);
 
       if (!medicamentosRes.ok) throw new Error('Falha ao carregar medicamentos');
-      if (!condicoesRes.ok) throw new Error('Falha ao carregar condições de saúde');
-      if (!profissionaisRes.ok) throw new Error('Falha ao carregar profissionais');
-      if (!consultasRes.ok) throw new Error('Falha ao carregar consultas');
-
+      
       const medicamentosData = await medicamentosRes.json();
-      const condicoesData = await condicoesRes.json();
-      const profissionaisData = await profissionaisRes.json();
-      const consultasData = await consultasRes.json();
 
       setMedicamentos(Array.isArray(medicamentosData) ? medicamentosData : []);
-      setCondicoes(Array.isArray(condicoesData) ? condicoesData : []);
-      setProfissionais(Array.isArray(profissionaisData) ? profissionaisData : []);
-      setConsultas(Array.isArray(consultasData) ? consultasData : []);
 
     } catch (error) {
       toast({ title: "Erro", description: error instanceof Error ? error.message : "Ocorreu um erro desconhecido", variant: "destructive" });
@@ -250,7 +233,7 @@ export default function MedicamentosPage() {
           <DialogHeader>
             <DialogTitle>{selectedMedicamento ? 'Editar Medicamento' : 'Adicionar Novo Medicamento'}</DialogTitle>
           </DialogHeader>
-          <MedicamentoForm medicamento={selectedMedicamento} onSave={handleSave} condicoes={condicoes} profissionais={profissionais} consultas={consultas} />
+          <MedicamentoForm medicamento={selectedMedicamento} onSave={handleSave} />
         </DialogContent>
       </Dialog>
 

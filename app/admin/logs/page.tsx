@@ -1,5 +1,4 @@
 import { prisma } from '@/app/_lib/prisma';
-import type { ErrorLog } from '@prisma/client';
 import Header from '@/app/_components/header';
 import {
   Card,

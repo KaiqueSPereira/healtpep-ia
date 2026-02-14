@@ -38,10 +38,10 @@ import { Loader2, MoreHorizontal, Infinity } from 'lucide-react';
 import { RoleForm } from './role-form';
 import { deleteRole } from '@/app/admin/_actions/roles';
 import { useToast } from '@/app/_hooks/use-toast';
-import { manageableResources, permissionFlags } from '@/app/admin/_config/resources';
+import { permissionFlags } from '@/app/admin/_config/resources';
 
 // Tipagem atualizada para incluir os detalhes que precisamos
-type RoleWithDetails = Role & {
+export type RoleWithDetails = Role & {
   permissions: { permission: Permission }[];
   resourceLimits: ResourceLimit[];
   _count: { users: number };
@@ -181,7 +181,7 @@ export function RolesTable({ roles, permissions }: RolesTableProps) {
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação não pode ser desfeita. Isso excluirá permanentemente o perfil
-              <strong> "{selectedRole?.name}"</strong> e removerá a associação de todos os usuários vinculados.
+              <strong> &quot;{selectedRole?.name}&quot;</strong> e removerá a associação de todos os usuários vinculados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -1,9 +1,10 @@
 import Header from "@/app/_components/header";
 import { prisma } from "@/app/_lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/_components/ui/card";
-import { RolesTable } from "@/app/admin/_components/roles-table";
+import { RolesTable, type RoleWithDetails } from "@/app/admin/_components/roles-table";
+import type { Permission } from "@prisma/client";
 
-async function getRolesAndPermissions() {
+async function getRolesAndPermissions(): Promise<{ roles: RoleWithDetails[], permissions: Permission[] }> {
   const roles = await prisma.role.findMany({
     include: {
       permissions: {
@@ -11,7 +12,6 @@ async function getRolesAndPermissions() {
           permission: true,
         },
       },
-      // Inclui os novos limites de recursos no carregamento dos dados
       resourceLimits: true, 
       _count: {
         select: { users: true },
@@ -28,9 +28,7 @@ async function getRolesAndPermissions() {
     },
   });
 
-  // A tipagem 'any' é uma solução temporária para passar os dados complexos
-  // do Server Component para o Client Component sem problemas de serialização.
-  return { roles: roles as any, permissions };
+  return { roles, permissions };
 }
 
 export default async function AdminRolesPage() {

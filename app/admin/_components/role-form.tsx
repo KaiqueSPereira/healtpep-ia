@@ -10,7 +10,6 @@ import { Button } from "@/app/_components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -23,7 +22,6 @@ import { createOrUpdateRole } from "@/app/admin/_actions/roles";
 import type { Role, Permission, ResourceLimit } from "@prisma/client";
 import {
   manageableResources,
-  tieredResources,
   permissionFlags
 } from '@/app/admin/_config/resources';
 

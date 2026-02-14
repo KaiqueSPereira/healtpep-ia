@@ -7,7 +7,7 @@ import { decryptString, encryptString } from '@/app/_lib/crypto';
 import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
 
 // GET: Retorna todas as condições de saúde do usuário
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
 
 // DELETE: Deleta uma condição de saúde específica
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   const condicaoId = params.id;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -54,7 +54,7 @@ export default function AbastecimentoSection({ medicamentoId, onAbastecimentoSuc
         resolver: zodResolver(formSchema),
     });
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setIsLoading(true);
         try {
             const [abastResponse, unidadesResponse] = await Promise.all([
@@ -76,11 +76,11 @@ export default function AbastecimentoSection({ medicamentoId, onAbastecimentoSuc
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [medicamentoId, toast]);
 
     useEffect(() => {
         fetchData();
-    }, [medicamentoId]);
+    }, [fetchData]);
 
     const handleUnidadeSelect = (unidade: UnidadeDeSaude | null) => {
         setSelectedUnidade(unidade);

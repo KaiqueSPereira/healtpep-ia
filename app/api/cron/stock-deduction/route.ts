@@ -1,8 +1,6 @@
-
 import { NextResponse } from 'next/server';
 import { db } from '@/app/_lib/prisma';
 import { FrequenciaTipo, StatusMedicamento } from '@prisma/client';
-import { safeDecrypt } from '@/app/_lib/crypto';
 import { startOfDay } from 'date-fns';
 
 // Função para calcular a dose diária

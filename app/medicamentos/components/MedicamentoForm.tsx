@@ -12,14 +12,14 @@ import useAuthStore from "@/app/_stores/authStore";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { FrequenciaTipo, StatusMedicamento, TipoMedicamento } from '@prisma/client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import MenuCondicoes from "@/app/condicoes/_Components/MenuCondicoes";
 import MenuProfissionais from "@/app/profissionais/_components/menuprofissionais";
 import MenuConsultas from "@/app/consulta/components/menuconsultas";
 import { Popover, PopoverContent } from "@/app/_components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandItem } from "@/app/_components/ui/command";
 import { cn } from "@/app/_lib/utils";
-import { Pill, CircleDot, Beaker, Droplets, Syringe, SprayCan, Calculator } from 'lucide-react';
+import { Pill, CircleDot, Beaker, Droplets, Syringe, SprayCan, Calculator, Loader2 } from 'lucide-react';
 import { PopoverAnchor } from "@radix-ui/react-popover";
 import { useDebounce } from "@/app/_hooks/use-debounce";
 
@@ -63,9 +63,6 @@ type MedicamentoFormData = z.infer<typeof medicamentoSchema>;
 interface MedicamentoFormProps {
     medicamento?: MedicamentoComRelacoes | null;
     onSave: () => void;
-    condicoes: CondicaoSaude[];
-    profissionais: Profissional[];
-    consultas: Consulta[];
 }
 
 interface AnvisaMed {
@@ -75,8 +72,12 @@ interface AnvisaMed {
   linkBula: string;
 }
 
-export default function MedicamentoForm({ medicamento, onSave, condicoes, profissionais, consultas }: MedicamentoFormProps) {
+export default function MedicamentoForm({ medicamento, onSave }: MedicamentoFormProps) {
     const { session } = useAuthStore();
+    const [condicoes, setCondicoes] = useState<CondicaoSaude[]>([]);
+    const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+    const [consultas, setConsultas] = useState<Consulta[]>([]);
+    const [isDataLoading, setIsDataLoading] = useState(true);
     const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
     const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
     const [selectedConsulta, setSelectedConsulta] = useState<Consulta | null>(null);
@@ -108,6 +109,40 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
     const dataInicio = watch("dataInicio");
 
     const canCalculate = estoque && quantidadeDose && frequenciaNumero && frequenciaTipo && dataInicio;
+
+     const fetchRelatedData = useCallback(async () => {
+        setIsDataLoading(true);
+        try {
+            const [condicoesRes, profissionaisRes, consultasRes] = await Promise.all([
+                fetch('/api/condicoes'),
+                fetch('/api/profissionais'),
+                fetch('/api/consultas')
+            ]);
+
+            if (!condicoesRes.ok || !profissionaisRes.ok || !consultasRes.ok) {
+                throw new Error("Falha ao carregar dados de associação.");
+            }
+
+            const [condicoesData, profissionaisData, consultasData] = await Promise.all([
+                condicoesRes.json(),
+                profissionaisRes.json(),
+                consultasRes.json(),
+            ]);
+
+            setCondicoes(condicoesData || []);
+            setProfissionais(profissionaisData || []);
+            setConsultas(consultasData || []);
+
+        } catch (error) {
+            toast({ title: "Erro", description: "Não foi possível carregar os dados para associar.", variant: "destructive" });
+        } finally {
+            setIsDataLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchRelatedData();
+    }, [fetchRelatedData]);
 
     useEffect(() => {
         if (medicamento) {
@@ -266,11 +301,18 @@ export default function MedicamentoForm({ medicamento, onSave, condicoes, profis
 
             <div className="space-y-2">
               <Label>Associar a (Opcional)</Label>
-              <div className="grid grid-cols-1 gap-2">
-                <MenuCondicoes condicoes={condicoes} selectedCondicao={selectedCondicao} onCondicaoSelect={(c) => {setSelectedCondicao(c); setValue('condicaoSaudeId', c?.id || null);}}/>
-                <MenuProfissionais profissionais={profissionais} selectedProfissional={selectedProfissional} onProfissionalSelect={(p) => {setSelectedProfissional(p); setValue('profissionalId', p?.id || null);}} />
-                <MenuConsultas consultas={consultas} selectedConsulta={selectedConsulta} onConsultaSelect={(c) => {setSelectedConsulta(c); setValue('consultaId', c?.id || null);}}/>
-              </div>
+                {isDataLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin"/>
+                        <span>Carregando opções...</span>
+                    </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2">
+                    <MenuCondicoes condicoes={condicoes} selectedCondicao={selectedCondicao} onCondicaoSelect={(c) => {setSelectedCondicao(c); setValue('condicaoSaudeId', c?.id || null);}}/>
+                    <MenuProfissionais profissionais={profissionais} selectedProfissional={selectedProfissional} onProfissionalSelect={(p) => {setSelectedProfissional(p); setValue('profissionalId', p?.id || null);}} />
+                    <MenuConsultas consultas={consultas} selectedConsulta={selectedConsulta} onConsultaSelect={(c) => {setSelectedConsulta(c); setValue('consultaId', c?.id || null);}}/>
+                  </div>
+                )}
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
