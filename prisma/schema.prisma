@@ -37,12 +37,6 @@ enum TipoMedicamento {
   Esporadico
 }
 
-enum NotificationType {
-  ESTOQUE_BAIXO
-  LEMBRETE_CONSULTA
-  OUTRO
-}
-
 // MODELOS DE CONTROLE DE ACESSO (RBAC)
 
 model Role {
@@ -424,21 +418,26 @@ model Medicamento {
 }
 
 model Notification {
-  id            String           @id @default(cuid())
-  type          NotificationType @default(OUTRO)
-  title         String
-  message       String
-  isRead        Boolean          @default(false)
-  createdAt     DateTime         @default(now())
+  id             String       @id @default(cuid())
+  type           String       // Campo alterado para String para maior flexibilidade
+  title          String
+  message        String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
 
-  userId        String
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  medicamentoId String?
-  medicamento   Medicamento?     @relation(fields: [medicamentoId], references: [id], onDelete: SetNull)
+  medicamentoId  String?
+  medicamento    Medicamento? @relation(fields: [medicamentoId], references: [id], onDelete: SetNull)
+
+  // Campos para relacionar a notificação a um evento específico
+  relatedId      String?
+  relatedModel   String?      // Ex: "Consulta", "Exame"
 
   @@index([userId])
   @@index([medicamentoId])
+  @@index([relatedId, relatedModel])
 }
 
 model ErrorLog {
