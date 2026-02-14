@@ -13,8 +13,13 @@ const DocsSidebar: React.FC = () => {
             </Link>
           </li>
           <li>
-            <Link href="/docs/exames" className="block py-2  hover:text-blue-600">
-              Exames
+            <Link href="/docs/usuarios" className="block py-2  hover:text-blue-600">
+              Perfil do Usuário
+            </Link>
+          </li>
+          <li>
+            <Link href="/docs/medicamentos" className="block py-2  hover:text-blue-600">
+              Medicamentos
             </Link>
           </li>
           <li>
@@ -23,10 +28,15 @@ const DocsSidebar: React.FC = () => {
             </Link>
           </li>
           <li>
+            <Link href="/docs/unidades-saude" className="block py-2  hover:text-blue-600">Unidade de Saúde</Link>
+          </li>
+          <li>
             <Link href="/docs/tratamentos" className="block py-2 hover:text-blue-600">Tratamentos</Link>
           </li>
           <li>
-            <Link href="/docs/unidades-saude" className="block py-2  hover:text-blue-600">Unidade de Saúde</Link>
+            <Link href="/docs/exames" className="block py-2  hover:text-blue-600">
+              Exames
+            </Link>
           </li>
         </ul>
       </nav>
