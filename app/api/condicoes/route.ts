@@ -1,12 +1,24 @@
 
 import { NextResponse } from 'next/server';
-import { prisma } from '@/app/_lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/_lib/auth';
+import { db } from '@/app/_lib/prisma';
 import { decryptString, encryptString } from '@/app/_lib/crypto';
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
 
-// GET: Retorna todas as condições de saúde
+// GET: Retorna todas as condições de saúde do usuário
 export async function GET(request: Request) {
   try {
-    const condicoes = await prisma.condicaoSaude.findMany();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+        return new NextResponse(JSON.stringify({ error: 'Usuário não autenticado' }), {
+            status: 401, headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    const condicoes = await db.condicaoSaude.findMany({
+        where: { userId: session.user.id },
+    });
 
     const decryptedCondicoes = condicoes.map(condicao => ({
       ...condicao,
@@ -25,6 +37,57 @@ export async function GET(request: Request) {
   }
 }
 
+// POST: Cria uma nova condição de saúde
+export async function POST(request: Request) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return new NextResponse(JSON.stringify({ error: 'Usuário não autenticado' }), {
+                status: 401, headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        const userId = session.user.id;
+
+        // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+        const permissions = await getPermissionsForUser(userId);
+        if (await permissions.hasReachedLimit('tratamentos')) {
+            return new NextResponse(JSON.stringify({ error: "Você atingiu o limite de tratamentos para o seu plano." }), {
+                status: 403, // Forbidden
+                headers: { 'Content-Type': 'application/json' },
+            });
+        }
+        // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
+
+        const body = await request.json();
+        const { nome, objetivo, observacoes, profissionalId, dataInicio } = body;
+
+        if (!nome || !dataInicio) {
+            return new NextResponse(JSON.stringify({ error: 'Nome e Data de Início são obrigatórios' }), {
+                status: 400, headers: { 'Content-Type': 'application/json' },
+            });
+        }
+
+        const novaCondicao = await db.condicaoSaude.create({
+            data: {
+                userId,
+                nome: encryptString(nome),
+                objetivo: objetivo ? encryptString(objetivo) : null,
+                observacoes: observacoes ? encryptString(observacoes) : null,
+                profissionalId,
+                dataInicio: new Date(dataInicio),
+            },
+        });
+
+        return NextResponse.json(novaCondicao, { status: 201 });
+
+    } catch (error) {
+        console.error('Erro ao criar condição de saúde:', error);
+        return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+}
 
 // DELETE: Deleta uma condição de saúde específica
 export async function DELETE(
@@ -41,7 +104,7 @@ export async function DELETE(
   }
 
   try {
-    await prisma.condicaoSaude.delete({ where: { id: condicaoId } });
+    await db.condicaoSaude.delete({ where: { id: condicaoId } });
     return new NextResponse(null, { status: 204 }); // Sucesso, sem conteúdo
   } catch (error) {
     console.error('Erro ao deletar condição de saúde:', error);
@@ -84,7 +147,7 @@ export async function PATCH(
     if (profissionalId !== undefined) dataToUpdate.profissionalId = profissionalId;
 
 
-    const updatedCondicao = await prisma.condicaoSaude.update({
+    const updatedCondicao = await db.condicaoSaude.update({
       where: { id: condicaoId },
       data: dataToUpdate,
     });

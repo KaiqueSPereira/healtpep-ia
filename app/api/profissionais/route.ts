@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
 
 const profissionalCreateSchema = z.object({
   nome: z.string().min(1, "O nome e obrigatorio."),
@@ -56,10 +57,21 @@ export async function POST(request: Request) {
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
     }
+    const userId = session.user.id;
+
+    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+    const permissions = await getPermissionsForUser(userId);
+  
+    if (await permissions.hasReachedLimit('profissionais')) {
+      return NextResponse.json(
+        { error: "Você atingiu o limite de profissionais para o seu plano." },
+        { status: 403 } // 403 Forbidden
+      );
+    }
+    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
     const body = await request.json();
     const parsedData = profissionalCreateSchema.parse(body);
-    const userId = session.user.id;
 
     const existingProfissional = await db.profissional.findFirst({
         where: {

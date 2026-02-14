@@ -1,3 +1,4 @@
+
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
@@ -9,13 +10,14 @@ datasource db {
 }
 
 model Role {
-  id          String             @id @default(cuid())
-  name        String             @unique
-  description String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  permissions PermissionOnRole[]
-  users       User[]
+  id             String             @id @default(cuid())
+  name           String             @unique
+  description    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  permissions    PermissionOnRole[]
+  users          User[]
+  resourceLimits ResourceLimit[]
 }
 
 model Permission {
@@ -35,6 +37,18 @@ model PermissionOnRole {
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@id([roleId, permissionId])
+}
+
+model ResourceLimit {
+  id       String @id @default(cuid())
+  roleId   String
+  resource String // e.g., "exams", "consultas", "profissionais"
+  limit    Int    // The limit for the resource. -1 can mean unlimited.
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, resource])
+  @@index([roleId])
 }
 
 model User {

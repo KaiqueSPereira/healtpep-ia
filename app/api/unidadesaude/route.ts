@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { ApiRouteHandler } from "../types";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
 
 type UnidadeParams = Record<string, never>;
 
@@ -71,6 +72,18 @@ export async function POST(req: Request) {
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
     }
+    const userId = session.user.id;
+
+    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+    const permissions = await getPermissionsForUser(userId);
+  
+    if (await permissions.hasReachedLimit('unidades')) {
+      return NextResponse.json(
+        { error: "Você atingiu o limite de unidades de saúde para o seu plano." },
+        { status: 403 } // 403 Forbidden
+      );
+    }
+    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
     const body = await req.json();
     const { nome, tipo, telefone, endereco } = body;

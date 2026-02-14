@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { encryptString, decryptString } from "@/app/_lib/crypto";
 import { Anotacoes, Prisma } from '@prisma/client';
 import { Session } from "next-auth";
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
 
 const getUserSessionAndId = async (): Promise<{ session: Session | null, userId: string | null }> => {
   const session = await getServerSession(authOptions);
@@ -95,6 +96,17 @@ export async function POST(request: Request) {
     if (!session || !userId) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
+    
+    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+    const permissions = await getPermissionsForUser(userId);
+  
+    if (await permissions.hasReachedLimit('consultas')) {
+      return NextResponse.json(
+        { error: "Você atingiu o limite de consultas para o seu plano." },
+        { status: 403 } // 403 Forbidden
+      );
+    }
+    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
     const body = await request.json();
 

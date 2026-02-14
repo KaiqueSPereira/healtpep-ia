@@ -6,6 +6,7 @@ import { authOptions } from '@/app/_lib/auth';
 import { db } from '@/app/_lib/prisma';
 import { TipoMedicamento, StatusMedicamento, FrequenciaTipo } from '@prisma/client';
 import { encryptString, safeDecrypt } from '@/app/_lib/crypto';
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
 
 // Esquema de validação para criação de medicamentos
 const medicamentoCreateSchema = z.object({
@@ -81,6 +82,18 @@ export async function POST(request: Request) {
     if (!session) {
       return new NextResponse('Não autorizado', { status: 401 });
     }
+    const userId = session.user.id;
+
+    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
+    const permissions = await getPermissionsForUser(userId);
+  
+    if (await permissions.hasReachedLimit('medicamentos')) {
+      return NextResponse.json(
+        { error: "Você atingiu o limite de medicamentos para o seu plano." },
+        { status: 403 } // 403 Forbidden
+      );
+    }
+    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
     const json = await request.json();
     const body = medicamentoCreateSchema.parse(json);
