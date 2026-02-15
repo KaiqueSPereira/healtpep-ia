@@ -20,12 +20,19 @@ import {
 import { ExamDetailsForm } from "./ExamDetailForm";
 import { UnidadeDeSaude } from "@prisma/client";
 
+// Tipos atualizados para incluir anexos
+type Anexo = {
+  id: string;
+  nomeArquivo: string;
+};
+
 type ExameComRelacoes = Exame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
   unidades?: UnidadeDeSaude | null;
   consulta?: Consulta | null; 
   condicaoSaude?: CondicaoSaude | null;
+  anexos?: Anexo[]; // Adicionado
 };
 
 type ApiExameResult = {
@@ -232,7 +239,6 @@ export function ExameFormWrapper({
       }
     }
     
-    // Clear selected files after analysis to avoid re-analyzing
     if (analysisSuccessCount > 0) {
         setSelectedFiles([]);
         toast({ title: `Análise concluída para ${analysisSuccessCount} de ${selectedFiles.length} arquivo(s).` });
@@ -331,17 +337,27 @@ export function ExameFormWrapper({
                 {loadingAnalysis ? "Analisando..." : "Analisar Arquivo(s)"}
               </Button>
             </div>
-            {selectedFiles.length > 0 && (
-              <div className="mt-1 text-sm text-muted-foreground">
-                <p>Novos arquivos selecionados:</p>
-                <ul>
+             {selectedFiles.length > 0 && (
+              <div className="mt-2 text-sm">
+                <p className="font-medium text-muted-foreground">Novos arquivos a serem enviados:</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
                   {selectedFiles.map((file, index) => (
-                    <li key={index}>{file.name}</li>
+                    <li key={index} className="text-muted-foreground">{file.name}</li>
                   ))}
                 </ul>
               </div>
             )}
-            {existingExamData?.nomeArquivo && selectedFiles.length === 0 && <p className="mt-1 text-sm text-muted-foreground">Arquivo atual: {existingExamData.nomeArquivo}</p>}
+            {/* Mostra os arquivos já existentes se nenhum novo foi selecionado */}
+            {existingExamData?.anexos && existingExamData.anexos.length > 0 && selectedFiles.length === 0 && (
+              <div className="mt-2 text-sm">
+                <p className="font-medium text-muted-foreground">Arquivos atuais:</p>
+                <ul className="list-disc pl-5 mt-1 space-y-1">
+                  {existingExamData.anexos.map((anexo) => (
+                    <li key={anexo.id} className="text-muted-foreground">{anexo.nomeArquivo}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           {["Sangue", "Urina"].includes(tipo) && (
             <TabelaExames exames={exameResultados} onAddExame={handleAddExame} onRemoveExame={handleRemoveExame} onExameChange={handleExameChange} />

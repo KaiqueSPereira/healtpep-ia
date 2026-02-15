@@ -19,6 +19,7 @@ export type ExameCompleto = Exame & {
     profissional: Profissional | null;
     unidades: UnidadeDeSaude | null;
     resultados: ResultadoExame[];
+    _count?: { anexos: number }; // Adicionando a contagem de anexos
 };
 
 type ExameGraficos = {
