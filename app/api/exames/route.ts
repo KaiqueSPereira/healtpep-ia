@@ -1,3 +1,4 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { safeDecrypt } from "@/app/_lib/crypto";
@@ -18,13 +19,17 @@ export async function GET(request: NextRequest) {
                 profissional: true,
                 unidades: true,
                 resultados: true,
+                // Adiciona a contagem de anexos para cada exame
+                _count: {
+                    select: { anexos: true },
+                }
             },
             orderBy: {
                 dataExame: 'desc',
             },
         });
 
-        // Decrypt all sensitive data before sending to the client
+        // A descriptografia continua a mesma, pois _count não é criptografado
         const decryptedExames = exames.map(exame => {
             const decryptedProfissional = exame.profissional && exame.profissional.nome
                 ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) }
@@ -35,17 +40,12 @@ export async function GET(request: NextRequest) {
                 : exame.unidades;
 
             const decryptedResultados = exame.resultados.map(resultado => {
-                const nome = resultado.nome ? safeDecrypt(resultado.nome) : null;
-                const valor = resultado.valor ? safeDecrypt(resultado.valor) : null;
-                const unidade = resultado.unidade ? safeDecrypt(resultado.unidade) : null;
-                const valorReferencia = resultado.referencia ? safeDecrypt(resultado.referencia) : null;
-
                 return {
                     ...resultado,
-                    nome,
-                    valor,
-                    unidade,
-                    valorReferencia,
+                    nome: safeDecrypt(resultado.nome),
+                    valor: safeDecrypt(resultado.valor),
+                    unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
+                    referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
                 };
             });
             

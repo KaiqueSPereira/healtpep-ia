@@ -58,7 +58,7 @@ export function ExameFormWrapper({
   const [dataExame, setDataExame] = useState<string>("");
   const [horaExame, setHoraExame] = useState<string>("");
   const [anotacao, setAnotacao] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
@@ -173,15 +173,13 @@ export function ExameFormWrapper({
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setSelectedFile(file);
-    setExameResultados([]);
-    setAnotacao("");
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    setSelectedFiles(prev => [...prev, ...files]); // Append new files
   };
 
   const handleAnalyzeFile = async () => {
-    if (!selectedFile) {
-      toast({ title: "Por favor, selecione um arquivo primeiro.", variant: "destructive" });
+    if (selectedFiles.length === 0) {
+      toast({ title: "Por favor, selecione um ou mais arquivos.", variant: "destructive" });
       return;
     }
     if (!tipo) {
@@ -190,28 +188,57 @@ export function ExameFormWrapper({
     }
 
     setLoadingAnalysis(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("tipo", tipo);
+    let analysisSuccessCount = 0;
 
-    try {
-      const res = await fetch("/api/exames/analise", { method: "POST", body: formData });
-      if (!res.ok) {
-        const errorData = await res.json();
-        toast({ title: "Erro ao analisar arquivo", description: errorData.error, variant: "destructive" });
-        return;
+    for (const file of selectedFiles) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("tipo", tipo);
+
+      try {
+        const res = await fetch("/api/exames/analise", { method: "POST", body: formData });
+        if (!res.ok) {
+          const errorData = await res.json();
+          toast({
+            title: `Erro ao analisar o arquivo ${file.name}`,
+            description: errorData.error,
+            variant: "destructive",
+          });
+          continue; 
+        }
+
+        const data: AnaliseApiResponse = await res.json();
+        
+        if (data.resultados) {
+          setExameResultados(prev => [
+            ...prev,
+            ...data.resultados.map((res) => ({ ...res, id: crypto.randomUUID(), referencia: res.valorReferencia }))
+          ]);
+        }
+        if (data.anotacao) {
+          setAnotacao(prev => 
+            prev 
+            ? `${prev}\n\n--- ANÁLISE DE ${file.name} ---\n${data.anotacao}` 
+            : `--- ANÁLISE DE ${file.name} ---\n${data.anotacao}`
+          );
+        }
+        analysisSuccessCount++;
+      } catch (error) {
+        toast({
+          title: `Erro ao processar o arquivo ${file.name}`,
+          description: "Verifique sua conexão ou o formato do arquivo.",
+          variant: "destructive",
+        });
       }
-
-      const data: AnaliseApiResponse = await res.json();
-      setExameResultados(data.resultados.map((res) => ({ ...res, id: crypto.randomUUID(), referencia: res.valorReferencia })) || []);
-      setAnotacao(data.anotacao || "");
-      toast({ title: "Análise concluída com sucesso!" });
-
-    } catch {
-      toast({ title: "Ocorreu um erro inesperado durante a análise.", variant: "destructive" });
-    } finally {
-      setLoadingAnalysis(false);
     }
+    
+    // Clear selected files after analysis to avoid re-analyzing
+    if (analysisSuccessCount > 0) {
+        setSelectedFiles([]);
+        toast({ title: `Análise concluída para ${analysisSuccessCount} de ${selectedFiles.length} arquivo(s).` });
+    }
+
+    setLoadingAnalysis(false);
   };
 
   const handleSubmit = async () => {
@@ -225,7 +252,6 @@ export function ExameFormWrapper({
 
     const body = new FormData();
     
-    // Adiciona todos os campos ao FormData
     if (userId) body.append("userId", userId);
     body.append("profissionalId", selectedProfissional?.id || "null");
     body.append("unidadesId", selectedUnidade?.id || "null");
@@ -239,9 +265,10 @@ export function ExameFormWrapper({
         body.append("resultados", JSON.stringify(exameResultados));
     }
     
-    // CORREÇÃO: Anexa o arquivo SE ele for selecionado, tanto para criar quanto para editar.
-    if (selectedFile) {
-        body.append("file", selectedFile);
+    if (selectedFiles.length > 0) {
+      selectedFiles.forEach(file => {
+          body.append(`files`, file);
+      });
     }
     
     try {
@@ -299,15 +326,22 @@ export function ExameFormWrapper({
           <div>
             <Label>Anexar Arquivo (PDF ou imagem)</Label>
             <div className="flex items-center space-x-2">
-              {/* CORREÇÃO: Input de arquivo agora é habilitado para edição */}
-              <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} />
-              {/* CORREÇÃO: Botão de análise agora é habilitado para edição */}
-              <Button onClick={handleAnalyzeFile} disabled={!selectedFile || loadingAnalysis} type="button">
-                {loadingAnalysis ? "Analisando..." : "Analisar Arquivo"}
+              <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} multiple />
+              <Button onClick={handleAnalyzeFile} disabled={selectedFiles.length === 0 || loadingAnalysis} type="button">
+                {loadingAnalysis ? "Analisando..." : "Analisar Arquivo(s)"}
               </Button>
             </div>
-            {selectedFile && <p className="mt-1 text-sm text-muted-foreground">Novo arquivo selecionado: {selectedFile.name}</p>}
-            {existingExamData?.nomeArquivo && !selectedFile && <p className="mt-1 text-sm text-muted-foreground">Arquivo atual: {existingExamData.nomeArquivo}</p>}
+            {selectedFiles.length > 0 && (
+              <div className="mt-1 text-sm text-muted-foreground">
+                <p>Novos arquivos selecionados:</p>
+                <ul>
+                  {selectedFiles.map((file, index) => (
+                    <li key={index}>{file.name}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {existingExamData?.nomeArquivo && selectedFiles.length === 0 && <p className="mt-1 text-sm text-muted-foreground">Arquivo atual: {existingExamData.nomeArquivo}</p>}
           </div>
           {["Sangue", "Urina"].includes(tipo) && (
             <TabelaExames exames={exameResultados} onAddExame={handleAddExame} onRemoveExame={handleRemoveExame} onExameChange={handleExameChange} />

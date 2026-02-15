@@ -1,46 +1,36 @@
+
 import { NextRequest } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { decrypt, safeDecrypt } from "@/app/_lib/crypto"; 
 import { Buffer } from 'buffer';
+import mime from 'mime-types';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const id = searchParams.get("id");
+  const anexoId = searchParams.get("anexoId");
 
-  if (!id) {
-    return new Response("ID do exame não fornecido", { status: 400 });
+  if (!anexoId) {
+    return new Response("ID do anexo não fornecido", { status: 400 });
   }
 
   try {
-    const exame = await prisma.exame.findUnique({
-      where: { id },
+    const anexo = await prisma.anexoExame.findUnique({
+      where: { id: anexoId },
       select: {
         nomeArquivo: true,
-        arquivoExame: true,
+        arquivo: true,
       },
     });
 
-    if (!exame || !exame.arquivoExame) {
+    if (!anexo || !anexo.arquivo) {
       return new Response("Arquivo não encontrado", { status: 404 });
     }
 
-    const decryptedFileBuffer = decrypt(Buffer.from(exame.arquivoExame));
+    const decryptedFileBuffer = decrypt(Buffer.from(anexo.arquivo));
+    const fileName = safeDecrypt(anexo.nomeArquivo);
 
-    // CORRIGIDO: Verifica se nomeArquivo existe ANTES de descriptografar
-    const fileName = exame.nomeArquivo 
-      ? safeDecrypt(exame.nomeArquivo) 
-      : 'arquivo_desconhecido';
-
-    const fileExtension = fileName.split(".").pop()?.toLowerCase();
-
-    const contentTypes: Record<string, string> = {
-      pdf: "application/pdf",
-      png: "image/png",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-    };
-
-    const contentType = (fileExtension && contentTypes[fileExtension]) || "application/octet-stream";
+    // Determina o Content-Type com base no nome do arquivo para mais precisão
+    const contentType = mime.lookup(fileName) || "application/octet-stream";
 
     const body = new Uint8Array(decryptedFileBuffer);
 
@@ -48,12 +38,13 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${fileName}"`, 
+        // Garante que o navegador tente exibir o arquivo em vez de baixar
+        "Content-Disposition": `inline; filename="${fileName}"`,
       },
     });
 
   } catch (error) {
-    console.error("Erro interno ao buscar o arquivo do exame:", error);
+    console.error("Erro interno ao buscar o arquivo do anexo:", error);
     return new Response("Erro interno ao buscar o arquivo", { status: 500 });
   }
 }

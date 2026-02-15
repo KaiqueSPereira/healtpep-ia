@@ -285,9 +285,7 @@ model UnidadeDeSaude {
 model Exame {
   id              String           @id @default(uuid())
   nome            String
-  nomeArquivo     String?
   dataExame       DateTime
-  arquivoExame    Bytes?
   anotacao        String?
   userId          String
   profissionalId  String?
@@ -304,6 +302,7 @@ model Exame {
   unidades        UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
   usuario         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   resultados      ResultadoExame[]
+  anexos          AnexoExame[]
 
   @@index([userId])
   @@index([profissionalId])
@@ -325,6 +324,19 @@ model ResultadoExame {
   @@index([exameId])
 }
 
+model AnexoExame {
+  id           String   @id @default(uuid())
+  nomeArquivo  String
+  mimetype     String?
+  arquivo      Bytes?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  exameId      String
+  exame        Exame    @relation(fields: [exameId], references: [id], onDelete: Cascade)
+
+  @@index([exameId])
+}
+
 model AnexoConsulta {
   id          String    @id @default(uuid())
   nomeArquivo String
@@ -336,7 +348,7 @@ model AnexoConsulta {
   mimetype    String?
   consulta    Consultas @relation(fields: [consultaId], references: [id], onDelete: Cascade)
 
-  @@index([consultaId])
+  @@index([ consultaId])
 }
 
 model Medicamento {

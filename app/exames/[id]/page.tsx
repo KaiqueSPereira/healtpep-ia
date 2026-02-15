@@ -1,20 +1,21 @@
+
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco } from "@prisma/client";
+import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco, AnexoExame } from "@prisma/client";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
-import { Pencil, BrainCircuit, RefreshCw, FileText } from "lucide-react";
+import { Pencil, BrainCircuit, RefreshCw, Paperclip } from "lucide-react"; // Ícone de clipe para anexos
 import Link from "next/link";
 import useAuthStore from "@/app/_stores/authStore";
+import AnexosDialog from "../components/AnexosDialog"; // Importa o novo diálogo
 
-// Tipo para unidade que inclui o endereço
+// Tipos atualizados para refletir a nova estrutura da API
 type UnidadeComEndereco = UnidadeDeSaude & {
   endereco: Endereco | null;
 };
 
-// Tipo principal que agora usa a unidade com endereço
 type ExameComDetalhes = Exame & {
   resultados: ResultadoExame[];
   unidades: UnidadeComEndereco | null;
@@ -23,6 +24,8 @@ type ExameComDetalhes = Exame & {
     profissional: Profissional | null;
     unidade: UnidadeDeSaude | null;
   }) | null;
+  anexos?: AnexoExame[]; // Anexos podem estar presentes ou não
+  _count?: { anexos: number }; // Contagem de anexos
 };
 
 export default function ExameDetalhePage() {
@@ -34,6 +37,7 @@ export default function ExameDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [isPolling, setIsPolling] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAnexosDialogOpen, setIsAnexosDialogOpen] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const startPolling = useCallback(() => {
@@ -94,6 +98,7 @@ export default function ExameDetalhePage() {
     const fetchExameDetails = async () => {
       try {
         setLoading(true);
+        // A primeira chamada não inclui os anexos, apenas a contagem
         const resExame = await fetch(`/api/exames/${id}`);
 
         if (!resExame.ok) throw new Error(`Erro ao buscar detalhes do exame`);
@@ -147,6 +152,9 @@ export default function ExameDetalhePage() {
     const date = new Date(dataString);
     return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
   };
+  
+  // Verifica se há anexos usando a contagem
+  const hasAnexos = exame._count ? exame._count.anexos > 0 : false;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -225,15 +233,14 @@ export default function ExameDetalhePage() {
             )}
           </div>
 
-          {exame.nomeArquivo && (
+          {/* Botão para abrir o diálogo de anexos */}
+          {hasAnexos && (
             <div>
-              <h2 className="mb-2 text-lg font-semibold">Anexo</h2>
-                <Button asChild>
-                    <Link href={`/api/exames/arquivo?id=${id}`} target="_blank">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Ver Laudo
-                    </Link>
-                </Button>
+              <h2 className="mb-2 text-lg font-semibold">Anexos</h2>
+              <Button onClick={() => setIsAnexosDialogOpen(true)}>
+                <Paperclip className="mr-2 h-4 w-4" />
+                Ver Anexos ({exame._count?.anexos})
+              </Button>
             </div>
           )}
 
@@ -255,6 +262,13 @@ export default function ExameDetalhePage() {
           </div>
         </div>
       </main>
+
+      {/* Renderiza o diálogo */}
+      <AnexosDialog 
+        open={isAnexosDialogOpen} 
+        onOpenChange={setIsAnexosDialogOpen} 
+        examId={id}
+      />
     </div>
   );
 }
