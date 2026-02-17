@@ -2,16 +2,13 @@
 
 import { useEffect, useState, useMemo } from "react";
 import useAuthStore from "../_stores/authStore";
-import ViewSwitcher from "./components/ViewSwitcher";
 import Header from "@/app/_components/header";
+import Footer from "@/app/_components/footer"; // Importando o Footer
 import { Loader2 } from "lucide-react";
 import ExameLineChart from "./components/ExameLineChart";
-import { Input } from "@/app/_components/ui/input";
 import { ExamesGrid } from "./components/ExamesGrid";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/app/_components/ui/alert-dialog";
-import Link from "next/link";
-import { Button } from "@/app/_components/ui/button";
-import { ExameTypeFilter } from "./components/ExameTypeFilter";
+import { ExameSidebar } from "./components/ExameSidebar";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { useToast } from "../_hooks/use-toast";
 
@@ -19,7 +16,7 @@ export type ExameCompleto = Exame & {
     profissional: Profissional | null;
     unidades: UnidadeDeSaude | null;
     resultados: ResultadoExame[];
-    _count?: { anexos: number }; // Adicionando a contagem de anexos
+    _count?: { anexos: number };
 };
 
 type ExameGraficos = {
@@ -58,6 +55,7 @@ const parseExameValue = (value: string | number | null): number | null => {
 
 export default function ExamesPage() {
     const { session, status } = useAuthStore();
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     const [loading, setLoading] = useState(true);
@@ -218,45 +216,47 @@ export default function ExamesPage() {
     };
 
     return (
-        <div className="flex min-h-screen flex-col">
+        <div className="flex flex-col h-screen">
             <Header />
-            <main className="flex-1 space-y-6 p-4 md:p-6">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-                    <h1 className="text-2xl font-bold mb-4 md:mb-0">Meus Exames</h1>
-                    <div className="flex items-center gap-4">
-                        <Link href="/exames/novo"><Button className="w-auto">Novo Exame</Button></Link>
-                        <ViewSwitcher currentView={currentView} onViewChange={setCurrentView} />
-                    </div>
-                </div>
-                <div className="flex flex-wrap items-end gap-4 rounded-lg border p-4">
-                    <div className="flex items-end gap-4">
-                        <div>
-                            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Data Inicial</label>
-                            <Input type="date" id="startDate" value={startDate} onChange={e => setStartDate(e.target.value)} className="mt-1" />
+            <div className="flex flex-1 overflow-hidden">
+                <ExameSidebar
+                    isCollapsed={isSidebarCollapsed}
+                    setIsCollapsed={setIsSidebarCollapsed}
+                    currentView={currentView}
+                    onViewChange={setCurrentView}
+                    startDate={startDate}
+                    onStartDateChange={setStartDate}
+                    endDate={endDate}
+                    onEndDateChange={setEndDate}
+                    listFilterOptions={listFilterOptions}
+                    selectedListTypes={selectedListTypes}
+                    onListTypeChange={setSelectedListTypes}
+                    selectedChartType={selectedChartType}
+                    onChartTypeChange={setSelectedChartType}
+                    chartComponentOptions={chartComponentOptions}
+                    selectedChartComponents={selectedChartComponents}
+                    onChartComponentChange={setSelectedChartComponents}
+                />
+                <main className="flex-1 p-6 overflow-y-auto">
+                    <h1 className="text-2xl font-bold mb-6">Resultados</h1>
+
+                    {loading ? (
+                        <div className="flex h-full items-center justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin" />
                         </div>
-                        <div>
-                            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">Data Final</label>
-                            <Input type="date" id="endDate" value={endDate} onChange={e => setEndDate(e.target.value)} className="mt-1" />
-                        </div>
-                    </div>
-                    {currentView === 'list' && listFilterOptions.length > 0 && <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={setSelectedListTypes} />}
-                    {currentView === 'charts' && (
-                        <div className="flex items-end gap-4">
-                             <div className="flex items-center gap-2 rounded-md border p-2">
-                               <Button variant={selectedChartType === 'Sangue' ? 'default' : 'outline'} onClick={() => setSelectedChartType('Sangue')}>Sangue</Button>
-                               <Button variant={selectedChartType === 'Urina' ? 'default' : 'outline'} onClick={() => setSelectedChartType('Urina')}>Urina</Button>
-                             </div>
-                            {chartComponentOptions.length > 0 && <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={setSelectedChartComponents} />}
-                        </div>
+                    ) : (
+                        <>
+                            {currentView === 'list' && <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />}
+                            {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? (
+                                <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} />
+                            ) : (
+                                <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
+                            ))}
+                        </>
                     )}
-                </div>
-                {loading ? <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div> : (
-                    <>
-                        {currentView === 'list' && <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />}
-                        {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} /> : <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados. Tente selecionar mais componentes ou um período de tempo diferente.</p>)}
-                    </>
-                )}
-            </main>
+                </main>
+            </div>
+            <Footer />
             <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Tem certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita e excluirá permanentemente o exame.</AlertDialogDescription></AlertDialogHeader>
