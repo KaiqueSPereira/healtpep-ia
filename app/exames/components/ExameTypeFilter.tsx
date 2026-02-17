@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
     DropdownMenu,
@@ -45,7 +45,7 @@ export function ExameTypeFilter({ allTypes, selectedTypes, onTypeChange }: Exame
                     <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filtrar Tipos</span>
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
                 <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem

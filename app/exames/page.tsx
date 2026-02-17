@@ -57,7 +57,7 @@ const EXAMES_PER_PAGE = 10;
 
 export default function ExamesPage() {
     const { session, status } = useAuthStore();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     
