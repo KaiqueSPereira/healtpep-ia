@@ -18,13 +18,12 @@ interface ExamFileDialogProps {
 
 export default function ExamFileDialog({ examId, hasFile }: ExamFileDialogProps) {
   const [isFileDialogOpen, setIsFileDialogOpen] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null); // Para erros específicos do arquivo
+  const [fileError, setFileError] = useState<string | null>(null); 
 
   useEffect(() => {
     const fetchExameFile = async () => {
-      // Busca o arquivo apenas se o dialog estiver aberto E se existir um arquivo associado
       if (isFileDialogOpen && hasFile) {
-        setFileError(null); // Limpa erros anteriores
+        setFileError(null); 
         try {
           const resArquivo = await fetch(`/api/exames/arquivo?id=${examId}`);
           if (!resArquivo.ok) {
@@ -36,7 +35,6 @@ export default function ExamFileDialog({ examId, hasFile }: ExamFileDialogProps)
             }
           } else {
             const dataUrl = await resArquivo.text();
-            // Encontra o iframe dentro do Dialog e define o src
             const iframe = document.querySelector('iframe[title="Arquivo do Exame"]');
             if (iframe) {
               iframe.setAttribute('src', dataUrl);

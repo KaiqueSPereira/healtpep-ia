@@ -2,23 +2,22 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
-// CORREÇÃO: Importa os tipos corretos diretamente do Prisma
 import type { Exame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
-import ExameSection from "./ExameSection";
+import ExameItem from './ExameItem'; // Importando ExameItem diretamente
 
 interface ExamesListProps {
   userId: string;
 }
 
-// CORREÇÃO: Cria um tipo que representa um Exame com as suas relações
+// Adicionando a contagem de anexos para consistência com o ExameItem
 type ExameComRelacoes = Exame & {
   profissional: Profissional | null;
   unidades: UnidadeDeSaude | null;
+  _count?: { anexos: number }; 
 };
 
 const ExamesList = ({ userId }: ExamesListProps) => {
-  // CORREÇÃO: Utiliza o novo tipo para o estado
   const [futurosExames, setFuturosExames] = useState<ExameComRelacoes[]>([]);
   const [ultimos5PassadosExames, setUltimos5PassadosExames] = useState<ExameComRelacoes[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +31,14 @@ const ExamesList = ({ userId }: ExamesListProps) => {
 
       const agora = new Date();
 
-      const futuros = examesData.filter(
-        (exame) => new Date(exame.dataExame) >= agora
-      );
+      const futuros = examesData
+        .filter((exame) => new Date(exame.dataExame) >= agora)
+        .sort((a, b) => new Date(a.dataExame).getTime() - new Date(b.dataExame).getTime());
+
       const passados = examesData.filter(
         (exame) => new Date(exame.dataExame) < agora
       );
+      
       const ultimos5PassadosOrdenados = passados
         .sort((a, b) => new Date(b.dataExame).getTime() - new Date(a.dataExame).getTime())
         .slice(0, 5);
@@ -83,9 +84,31 @@ const ExamesList = ({ userId }: ExamesListProps) => {
             </Button>
           </div>
 
-          <ExameSection title="Próximos Exames" exames={futurosExames} />
+          <div className="mt-5">
+            <h2 className="text-xs font-bold uppercase text-gray-400">Próximos Exames</h2>
+            <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
+              {futurosExames.length > 0 ? (
+                futurosExames.map((exame) => (
+                  <ExameItem key={exame.id} exame={exame} />
+                ))
+              ) : (
+                <p className="text-gray-500">Nenhum exame encontrado.</p>
+              )}
+            </div>
+          </div>
 
-          <ExameSection title="Últimos Exames" exames={ultimos5PassadosExames} />
+          <div className="mt-5">
+            <h2 className="text-xs font-bold uppercase text-gray-400">Últimos Exames</h2>
+            <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
+              {ultimos5PassadosExames.length > 0 ? (
+                ultimos5PassadosExames.map((exame) => (
+                  <ExameItem key={exame.id} exame={exame} />
+                ))
+              ) : (
+                <p className="text-gray-500">Nenhum exame encontrado.</p>
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>
