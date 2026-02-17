@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from "react";
@@ -71,7 +70,7 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
               )}
             >
               <CardContent className="flex p-0 overflow-hidden h-full">
-                <div className="flex flex-col gap-1 py-5 pl-5 pr-4 flex-grow">
+                <div className="flex flex-col gap-1 py-5 pl-5 pr-4 flex-grow min-w-0">
                   <h3 className="text-lg font-bold text-primary truncate">{exame.tipo || 'Tipo não especificado'}</h3>
                   <p className="text-sm font-semibold truncate">{profissionalNome}</p>
                   <p className="truncate text-sm ">{unidadeNome}</p>

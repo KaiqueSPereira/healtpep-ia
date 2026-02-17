@@ -34,6 +34,7 @@ const ExameItem = ({ exame }: ExameItemProps) => {
     unidades,
     dataExame,
     tipo,
+    anotacao,
     _count,
   } = exame;
 
@@ -46,6 +47,7 @@ const ExameItem = ({ exame }: ExameItemProps) => {
   const unidadeNome = unidades?.nome || "Unidade não informada";
   const tipoExame = tipo || "Exame";
   const linkHref = `/exames/${id}`;
+  const anotacaoExame = anotacao ? String(anotacao) : null;
 
   const hasAnexos = _count ? _count.anexos > 0 : false;
 
@@ -70,6 +72,10 @@ const ExameItem = ({ exame }: ExameItemProps) => {
 
                 <h3 className="text-sm font-bold truncate">{nomeProfissional}</h3>
                 <p className="text-xs font-semibold truncate">{unidadeNome}</p>
+                
+                {anotacaoExame && (
+                    <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{anotacaoExame}</p>
+                )}
                 
                 <div className="flex items-center justify-between mt-auto">
                   <Button variant="secondary" size="sm" asChild>

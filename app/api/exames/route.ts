@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
                 profissional: true,
                 unidades: true,
                 resultados: true,
-                // Adiciona a contagem de anexos para cada exame
                 _count: {
                     select: { anexos: true },
                 }
@@ -29,7 +28,6 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        // A descriptografia continua a mesma, pois _count não é criptografado
         const decryptedExames = exames.map(exame => {
             const decryptedProfissional = exame.profissional && exame.profissional.nome
                 ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) }
@@ -50,10 +48,12 @@ export async function GET(request: NextRequest) {
             });
             
             const decryptedTipo = exame.tipo ? safeDecrypt(exame.tipo) : null;
+            const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
 
             return {
                 ...exame,
                 tipo: decryptedTipo,
+                anotacao: decryptedAnotacao, // Adicionando a anotação descriptografada
                 profissional: decryptedProfissional,
                 unidades: decryptedUnidade,
                 resultados: decryptedResultados,
