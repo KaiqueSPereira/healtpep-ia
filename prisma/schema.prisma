@@ -285,7 +285,7 @@ model UnidadeDeSaude {
 model Exame {
   id              String           @id @default(uuid())
   nome            String
-  dataExame       DateTime
+  dataExame       DateTime?
   anotacao        String?
   userId          String
   profissionalId  String?

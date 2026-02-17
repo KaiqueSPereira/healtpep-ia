@@ -5,7 +5,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { encryptString, safeDecrypt, encrypt as encryptBuffer } from "@/app/_lib/crypto";
 import { Prisma, ResultadoExame } from "@prisma/client";
-import { Buffer } from "buffer";
 
 interface ResultadoExameInput {
   id?: string;
@@ -167,7 +166,12 @@ export async function PUT(
       // 2. Prepara os dados para atualização do exame
       const updateData: Prisma.ExameUpdateInput = {};
       if (anotacao !== null) updateData.anotacao = encryptString(anotacao);
-      if (dataExameStr) updateData.dataExame = new Date(dataExameStr);
+      if (dataExameStr) {
+        const dataExame = new Date(dataExameStr);
+        if (!isNaN(dataExame.getTime())) {
+            updateData.dataExame = dataExame;
+        }
+      }
       if (tipo) {
         updateData.tipo = encryptString(tipo);
         updateData.nome = encryptString(tipo);

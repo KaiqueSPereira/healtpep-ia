@@ -5,7 +5,9 @@ import { NextResponse } from "next/server";
 import { encryptString, decryptString } from "@/app/_lib/crypto";
 import { Anotacoes, Prisma } from '@prisma/client';
 import { Session } from "next-auth";
-import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
+import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
+
+export const dynamic = 'force-dynamic'; // Garante que a rota é sempre dinâmica
 
 const getUserSessionAndId = async (): Promise<{ session: Session | null, userId: string | null }> => {
   const session = await getServerSession(authOptions);
@@ -35,47 +37,49 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    type ConsultaWithRelations = Prisma.ConsultasGetPayload<{
+    type ConsultaFromDb = Prisma.ConsultasGetPayload<{
       include: {
-        usuario: { select: { name: true, email: true } };
-        profissional: { select: { id: true, nome: true, especialidade: true } };
-        unidade: { select: { id: true, nome: true } };
+        profissional: true;
+        unidade: true;
         Anotacoes: true;
-        condicoes: true; 
+        condicoes: true;
       };
     }>;
 
-    const consultas: ConsultaWithRelations[] = await db.consultas.findMany({
+    const consultas: ConsultaFromDb[] = await db.consultas.findMany({
       where: {
         userId: userId
       },
       include: {
-        usuario: { select: { name: true, email: true } },
-        profissional: { select: { id: true, nome: true, especialidade: true } },
-        unidade: { select: { id: true, nome: true } },
+        profissional: true,
+        unidade: true,
         Anotacoes: true,
         condicoes: true,
       },
       orderBy: { data: "desc" },
     });
 
-    const decryptedConsultas = consultas.map(consulta => {
-      const decryptedMotivo = consulta.motivo ? decryptString(consulta.motivo) : null;
-      const decryptedAnotacoes = consulta.Anotacoes.map((anotacao: Anotacoes) => ({
+    const decryptedAndMappedConsultas = consultas.map(consulta => {
+      const { condicoes, ...restOfConsulta } = consulta;
+
+      const decryptedMotivo = restOfConsulta.motivo ? decryptString(restOfConsulta.motivo) : null;
+      const decryptedAnotacoes = restOfConsulta.Anotacoes.map((anotacao: Anotacoes) => ({
         ...anotacao,
         anotacao: decryptString(anotacao.anotacao),
       }));
-      const decryptedTipoExame = typeof consulta.tipodeexame === 'string' && consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null;
+      const decryptedTipoExame = typeof restOfConsulta.tipodeexame === 'string' && restOfConsulta.tipodeexame ? decryptString(restOfConsulta.tipodeexame) : null;
 
       return {
-        ...consulta,
+        ...restOfConsulta,
         motivo: decryptedMotivo,
         Anotacoes: decryptedAnotacoes,
         tipodeexame: decryptedTipoExame,
+        condicaoSaude: condicoes,
       };
     });
 
-    return NextResponse.json(decryptedConsultas);
+    return NextResponse.json(decryptedAndMappedConsultas);
+
   } catch (error) {
     let errorMessage = "Erro ao buscar os dados";
     if (error instanceof Error) {
@@ -97,16 +101,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
     
-    // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
     const permissions = await getPermissionsForUser(userId);
   
     if (await permissions.hasReachedLimit('consultas')) {
       return NextResponse.json(
         { error: "Você atingiu o limite de consultas para o seu plano." },
-        { status: 403 } // 403 Forbidden
+        { status: 403 }
       );
     }
-    // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
     const body = await request.json();
 

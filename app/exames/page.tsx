@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from "react";
 import useAuthStore from "../_stores/authStore";
 import Header from "@/app/_components/header";
-import Footer from "@/app/_components/footer"; // Importando o Footer
+import Footer from "@/app/_components/footer";
 import { Loader2 } from "lucide-react";
 import ExameLineChart from "./components/ExameLineChart";
 import { ExamesGrid } from "./components/ExamesGrid";
@@ -63,6 +63,7 @@ export default function ExamesPage() {
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
     const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
+    const [listStatusFilter, setListStatusFilter] = useState<'todos' | 'agendados' | 'realizados' | 'pendentes'>('todos');
     const [selectedChartType, setSelectedChartType] = useState<ChartKeyword>('Sangue');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
     const [chartData, setChartData] = useState<ChartData | null>(null);
@@ -119,7 +120,7 @@ export default function ExamesPage() {
 
     useEffect(() => {
         if (currentView === 'list' && listFilterOptions.length > 0 && selectedListTypes.length === 0) {
-            setSelectedListTypes(listFilterOptions);
+            //setSelectedListTypes(listFilterOptions);
         }
     }, [currentView, listFilterOptions, selectedListTypes.length]);
 
@@ -129,18 +130,50 @@ export default function ExamesPage() {
         }
     }, [chartComponentOptions, currentView]);
 
-    const filteredListExams = useMemo(() => {
-        if (currentView !== 'list') return [];
-        return examesListaData.filter(exame => {
+    const { examesAgendados, examesRealizados, examesPendentes } = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const agendados: ExameCompleto[] = [];
+        const realizados: ExameCompleto[] = [];
+        const pendentes: ExameCompleto[] = [];
+
+        examesListaData.forEach(exame => {
+            if (!exame.dataExame) {
+                pendentes.push(exame);
+                return;
+            }
             const examDate = new Date(exame.dataExame);
-            if (isNaN(examDate.getTime())) return false;
-            const start = startDate ? new Date(startDate).getTime() : -Infinity;
-            const end = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : Infinity;
-            if (examDate.getTime() < start || examDate.getTime() > end) return false;
+            if (isNaN(examDate.getTime())) {
+                pendentes.push(exame);
+            } else if (examDate >= today) {
+                agendados.push(exame);
+            } else {
+                realizados.push(exame);
+            }
+        });
+
+        return { examesAgendados: agendados, examesRealizados: realizados, examesPendentes: pendentes };
+    }, [examesListaData]);
+
+    const filterExamsByDateAndType = (exames: ExameCompleto[], filterByDate: boolean) => {
+        return exames.filter(exame => {
+            if (filterByDate && exame.dataExame) {
+                const examDate = new Date(exame.dataExame);
+                if (!isNaN(examDate.getTime())) {
+                    const start = startDate ? new Date(startDate).getTime() : -Infinity;
+                    const end = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : Infinity;
+                    if (examDate.getTime() < start || examDate.getTime() > end) return false;
+                }
+            }
             if (selectedListTypes.length > 0 && (!exame.tipo || !selectedListTypes.includes(exame.tipo))) return false;
             return true;
         });
-    }, [examesListaData, selectedListTypes, startDate, endDate, currentView]);
+    };
+    
+    const filteredAgendados = useMemo(() => filterExamsByDateAndType(examesAgendados, true), [examesAgendados, startDate, endDate, selectedListTypes]);
+    const filteredRealizados = useMemo(() => filterExamsByDateAndType(examesRealizados, true), [examesRealizados, startDate, endDate, selectedListTypes]);
+    const filteredPendentes = useMemo(() => filterExamsByDateAndType(examesPendentes, false), [examesPendentes, selectedListTypes]);
 
     useEffect(() => {
         if (currentView !== 'charts' || selectedChartComponents.length === 0) {
@@ -231,6 +264,8 @@ export default function ExamesPage() {
                     listFilterOptions={listFilterOptions}
                     selectedListTypes={selectedListTypes}
                     onListTypeChange={setSelectedListTypes}
+                    listStatusFilter={listStatusFilter}
+                    onListStatusFilterChange={setListStatusFilter}
                     selectedChartType={selectedChartType}
                     onChartTypeChange={setSelectedChartType}
                     chartComponentOptions={chartComponentOptions}
@@ -246,7 +281,33 @@ export default function ExamesPage() {
                         </div>
                     ) : (
                         <>
-                            {currentView === 'list' && <ExamesGrid exames={filteredListExams} onDeleteClick={handleDeleteClick} />}
+                            {currentView === 'list' && (() => {
+                                const agendadosView = (listStatusFilter === 'todos' || listStatusFilter === 'agendados') && filteredAgendados.length > 0 && (
+                                    <div className="mb-8">
+                                        <h2 className="text-xl font-semibold mb-4">Exames Agendados</h2>
+                                        <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} />
+                                    </div>
+                                );
+                                const realizadosView = (listStatusFilter === 'todos' || listStatusFilter === 'realizados') && filteredRealizados.length > 0 && (
+                                    <div className="mb-8">
+                                        <h2 className="text-xl font-semibold mb-4">Exames Realizados</h2>
+                                        <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} />
+                                    </div>
+                                );
+                                const pendentesView = (listStatusFilter === 'todos' || listStatusFilter === 'pendentes') && filteredPendentes.length > 0 && (
+                                    <div className="mb-8">
+                                        <h2 className="text-xl font-semibold mb-4">Exames Pendentes</h2>
+                                        <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} />
+                                    </div>
+                                );
+
+                                if (agendadosView || realizadosView || pendentesView) {
+                                    return <>{agendadosView}{realizadosView}{pendentesView}</>;
+                                }
+
+                                return <p className="text-center text-gray-500 py-10">Nenhum exame encontrado para os filtros selecionados.</p>;
+                            })()}
+
                             {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? (
                                 <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} />
                             ) : (

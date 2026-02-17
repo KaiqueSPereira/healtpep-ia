@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Label } from "../../_components/ui/label";
 import { Input } from "../../_components/ui/input";
@@ -56,22 +56,17 @@ export function ExamDetailsForm({
     return (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-                <Label>Consulta Associada (Opcional)</Label>
+                <Label>Consulta Associada</Label>
                 <MenuConsultas
+                    key={`consulta-selector-${selectorsKey}`}
                     consultas={consultas}
                     selectedConsulta={selectedConsulta}
-                    onConsultaSelect={(consulta) => {
-                        onConsultaSelect(consulta);
-                        // Ao selecionar uma consulta, preenche os campos de unidade e profissional.
-                        // O usuário ainda pode editá-los se necessário.
-                        onUnidadeSelect(consulta?.unidade || null);
-                        onProfissionalSelect(consulta?.profissional || null);
-                    }}
+                    onConsultaSelect={onConsultaSelect}
                 />
             </div>
 
             <div>
-              <Label>Condição de Saúde Associada (Opcional)</Label>
+              <Label>Condição de Saúde</Label>
               <MenuCondicoes
                  key={`condicao-selector-${selectorsKey}`}
                 condicoes={condicoesSaude}
@@ -81,43 +76,39 @@ export function ExamDetailsForm({
             </div>
 
             <div>
-              <Label>Unidade de Saúde *</Label>
+              <Label>Unidade de Saúde</Label>
               <MenuUnidades
                 key={`unidade-selector-${selectorsKey}`}
                 unidades={unidades}
                 selectedUnidade={selectedUnidade}
                 onUnidadeSelect={onUnidadeSelect}
-                // Campo agora é sempre editável
               />
             </div>
             <div>
-              <Label>Profissional Solicitante *</Label>
+              <Label>Profissional Solicitante</Label>
               <MenuProfissionais
                 key={`profissional-selector-${selectorsKey}`}
                 profissionais={profissionais}
                 selectedProfissional={selectedProfissional}
                 onProfissionalSelect={onProfissionalSelect}
                 unidadeId={selectedUnidade?.id}
-                // Campo agora é sempre editável
               />
             </div>
 
             <div>
-              <Label>Data e Hora do Exame *</Label>
+              <Label>Data e Hora do Exame</Label>
               <div className="flex items-center gap-2">
                 <Input
                   type="date"
                   value={dataExame}
                   onChange={(e) => onDataExameChange(e.target.value)}
                   className="flex-1"
-                  required
                 />
                 <Input
                   type="time"
                   value={horaExame}
                   onChange={(e) => onHoraExameChange(e.target.value)}
                   className="w-auto"
-                  required
                 />
               </div>
             </div>

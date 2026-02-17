@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
@@ -18,7 +18,6 @@ import {
 } from "../../_components/ui/command";
 import { Consulta } from "@/app/_components/types";
 
-// CORREÇÃO: Receber 'consultas' como prop e remover 'userId'
 interface MenuConsultasProps {
   consultas: Consulta[];
   onConsultaSelect: (consulta: Consulta | null) => void;
@@ -26,20 +25,24 @@ interface MenuConsultasProps {
 }
 
 const MenuConsultas: React.FC<MenuConsultasProps> = ({
-  consultas = [], // Usar a lista de consultas vinda das props
+  consultas = [],
   onConsultaSelect,
   selectedConsulta,
 }) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  // REMOÇÃO: O useEffect que buscava os dados foi removido.
+  // Filtra para mostrar apenas consultas que já aconteceram (data <= hoje)
+  const today = new Date();
+  today.setHours(23, 59, 59, 999); // Garante que consultas de hoje sejam incluídas
+  const pastConsultas = consultas.filter(consulta => new Date(consulta.data) <= today);
 
-  const filteredConsultas = consultas.filter(consulta =>
-    consulta.tipo.toLowerCase().includes(searchValue.toLowerCase()) ||
-    new Date(consulta.data).toLocaleDateString().includes(searchValue) ||
-    consulta.profissional?.nome?.toLowerCase().includes(searchValue.toLowerCase()) ||
-    consulta.unidade?.nome?.toLowerCase().includes(searchValue.toLowerCase())
+  // Aplica o filtro de busca sobre as consultas passadas
+  const filteredConsultas = pastConsultas.filter(consulta =>
+    (consulta.tipo.toLowerCase().includes(searchValue.toLowerCase())) ||
+    (new Date(consulta.data).toLocaleDateString().includes(searchValue)) ||
+    (consulta.profissional?.nome?.toLowerCase().includes(searchValue.toLowerCase())) ||
+    (consulta.unidade?.nome?.toLowerCase().includes(searchValue.toLowerCase()))
   );
 
   const formatConsultaText = (consulta: Consulta): string => {
@@ -48,7 +51,6 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
       const unidadeNome = consulta.unidade?.nome || "Sem unidade";
       return `${dataFormatada} - ${consulta.tipo} - ${profissionalNome} (${unidadeNome})`;
   };
-
 
   return (
     <div className="w-full">
@@ -70,14 +72,14 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
         <PopoverContent className="w-full p-0">
           <Command>
             <CommandInput
-              placeholder="Buscar consulta..."
+              placeholder="Buscar consulta..." // Texto revertido
               value={searchValue}
               onValueChange={setSearchValue}
             />
             <CommandList>
+              {/* Mensagem genérica quando a lista (já filtrada por data) está vazia */}
               <CommandEmpty>Nenhuma consulta encontrada.</CommandEmpty>
               <CommandGroup>
-                 {/* Adicionado um item para desmarcar a seleção */}
                 <CommandItem
                     onSelect={() => {
                         onConsultaSelect(null);
@@ -87,14 +89,18 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
                     <Check className={`mr-2 h-4 w-4 ${!selectedConsulta ? "opacity-100" : "opacity-0"}`} />
                     Nenhuma (limpar seleção)
                 </CommandItem>
-                {consultas.length === 0 && searchValue === "" ? (
-                   <CommandItem disabled>Carregando consultas...</CommandItem>
-                ) : filteredConsultas.map((consulta) => (
+                {
+                  filteredConsultas.map((consulta) => (
                     <CommandItem
                       key={consulta.id}
                       value={formatConsultaText(consulta).toLowerCase()}
                       onSelect={() => {
-                        onConsultaSelect(consulta);
+                        // Lógica de toggle: seleciona se for diferente, deseleciona se for igual
+                        if (selectedConsulta?.id === consulta.id) {
+                            onConsultaSelect(null);
+                        } else {
+                            onConsultaSelect(consulta);
+                        }
                         setOpen(false);
                         setSearchValue("");
                       }}
@@ -110,9 +116,6 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
                     </CommandItem>
                   ))
                 }
-                 {consultas.length > 0 && filteredConsultas.length === 0 && searchValue !== "" && (
-                    <CommandItem disabled>Nenhum resultado encontrado para &quot;{searchValue}&quot;.</CommandItem>
-                 )}
               </CommandGroup>
             </CommandList>
           </Command>

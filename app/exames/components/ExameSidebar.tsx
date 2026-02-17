@@ -5,7 +5,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Input } from "@/app/_components/ui/input";
 import { ExameTypeFilter } from "./ExameTypeFilter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/_components/ui/tooltip";
-import { List, LineChart, Plus, ChevronsLeft } from "lucide-react";
+import { List, LineChart, Plus, ChevronsLeft, Calendar, Beaker, ClipboardList } from "lucide-react";
 import { cn } from '@/app/_lib/utils';
 
 interface ExameSidebarProps {
@@ -25,6 +25,8 @@ interface ExameSidebarProps {
   onChartComponentChange: (components: string[]) => void;
   isCollapsed: boolean;
   setIsCollapsed: (isCollapsed: boolean) => void;
+  listStatusFilter: 'todos' | 'agendados' | 'realizados' | 'pendentes';
+  onListStatusFilterChange: (filter: 'todos' | 'agendados' | 'realizados' | 'pendentes') => void;
 }
 
 export const ExameSidebar: React.FC<ExameSidebarProps> = ({
@@ -43,8 +45,17 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
   selectedChartComponents,
   onChartComponentChange,
   isCollapsed,
-  setIsCollapsed
+  setIsCollapsed,
+  listStatusFilter,
+  onListStatusFilterChange
 }) => {
+
+  const statusFilters: { key: 'todos' | 'agendados' | 'realizados' | 'pendentes', label: string, icon: React.ElementType }[] = [
+    { key: 'todos', label: 'Todos', icon: ClipboardList },
+    { key: 'agendados', label: 'Agendados', icon: Calendar },
+    { key: 'realizados', label: 'Realizados', icon: Beaker },
+    { key: 'pendentes', label: 'Pendentes', icon: List },
+  ];
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -111,39 +122,57 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
               </div>
 
               {!isCollapsed && (
-                  <div className="flex flex-col gap-8 mt-8 w-full flex-1 overflow-y-auto pr-2">
-                      <div>
-                          <h3 className="text-md font-semibold mb-3">Período</h3>
-                          <div className="space-y-3">
-                              <Input type="date" id="startDate" value={startDate} onChange={e => onStartDateChange(e.target.value)} aria-label="Data Inicial"/>
-                              <Input type="date" id="endDate" value={endDate} onChange={e => onEndDateChange(e.target.value)} aria-label="Data Final"/>
-                          </div>
+                <div className="flex flex-col gap-8 mt-8 w-full flex-1 overflow-y-auto pr-2">
+                  {currentView === 'list' && (
+                    <div>
+                      <h3 className="text-md font-semibold mb-3">Estado</h3>
+                      <div className="space-y-2">
+                        {statusFilters.map(({ key, label, icon: Icon }) => (
+                          <Button 
+                            key={key} 
+                            variant={listStatusFilter === key ? 'secondary' : 'ghost'} 
+                            onClick={() => onListStatusFilterChange(key)} 
+                            className="w-full justify-start">
+                              <Icon className="h-4 w-4 mr-2"/>
+                              {label}
+                          </Button>
+                        ))}
                       </div>
+                    </div>
+                  )}
 
-                      <div>
-                          <h3 className="text-md font-semibold mb-3">Filtros Avançados</h3>
-                          {currentView === 'list' && listFilterOptions.length > 0 && (
-                               <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={onListTypeChange} />
-                          )}
-                          {currentView === 'charts' && (
-                              <div className="space-y-4">
-                                  <div>
-                                      <h4 className="text-sm font-medium mb-2">Tipo de Exame</h4>
-                                      <div className="flex items-center gap-2">
-                                          <Button variant={selectedChartType === 'Sangue' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Sangue')} className="flex-1">Sangue</Button>
-                                          <Button variant={selectedChartType === 'Urina' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Urina')} className="flex-1">Urina</Button>
-                                      </div>
-                                  </div>
-                                  {chartComponentOptions.length > 0 && (
-                                      <div>
-                                          <h4 className="text-sm font-medium mb-2">Componentes</h4>
-                                          <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} />
-                                      </div>
-                                  )}
-                              </div>
-                          )}
+                  <div>
+                      <h3 className="text-md font-semibold mb-3">Período</h3>
+                      <div className="space-y-3">
+                          <Input type="date" id="startDate" value={startDate} onChange={e => onStartDateChange(e.target.value)} aria-label="Data Inicial"/>
+                          <Input type="date" id="endDate" value={endDate} onChange={e => onEndDateChange(e.target.value)} aria-label="Data Final"/>
                       </div>
                   </div>
+
+                  <div>
+                      <h3 className="text-md font-semibold mb-3">Filtros Avançados</h3>
+                      {currentView === 'list' && listFilterOptions.length > 0 && (
+                            <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={onListTypeChange} />
+                      )}
+                      {currentView === 'charts' && (
+                          <div className="space-y-4">
+                              <div>
+                                  <h4 className="text-sm font-medium mb-2">Tipo de Exame</h4>
+                                  <div className="flex items-center gap-2">
+                                      <Button variant={selectedChartType === 'Sangue' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Sangue')} className="flex-1">Sangue</Button>
+                                      <Button variant={selectedChartType === 'Urina' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Urina')} className="flex-1">Urina</Button>
+                                  </div>
+                              </div>
+                              {chartComponentOptions.length > 0 && (
+                                  <div>
+                                      <h4 className="text-sm font-medium mb-2">Componentes</h4>
+                                      <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} />
+                                  </div>
+                              )}
+                          </div>
+                      )}
+                  </div>
+                </div>
               )}
           </div>
       </aside>

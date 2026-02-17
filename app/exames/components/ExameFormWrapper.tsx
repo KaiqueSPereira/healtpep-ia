@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ import {
 import { ExamDetailsForm } from "./ExamDetailForm";
 import { UnidadeDeSaude } from "@prisma/client";
 
-// Tipos atualizados para incluir anexos
+
 type Anexo = {
   id: string;
   nomeArquivo: string;
@@ -32,7 +32,7 @@ type ExameComRelacoes = Exame & {
   unidades?: UnidadeDeSaude | null;
   consulta?: Consulta | null; 
   condicaoSaude?: CondicaoSaude | null;
-  anexos?: Anexo[]; // Adicionado
+  anexos?: Anexo[];
 };
 
 type ApiExameResult = {
@@ -77,82 +77,82 @@ export function ExameFormWrapper({
   const { session } = useAuthStore();
   const userId = session?.user?.id;
 
+  // Função simplificada para apenas definir a consulta selecionada
+  const handleConsultaSelect = (consulta: Consulta | null) => {
+    setSelectedConsulta(consulta);
+  };
+
+  // Carrega todos os dados necessários para os menus
   useEffect(() => {
     if (!userId) return;
-
     const fetchData = async () => {
       try {
-        const [consultasRes, condicoesRes, unidadesRes] = await Promise.all([
-          fetch(`/api/consultas`),
-          fetch(`/api/condicoessaude`),
+        const [consultasRes, condicoesRes, unidadesRes, profissionaisRes] = await Promise.all([
+          fetch(`/api/consultas`, { cache: 'no-store' }),
+          fetch(`/api/condicoes`),
           fetch(`/api/unidadesaude`),
+          fetch(`/api/profissionais`)
         ]);
 
-        if (consultasRes.ok) {
-          const data = await consultasRes.json();
-          setConsultas(Array.isArray(data) ? data : data.consultas || []);
-        }
-        if (condicoesRes.ok) {
-          const data = await condicoesRes.json();
-          setCondicoesSaude(Array.isArray(data) ? data : data.condicoes || []);
-        }
-        if (unidadesRes.ok) {
-          const data = await unidadesRes.json();
-          setUnidades(Array.isArray(data) ? data : data.unidades || []);
-        }
+        if (consultasRes.ok) setConsultas(await consultasRes.json());
+        if (condicoesRes.ok) setCondicoesSaude(await condicoesRes.json());
+        if (unidadesRes.ok) setUnidades(await unidadesRes.json());
+        if (profissionaisRes.ok) setProfissionais(await profissionaisRes.json());
+
       } catch {
         toast({ title: "Erro ao carregar dados iniciais.", variant: "destructive" });
       }
     };
-
     fetchData();
   }, [userId]);
 
+  // **USE EFFECT PARA ATUALIZAR CAMPOS COM BASE NA CONSULTA SELECIONADA**
   useEffect(() => {
-    if (!selectedUnidade?.id) {
-      setProfissionais([]);
-      return;
+    // Se uma consulta for selecionada, atualiza os campos dependentes.
+    if (selectedConsulta) {
+      setSelectedUnidade(selectedConsulta.unidade || null);
+      setSelectedProfissional(selectedConsulta.profissional || null);
+      setSelectedCondicao(selectedConsulta.condicaoSaude || null);
+    } else {
+      // Se a consulta for removida, não limpamos os outros campos
+      // para permitir a seleção manual.
     }
-    
-    const fetchProfissionais = async () => {
-      try {
-        const res = await fetch(`/api/profissionais?unidadeId=${selectedUnidade.id}`);
-        if(res.ok) {
-          const data = await res.json();
-          setProfissionais(Array.isArray(data) ? data : []);
-        }
-      } catch {
-        toast({ title: "Erro ao buscar profissionais.", variant: "destructive" });
-      }
-    }
+    // Força a recriação dos menus para refletir o estado mais recente
+    setSelectorsKey(prev => prev + 1);
+  }, [selectedConsulta]);
 
-    fetchProfissionais();
-  }, [selectedUnidade]);
-
+  // Carrega os dados de um exame existente para edição
   useEffect(() => {
     if (existingExamData) {
       setTipo(existingExamData.tipo || "");
-      const dataUtc = new Date(existingExamData.dataExame);
-      if (!isNaN(dataUtc.getTime())) {
-        const ano = dataUtc.getFullYear();
-        const mes = (dataUtc.getMonth() + 1).toString().padStart(2, '0');
-        const dia = dataUtc.getDate().toString().padStart(2, '0');
-        setDataExame(`${ano}-${mes}-${dia}`);
+      if (existingExamData.dataExame) {
+        const dataUtc = new Date(existingExamData.dataExame);
+        if (!isNaN(dataUtc.getTime())) {
+            const ano = dataUtc.getUTCFullYear();
+            const mes = (dataUtc.getUTCMonth() + 1).toString().padStart(2, '0');
+            const dia = dataUtc.getUTCDate().toString().padStart(2, '0');
+            setDataExame(`${ano}-${mes}-${dia}`);
 
-        const horas = dataUtc.getHours().toString().padStart(2, '0');
-        const minutos = dataUtc.getMinutes().toString().padStart(2, '0');
-        setHoraExame(`${horas}:${minutos}`);
+            const horas = dataUtc.getUTCHours().toString().padStart(2, '0');
+            const minutos = dataUtc.getUTCMinutes().toString().padStart(2, '0');
+            setHoraExame(`${horas}:${minutos}`);
+        }
       }
-
       setAnotacao(existingExamData.anotacao || "");
       setExameResultados(existingExamData.resultados || []);
-      setSelectedConsulta(existingExamData.consulta || null);
-      setSelectedProfissional(existingExamData.profissional || null);
-      setSelectedUnidade(existingExamData.unidades || null);
-      setSelectedCondicao(existingExamData.condicaoSaude || null);
-
-      setSelectorsKey((prevKey) => prevKey + 1);
+      
+      // Define a consulta, o que vai acionar o useEffect acima para preencher o resto.
+      // Se não houver consulta, define os outros campos individualmente.
+      if (existingExamData.consulta) {
+        setSelectedConsulta(existingExamData.consulta);
+      } else {
+        setSelectedUnidade(existingExamData.unidades || null); 
+        setSelectedProfissional(existingExamData.profissional || null); 
+        setSelectedCondicao(existingExamData.condicaoSaude || null);
+        setSelectorsKey(prev => prev + 1);
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existingExamData]);
 
   const handleAddExame = () => {
@@ -181,7 +181,7 @@ export function ExameFormWrapper({
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
-    setSelectedFiles(prev => [...prev, ...files]); // Append new files
+    setSelectedFiles(prev => [...prev, ...files]);
   };
 
   const handleAnalyzeFile = async () => {
@@ -247,49 +247,77 @@ export function ExameFormWrapper({
     setLoadingAnalysis(false);
   };
 
-  const handleSubmit = async () => {
-    setLoadingSubmit(true);
-    const [ano, mes, dia] = dataExame.split('-').map(Number);
-    const [horas, minutos] = horaExame.split(':').map(Number);
-    const dataIso = new Date(ano, mes - 1, dia, horas, minutos).toISOString();
+ const handleSubmit = async () => {
+    if (!tipo) {
+      toast({
+        title: "O tipo de exame é obrigatório.",
+        description: "Por favor, selecione um tipo antes de salvar.",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    const endpoint = existingExamData ? `/api/exames/${existingExamData.id}` : "/api/exames";
-    const method = existingExamData ? "PUT" : "POST";
+    setLoadingSubmit(true);
 
     const body = new FormData();
-    
-    if (userId) body.append("userId", userId);
-    body.append("profissionalId", selectedProfissional?.id || "null");
-    body.append("unidadesId", selectedUnidade?.id || "null");
-    body.append("consultaId", selectedConsulta?.id || "null");
-    body.append("condicaoSaudeId", selectedCondicao?.id || "null");
-    body.append("anotacao", anotacao);
-    body.append("dataExame", dataIso);
-    body.append("tipo", tipo);
-    
-    if (exameResultados.length > 0) {
-        body.append("resultados", JSON.stringify(exameResultados));
+
+    if (dataExame) {
+        const fullDate = new Date(dataExame + (horaExame ? 'T' + horaExame : 'T00:00:00'));
+        if (!isNaN(fullDate.getTime())) {
+            body.append("dataExame", fullDate.toISOString());
+        }
     }
-    
+
+    const endpoint = existingExamData
+      ? `/api/exames/${existingExamData.id}`
+      : "/api/exames";
+    const method = existingExamData ? "PUT" : "POST";
+
+    if (userId) body.append("userId", userId);
+
+    body.append("nome", tipo);
+    body.append("tipo", tipo);
+    body.append("anotacao", anotacao);
+
+    body.append("profissionalId", selectedProfissional?.id || "");
+    body.append("unidadesId", selectedUnidade?.id || "");
+    body.append("consultaId", selectedConsulta?.id || "");
+    body.append("condicaoSaudeId", selectedCondicao?.id || "");
+
+    if (exameResultados.length > 0) {
+      body.append("resultados", JSON.stringify(exameResultados));
+    }
+
     if (selectedFiles.length > 0) {
-      selectedFiles.forEach(file => {
-          body.append(`files`, file);
+      selectedFiles.forEach((file) => {
+        body.append(`files`, file);
       });
     }
-    
+
     try {
-        const res = await fetch(endpoint, { method, body });
-        if (res.ok) {
-            toast({ title: `Exame ${existingExamData ? 'atualizado' : 'cadastrado'} com sucesso!` });
-            router.push("/exames");
-        } else {
-            const errorData = await res.json();
-            toast({ title: "Erro ao salvar o exame", description: errorData.error, variant: "destructive" });
-        }
-    } catch {
-        toast({ title: "Ocorreu um erro de rede.", variant: "destructive" });
+      const res = await fetch(endpoint, { method, body });
+      if (res.ok) {
+        toast({
+          title: `Exame ${existingExamData ? "atualizado" : "cadastrado"} com sucesso!`,
+        });
+        router.push("/exames");
+        router.refresh();
+      } else {
+        const errorData = await res.json();
+        toast({
+          title: "Erro ao salvar o exame",
+          description: errorData.error || "Não foi possível salvar, verifique os dados.",
+          variant: "destructive",
+        });
+      }
+    } catch (e) {
+      toast({
+        title: "Ocorreu um erro de rede.",
+        description: "Verifique sua conexão e tente novamente.",
+        variant: "destructive",
+      });
     } finally {
-        setLoadingSubmit(false);
+      setLoadingSubmit(false);
     }
   };
 
@@ -307,7 +335,7 @@ export function ExameFormWrapper({
           <ExamDetailsForm
             consultas={consultas}
             selectedConsulta={selectedConsulta}
-            onConsultaSelect={setSelectedConsulta}
+            onConsultaSelect={handleConsultaSelect}
             unidades={unidades}
             selectedUnidade={selectedUnidade}
             onUnidadeSelect={setSelectedUnidade}
@@ -347,7 +375,6 @@ export function ExameFormWrapper({
                 </ul>
               </div>
             )}
-            {/* Mostra os arquivos já existentes se nenhum novo foi selecionado */}
             {existingExamData?.anexos && existingExamData.anexos.length > 0 && selectedFiles.length === 0 && (
               <div className="mt-2 text-sm">
                 <p className="font-medium text-muted-foreground">Arquivos atuais:</p>

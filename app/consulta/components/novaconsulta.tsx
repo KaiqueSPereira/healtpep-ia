@@ -86,11 +86,6 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
 
       } catch (error) {
         console.error("Erro ao carregar dados do formulário:", error);
-        toast({
-          title: "Erro ao carregar dados",
-          description: (error as Error).message,
-          variant: "destructive",
-        });
       }
     };
 
@@ -109,24 +104,32 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     setSelectedProfissional(null);
   }, [selectedUnidade, allProfissionais]);
 
+  const logErrorToServer = async (errorData: { message: string; stack?: string; url?: string }) => {
+      try {
+          await fetch('/api/logs', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(errorData),
+          });
+      } catch (logError) {
+          console.error("Falha ao registrar o erro no servidor:", logError);
+      }
+  };
+
   const handleConsultaOrigemSelect = (consulta: Consulta | null) => {
     setSelectedConsultaOrigem(consulta);
     if (consulta) {
-      if (consulta.unidade) {
-        setSelectedUnidade(consulta.unidade);
-      }
-      if (consulta.profissional) {
-        setSelectedProfissional(consulta.profissional);
-      }
-      if (consulta.condicaoSaude) {
-          setSelectedCondicao(consulta.condicaoSaude);
-      }
+      if (consulta.unidade) setSelectedUnidade(consulta.unidade);
+      if (consulta.profissional) setSelectedProfissional(consulta.profissional);
+      if (consulta.condicaoSaude) setSelectedCondicao(consulta.condicaoSaude);
     }
   };
 
   const handleSaveConsulta = async () => {
-    if (!selectedDay || !manualTime || !selectedTipo) {
-      toast({ title: "Preencha a data, horário e tipo.", variant: "destructive" });
+    if (!selectedTipo) {
+      toast({ title: "Selecione um tipo de agendamento.", variant: "destructive" });
       return;
     }
 
@@ -135,10 +138,15 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         return;
     }
 
-    const [hour, minute] = manualTime.split(":").map(Number);
-    const newDate = set(selectedDay, { hours: hour, minutes: minute });
-
     if (selectedTipo !== "Exame") {
+        if (!selectedDay || !manualTime) {
+          toast({ title: "Preencha a data e o horário para este tipo de agendamento.", variant: "destructive" });
+          return;
+        }
+
+        const [hour, minute] = manualTime.split(":").map(Number);
+        const newDate = set(selectedDay, { hours: hour, minutes: minute });
+
         const consultaData = {
           tipo: selectedTipo as Consultatype,
           data: newDate,
@@ -166,59 +174,74 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
             body: JSON.stringify(consultaData),
           });
           if (!response.ok) {
-             const responseData = await response.json();
-             throw new Error(responseData.error || "Erro ao salvar a consulta.");
+             const responseData = await response.json().catch(() => null);
+             const error = new Error(responseData?.error || `Erro do servidor: ${response.status} ${response.statusText}`);
+             throw error;
           }
           toast({ title: "Consulta salva com sucesso!" });
           onSaveSuccess?.();
-        } catch (error) {
-          console.error("Erro ao salvar a consulta:", error);
-          toast({ title: (error as Error).message, variant: "destructive" });
+        } catch (error: any) {
+            await logErrorToServer({
+                message: `Erro ao salvar consulta: ${error.message}`,
+                stack: error.stack,
+                url: "/api/consultas (frontend)",
+            });
+            toast({
+                title: "Erro ao salvar a consulta",
+                description: "Ocorreu um problema ao salvar. Nossa equipe já foi notificada.",
+                variant: "destructive"
+            });
         }
 
     } else { // Lógica para Exame
       const tipoExameValue = form.getValues("tipoexame");
       const anotacaoExameValue = form.getValues("anotacaoExame");
       
-      // DEBUG: Log para verificar o ID do usuário
-      console.log("Tentando salvar exame. ID do usuário da sessão:", session?.user?.id);
+      if (!session?.user?.id) {
+        toast({ title: "Erro de autenticação. Faça login novamente.", variant: "destructive" });
+        return; 
+      }
 
-      if (!selectedUnidade?.id || !selectedProfissional?.id || !tipoExameValue) {
-        toast({ title: "Para Exames, selecione Unidade, Profissional e Tipo de Exame.", variant: "destructive" });
+      if (!tipoExameValue || !anotacaoExameValue) {
+        toast({ title: "Para Exames, o Tipo e a Anotação são obrigatórios.", variant: "destructive" });
         return;
       }
 
       const formData = new FormData();
-      
-      if (session?.user?.id) {
-        formData.append("userId", session.user.id);
-      } else {
-        // Se o ID não existir, pare a execução e avise o usuário.
-        toast({ title: "Erro de autenticação: ID de usuário não encontrado. Faça login novamente.", variant: "destructive" });
-        return; 
+      formData.append("userId", session.user.id);
+      if (selectedDay && manualTime) {
+        const [hour, minute] = manualTime.split(":").map(Number);
+        const newDate = set(selectedDay, { hours: hour, minutes: minute });
+        formData.append("dataExame", newDate.toISOString());
       }
-      
-      formData.append("dataExame", newDate.toISOString());
       formData.append("tipo", tipoExameValue);
-      formData.append("unidadesId", selectedUnidade.id);
-      formData.append("profissionalId", selectedProfissional.id);
-      if (selectedCondicao?.id) {
-        formData.append("condicaoSaudeId", selectedCondicao.id);
-      }
       formData.append("nome", tipoExameValue);
-      formData.append("anotacao", anotacaoExameValue || "");
+      formData.append("anotacao", anotacaoExameValue);
+      if (selectedUnidade?.id) formData.append("unidadesId", selectedUnidade.id);
+      if (selectedProfissional?.id) formData.append("profissionalId", selectedProfissional.id);
+      if (selectedCondicao?.id) formData.append("condicaoSaudeId", selectedCondicao.id);
+      if (selectedConsultaOrigem?.id) formData.append("consultaId", selectedConsultaOrigem.id);
 
       try {
         const response = await fetch("/api/exames", { method: "POST", body: formData });
         if (!response.ok) {
-           const responseData = await response.json();
-           throw new Error(responseData.error || "Erro ao salvar o exame.");
+           const responseData = await response.json().catch(() => null);
+           const error = new Error(responseData?.error || `Erro do servidor: ${response.status} ${response.statusText}`);
+           throw error;
         }
         toast({ title: "Exame salvo com sucesso!" });
         onSaveSuccess?.();
-      } catch (error) {
-        console.error("Erro ao salvar o exame:", error);
-        toast({ title: `Erro ao salvar o exame: ${(error as Error).message}`, variant: "destructive" });
+      } catch (error: any) {
+        await logErrorToServer({
+            message: `Erro ao salvar exame: ${error.message}`,
+            stack: error.stack,
+            url: "/api/exames (frontend)",
+        });
+        toast({
+            title: "Erro ao salvar o exame",
+            description: "Ocorreu um problema ao salvar. Nossa equipe já foi notificada.",
+            variant: "destructive"
+        });
       }
     }
   };
@@ -238,9 +261,9 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
             </div>
             <ConsultaTipoSelector selectedTipo={selectedTipo} onTipoSelect={setSelectedTipo} />
             
-            {selectedTipo === 'Retorno' && (
+            {(selectedTipo === 'Retorno' || selectedTipo === 'Exame') && (
               <div className="space-y-2">
-                  <Label>Consulta de Origem</Label>
+                  <Label>Consulta de Origem (Opcional)</Label>
                   <MenuConsultas 
                     consultas={consultas}
                     onConsultaSelect={handleConsultaOrigemSelect}
