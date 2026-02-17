@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/app/_components/ui/card";
 import { Button } from "@/app/_components/ui/button";
-import { Trash2, Pencil, Paperclip } from "lucide-react";
+import { Trash2, Pencil, Paperclip, Loader2 } from "lucide-react";
 import clsx from "clsx";
 import { ExameCompleto } from "../page";
 import AnexosDialog from "./AnexosDialog";
@@ -13,13 +13,30 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/
 type Props = {
   exames: ExameCompleto[];
   onDeleteClick: (examId: string) => void;
+  fetchMoreExames: () => void;
+  hasMore: boolean;
+  isFetchingMore: boolean;
 };
 
-export function ExamesGrid({ exames, onDeleteClick }: Props) {
+export function ExamesGrid({ exames, onDeleteClick, fetchMoreExames, hasMore, isFetchingMore }: Props) {
   const router = useRouter();
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  if (exames.length === 0) {
+  const lastExameElementRef = useCallback((node: HTMLDivElement) => {
+    if (isFetchingMore) return;
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchMoreExames();
+      }
+    });
+
+    if (node) observer.current.observe(node);
+  }, [isFetchingMore, hasMore, fetchMoreExames]);
+
+  if (exames.length === 0 && !isFetchingMore) {
     return <p className="text-muted-foreground">Nenhum exame encontrado para os filtros selecionados.</p>;
   }
 
@@ -40,11 +57,9 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
 
   const formatExameDate = (dataInput: string | Date | null | undefined) => {
     const dataObj = dataInput ? new Date(dataInput) : null;
-
     if (!dataObj || isNaN(dataObj.getTime())) {
-        return { mes: "Data inválida", dia: "!", horaFormatada: "xx:xx", dataCompleta: "Data indisponível" };
+        return { mes: "Sem data", dia: "-", horaFormatada: "", dataCompleta: "Data não definida" };
     }
-    
     const mes = new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(dataObj);
     const dia = dataObj.getDate().toString();
     const horaFormatada = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -55,8 +70,8 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
   return (
     <>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {exames.map((exame) => {
-          
+        {exames.map((exame, index) => {
+          const isLastElement = index === exames.length - 1;
           const { mes, dia, horaFormatada, dataCompleta } = formatExameDate(exame.dataExame);
           const profissionalNome = exame.profissional?.nome || "Profissional não especificado";
           const unidadeNome = exame.unidades?.nome || "Unidade não especificada";
@@ -78,6 +93,7 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
               <Tooltip>
                 <TooltipTrigger asChild>
                     <Card
+                      ref={isLastElement ? lastExameElementRef : null}
                       onClick={() => router.push(`/exames/${exame.id}`)}
                       className={clsx(
                         "relative cursor-pointer border bg-background transition-shadow duration-200 hover:shadow-lg",
@@ -135,6 +151,13 @@ export function ExamesGrid({ exames, onDeleteClick }: Props) {
             </TooltipProvider>
           );
         })}
+      </div>
+
+      <div className="flex justify-center items-center py-8">
+        {isFetchingMore && <Loader2 className="h-8 w-8 animate-spin text-primary" />}
+        {!hasMore && exames.length > 0 && (
+            <p className="text-muted-foreground">Fim da lista de exames.</p>
+        )}
       </div>
 
       <AnexosDialog

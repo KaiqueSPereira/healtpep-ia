@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import useAuthStore from "../_stores/authStore";
 import Header from "@/app/_components/header";
 import Footer from "@/app/_components/footer";
@@ -53,12 +53,20 @@ const parseExameValue = (value: string | number | null): number | null => {
     return isNaN(numericValue) ? null : numericValue;
 };
 
+const EXAMES_PER_PAGE = 10;
+
 export default function ExamesPage() {
     const { session, status } = useAuthStore();
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
-    const [loading, setLoading] = useState(true);
+    
+    // Estados para o Lazy Loading
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
+
     const [currentView, setCurrentView] = useState<'list' | 'charts'>('list');
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
@@ -71,45 +79,70 @@ export default function ExamesPage() {
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
     const { toast } = useToast();
 
-    useEffect(() => {
-        if (status === 'loading') return;
+    const fetchExames = useCallback(async (pageNum: number) => {
         if (status === 'unauthenticated') {
             toast({ title: "Você precisa estar logado para ver seus exames.", variant: "destructive" });
-            setLoading(false);
             return;
         }
-        const fetchData = async () => {
-            setLoading(true);
-            const userId = session?.user?.id;
-            if (!userId) {
-                toast({ title: "Não foi possível obter a identificação do usuário.", variant: "destructive" });
-                setLoading(false);
-                return;
-            }
-            const viewUrl = currentView === 'list' ? "/api/exames" : "/api/exames/graficos";
-            const url = `${viewUrl}?userId=${userId}`;
-            try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
-                const data = await res.json();
-                if (!Array.isArray(data)) throw new Error("A resposta da API não é um array");
-                if (currentView === 'list') {
-                    setExamesListaData(data as ExameCompleto[]);
-                } else {
+        const userId = session?.user?.id;
+        if (!userId) {
+            toast({ title: "Não foi possível obter a identificação do usuário.", variant: "destructive" });
+            return;
+        }
+
+        const url = `/api/exames?userId=${userId}&page=${pageNum}&limit=${EXAMES_PER_PAGE}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
+            const data = await res.json();
+            
+            if (!data.exames || !Array.isArray(data.exames)) throw new Error("A resposta da API não contém um array de exames");
+
+            setExamesListaData(prev => pageNum === 1 ? data.exames : [...prev, ...data.exames]);
+            setHasMore(data.page < data.totalPages);
+            setPage(pageNum);
+
+        } catch (error) {
+            toast({ title: `Erro ao carregar dados de exames`, variant: "destructive" });
+            console.error(error);
+        } 
+    }, [session?.user?.id, status, toast]);
+
+    const fetchMoreExames = useCallback(() => {
+        if (isFetchingMore || !hasMore) return;
+        setIsFetchingMore(true);
+        fetchExames(page + 1).finally(() => setIsFetchingMore(false));
+    }, [isFetchingMore, hasMore, fetchExames, page]);
+
+
+    useEffect(() => {
+        setInitialLoading(true);
+        if (currentView === 'list') {
+            setExamesListaData([]); // Limpa a lista antes de buscar novos dados
+            fetchExames(1).finally(() => setInitialLoading(false));
+        } else {
+            // Lógica para carregar dados do gráfico (não paginado por enquanto)
+            const fetchChartData = async () => {
+                 const userId = session?.user?.id;
+                 if (!userId) return;
+                 const url = `/api/exames/graficos?userId=${userId}`;
+                 try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`A resposta da API para ${url} não foi OK`);
+                    const data = await res.json();
+                    if (!Array.isArray(data)) throw new Error("A resposta da API não é um array");
                     setExamesGraficosData(data as ExameGraficos[]);
-                }
-            } catch (error) {
-                toast({ title: `Erro ao carregar dados de ${url}`, variant: "destructive" });
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchData();
-    }, [currentView, session?.user?.id, status, toast]);
+                 } catch (error) {
+                    toast({ title: `Erro ao carregar dados de ${url}`, variant: "destructive" });
+                 } finally {
+                    setInitialLoading(false);
+                 }
+            };
+            fetchChartData();
+        }
+    }, [currentView, session?.user?.id, fetchExames, toast]);
 
     const listFilterOptions = useMemo(() => Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), [examesListaData]);
-
     const chartComponentOptions = useMemo(() => {
         if (currentView !== 'charts' || !selectedChartType) return [];
         const componentNames = examesGraficosData
@@ -117,12 +150,6 @@ export default function ExamesPage() {
             .flatMap(exame => exame.resultados?.map(res => res.nome) || []);
         return Array.from(new Set(componentNames.filter(Boolean))).sort();
     }, [examesGraficosData, currentView, selectedChartType]);
-
-    useEffect(() => {
-        if (currentView === 'list' && listFilterOptions.length > 0 && selectedListTypes.length === 0) {
-            //setSelectedListTypes(listFilterOptions);
-        }
-    }, [currentView, listFilterOptions, selectedListTypes.length]);
 
     useEffect(() => {
         if (currentView === 'charts') {
@@ -133,11 +160,9 @@ export default function ExamesPage() {
     const { examesAgendados, examesRealizados, examesPendentes } = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
         const agendados: ExameCompleto[] = [];
         const realizados: ExameCompleto[] = [];
         const pendentes: ExameCompleto[] = [];
-
         examesListaData.forEach(exame => {
             if (!exame.dataExame) {
                 pendentes.push(exame);
@@ -152,7 +177,6 @@ export default function ExamesPage() {
                 realizados.push(exame);
             }
         });
-
         return { examesAgendados: agendados, examesRealizados: realizados, examesPendentes: pendentes };
     }, [examesListaData]);
 
@@ -275,7 +299,7 @@ export default function ExamesPage() {
                 <main className="flex-1 p-6 overflow-y-auto">
                     <h1 className="text-2xl font-bold mb-6">Resultados</h1>
 
-                    {loading ? (
+                    {initialLoading ? (
                         <div className="flex h-full items-center justify-center">
                             <Loader2 className="h-8 w-8 animate-spin" />
                         </div>
@@ -285,19 +309,19 @@ export default function ExamesPage() {
                                 const agendadosView = (listStatusFilter === 'todos' || listStatusFilter === 'agendados') && filteredAgendados.length > 0 && (
                                     <div className="mb-8">
                                         <h2 className="text-xl font-semibold mb-4">Exames Agendados</h2>
-                                        <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} />
+                                        <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                     </div>
                                 );
                                 const realizadosView = (listStatusFilter === 'todos' || listStatusFilter === 'realizados') && filteredRealizados.length > 0 && (
                                     <div className="mb-8">
                                         <h2 className="text-xl font-semibold mb-4">Exames Realizados</h2>
-                                        <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} />
+                                        <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                     </div>
                                 );
                                 const pendentesView = (listStatusFilter === 'todos' || listStatusFilter === 'pendentes') && filteredPendentes.length > 0 && (
                                     <div className="mb-8">
                                         <h2 className="text-xl font-semibold mb-4">Exames Pendentes</h2>
-                                        <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} />
+                                        <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                     </div>
                                 );
 

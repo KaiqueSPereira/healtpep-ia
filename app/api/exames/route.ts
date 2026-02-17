@@ -9,29 +9,33 @@ import { Buffer } from "buffer";
 
 
 export async function GET(request: NextRequest) {
-    const userId = request.nextUrl.searchParams.get('userId');
+    const searchParams = request.nextUrl.searchParams;
+    const userId = searchParams.get('userId');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
 
     if (!userId) {
         return NextResponse.json({ error: "O ID do usuário é obrigatório." }, { status: 400 });
     }
 
+    const skip = (page - 1) * limit;
+
     try {
-        const exames = await prisma.exame.findMany({
-            where: {
-                userId: userId,
-            },
-            include: {
-                profissional: true,
-                unidades: true,
-                resultados: true,
-                _count: {
-                    select: { anexos: true },
-                }
-            },
-            orderBy: {
-                dataExame: 'desc',
-            },
-        });
+        const [exames, total] = await prisma.$transaction([
+            prisma.exame.findMany({
+                where: { userId: userId },
+                include: {
+                    profissional: true,
+                    unidades: true,
+                    resultados: true,
+                    _count: { select: { anexos: true } },
+                },
+                orderBy: { dataExame: 'desc' },
+                skip: skip,
+                take: limit,
+            }),
+            prisma.exame.count({ where: { userId: userId } })
+        ]);
 
         const decryptedExames = exames.map(exame => {
             const decryptedProfissional = exame.profissional && exame.profissional.nome
@@ -42,15 +46,13 @@ export async function GET(request: NextRequest) {
                 ? { ...exame.unidades, nome: safeDecrypt(exame.unidades.nome) }
                 : exame.unidades;
 
-            const decryptedResultados = exame.resultados.map(resultado => {
-                return {
-                    ...resultado,
-                    nome: safeDecrypt(resultado.nome),
-                    valor: safeDecrypt(resultado.valor),
-                    unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
-                    referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
-                };
-            });
+            const decryptedResultados = exame.resultados.map(resultado => ({
+                ...resultado,
+                nome: safeDecrypt(resultado.nome),
+                valor: safeDecrypt(resultado.valor),
+                unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
+                referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
+            }));
             
             const decryptedTipo = exame.tipo ? safeDecrypt(exame.tipo) : null;
             const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
@@ -65,7 +67,13 @@ export async function GET(request: NextRequest) {
             };
         });
 
-        return NextResponse.json(decryptedExames, { status: 200 });
+        return NextResponse.json({
+            exames: decryptedExames,
+            total: total,
+            page: page,
+            limit: limit,
+            totalPages: Math.ceil(total / limit)
+        }, { status: 200 });
 
     } catch (error) {
         console.error("Erro ao buscar exames:", error);
