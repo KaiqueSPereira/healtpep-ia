@@ -2,9 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } from "@/app/_lib/crypto";
-import { Prisma } from "@prisma/client";
+import { Prisma, AnexoExame } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
+
+interface ResultadoInput {
+    nome: string;
+    valor: string;
+    unidade?: string | null;
+    referencia?: string | null;
+}
 
 // GET /api/exames/[id] - Busca e descriptografa os detalhes de um exame, com opção de incluir anexos.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
@@ -40,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ error: "Exame não encontrado." }, { status: 404 });
         }
         
-        const decryptedExame: any = {
+        const decryptedExame = {
             ...exameFromDb,
             nome: exameFromDb.nome ? safeDecrypt(exameFromDb.nome) : "Exame",
             anotacao: exameFromDb.anotacao ? safeDecrypt(exameFromDb.anotacao) : null,
@@ -58,8 +65,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             } : null
         };
 
-        if (includeAnexos && decryptedExame.anexos) {
-            decryptedExame.anexos = decryptedExame.anexos.map((anexo: { nomeArquivo: string; }) => ({
+        if (includeAnexos && 'anexos' in decryptedExame && Array.isArray(decryptedExame.anexos)) {
+            decryptedExame.anexos = decryptedExame.anexos.map((anexo: AnexoExame) => ({
                 ...anexo,
                 nomeArquivo: safeDecrypt(anexo.nomeArquivo),
             }));
@@ -100,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             return NextResponse.json({ error: "Os campos 'nome' e 'tipo' são obrigatórios." }, { status: 400 });
         }
 
-        const resultados = resultadosStr ? JSON.parse(resultadosStr) : [];
+        const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
         const updatedExame = await prisma.$transaction(async (tx) => {
             const updateData: Prisma.ExameUpdateInput = {
@@ -119,7 +126,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             await tx.resultadoExame.deleteMany({ where: { exameId: id } });
             if (resultados && resultados.length > 0) {
                 await tx.resultadoExame.createMany({
-                    data: resultados.map((r: any) => ({
+                    data: resultados.map((r: ResultadoInput) => ({
                         exameId: id,
                         nome: safeEncrypt(r.nome),
                         valor: safeEncrypt(r.valor),

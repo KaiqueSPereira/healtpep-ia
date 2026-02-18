@@ -50,7 +50,7 @@ const ExamesList = ({ userId }: ExamesListProps) => {
 
   const fetchExames = useCallback(async () => {
     setLoading(true);
-    setError(null); // Limpa erros anteriores a cada nova tentativa
+    setError(null);
     try {
       const resExames = await fetch(`/api/exames?userId=${userId}`);
       if (!resExames.ok) {
@@ -65,9 +65,17 @@ const ExamesList = ({ userId }: ExamesListProps) => {
       }
 
       const agora = new Date();
-      const futuros = examesData.filter((exame) => new Date(exame.dataExame) >= agora).sort((a, b) => new Date(a.dataExame).getTime() - new Date(b.dataExame).getTime());
-      const passados = examesData.filter((exame) => new Date(exame.dataExame) < agora);
-      const ultimos5PassadosOrdenados = passados.sort((a, b) => new Date(b.dataExame).getTime() - new Date(a.dataExame).getTime()).slice(0, 5);
+      
+      const futuros = examesData
+        .filter(exame => exame.dataExame && new Date(exame.dataExame) >= agora)
+        .sort((a, b) => new Date(a.dataExame!).getTime() - new Date(b.dataExame!).getTime());
+      
+      const passados = examesData
+        .filter(exame => exame.dataExame && new Date(exame.dataExame) < agora);
+
+      const ultimos5PassadosOrdenados = passados
+        .sort((a, b) => new Date(b.dataExame!).getTime() - new Date(a.dataExame!).getTime())
+        .slice(0, 5);
 
       setFuturosExames(futuros);
       setUltimos5PassadosExames(ultimos5PassadosOrdenados);
@@ -75,9 +83,8 @@ const ExamesList = ({ userId }: ExamesListProps) => {
     } catch (err) {
         const errorMessage = "Ocorreu um problema ao carregar seus exames.";
         setError(errorMessage);
-        // Envia o erro técnico para a tela de logs sem assustar o usuário
         if (err instanceof Error) {
-            console.error("Erro detalhado ao buscar exames:", err); // Mantém no console para debug
+            console.error("Erro detalhado ao buscar exames:", err);
             logErrorToServer(err, "ExamesList");
         }
     } finally {

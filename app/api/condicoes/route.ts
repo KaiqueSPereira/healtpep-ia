@@ -1,19 +1,20 @@
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
-import { db } from '@/app/_lib/prisma';
+import { db } from '@/app/_lib/prisma'; // Corrigido: Mantendo 'db' como o nome da variável
 import { decryptString, encryptString } from '@/app/_lib/crypto';
 import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
+import { logErrorToDb } from '@/app/_lib/logger';
+import { Prisma } from '@prisma/client';
 
 // GET: Retorna todas as condições de saúde do usuário
-export async function GET() { // REMOVIDO: _request: Request
+export async function GET() {
+  const componentName = "API GET /api/condicoes";
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-        return new NextResponse(JSON.stringify({ error: 'Usuário não autenticado' }), {
-            status: 401, headers: { 'Content-Type': 'application/json' },
-        });
+        return NextResponse.json({ error: 'Usuário não autenticado' }, { status: 401 });
     }
 
     const condicoes = await db.condicaoSaude.findMany({
@@ -29,42 +30,31 @@ export async function GET() { // REMOVIDO: _request: Request
 
     return NextResponse.json(decryptedCondicoes);
   } catch (error) {
-    console.error('Erro ao buscar condições de saúde:', error);
-    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    await logErrorToDb("Erro ao buscar condições de saúde", error instanceof Error ? error.stack || error.message : String(error), componentName);
+    return NextResponse.json({ error: 'Não foi possível buscar as condições de saúde. Tente novamente mais tarde.' }, { status: 500 });
   }
 }
 
 // POST: Cria uma nova condição de saúde
 export async function POST(request: Request) {
+    const componentName = "API POST /api/condicoes";
     try {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
-            return new NextResponse(JSON.stringify({ error: 'Usuário não autenticado' }), {
-                status: 401, headers: { 'Content-Type': 'application/json' },
-            });
+            return NextResponse.json({ error: 'Usuário não autenticado' }, { status: 401 });
         }
         const userId = session.user.id;
 
-        // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
         const permissions = await getPermissionsForUser(userId);
         if (await permissions.hasReachedLimit('tratamentos')) {
-            return new NextResponse(JSON.stringify({ error: "Você atingiu o limite de tratamentos para o seu plano." }), {
-                status: 403, // Forbidden
-                headers: { 'Content-Type': 'application/json' },
-            });
+            return NextResponse.json({ error: "Você atingiu o limite de tratamentos para o seu plano." }, { status: 403 });
         }
-        // --- FIM DA VERIFICAÇÃO DE PERMISSÃO ---
 
         const body = await request.json();
         const { nome, objetivo, observacoes, profissionalId, dataInicio } = body;
 
         if (!nome || !dataInicio) {
-            return new NextResponse(JSON.stringify({ error: 'Nome e Data de Início são obrigatórios' }), {
-                status: 400, headers: { 'Content-Type': 'application/json' },
-            });
+            return NextResponse.json({ error: 'Nome e Data de Início são obrigatórios' }, { status: 400 });
         }
 
         const novaCondicao = await db.condicaoSaude.create({
@@ -81,71 +71,54 @@ export async function POST(request: Request) {
         return NextResponse.json(novaCondicao, { status: 201 });
 
     } catch (error) {
-        console.error('Erro ao criar condição de saúde:', error);
-        return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-        });
+        await logErrorToDb("Erro ao criar condição de saúde", error instanceof Error ? error.stack || error.message : String(error), componentName);
+        return NextResponse.json({ error: 'Não foi possível criar a condição de saúde. Verifique os dados e tente novamente.' }, { status: 500 });
     }
 }
 
-// DELETE: Deleta uma condição de saúde específica
-export async function DELETE(
-  // REMOVIDO: _request: Request
-  { params }: { params: { id: string } }
-) {
-  const condicaoId = params.id;
+// DELETE: Deleta uma condição de saúde específica via search param (id)
+export async function DELETE(request: NextRequest) {
+  const componentName = "API DELETE /api/condicoes";
+  const condicaoId = request.nextUrl.searchParams.get('id');
 
   if (!condicaoId) {
-    return new NextResponse(JSON.stringify({ error: 'ID da condição é obrigatório' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: 'O ID da condição é obrigatório.' }, { status: 400 });
   }
 
   try {
     await db.condicaoSaude.delete({ where: { id: condicaoId } });
     return new NextResponse(null, { status: 204 }); // Sucesso, sem conteúdo
   } catch (error) {
-    console.error('Erro ao deletar condição de saúde:', error);
-    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    let errorMessage = 'Não foi possível deletar a condição de saúde.';
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        errorMessage = 'Condição de saúde não encontrada.';
+    }
+    await logErrorToDb(`Erro ao deletar condição de saúde com ID: ${condicaoId}`, error instanceof Error ? error.stack || error.message : String(error), componentName);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
-// PATCH: Atualiza uma condição de saúde específica
-export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
-  const condicaoId = params.id;
+// PATCH: Atualiza uma condição de saúde específica via search param (id)
+export async function PATCH(request: NextRequest) {
+  const componentName = "API PATCH /api/condicoes";
+  const condicaoId = request.nextUrl.searchParams.get('id');
 
   if (!condicaoId) {
-    return new NextResponse(JSON.stringify({ error: 'ID da condição é obrigatório' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return NextResponse.json({ error: 'O ID da condição é obrigatório.' }, { status: 400 });
   }
 
   try {
     const body = await request.json();
     const { nome, objetivo, observacoes, profissionalId } = body;
 
-    const dataToUpdate: {
-      nome?: string;
-      objetivo?: string | null;
-      observacoes?: string | null;
-      profissionalId?: string | null;
-    } = {};
+    const dataToUpdate: Prisma.CondicaoSaudeUpdateInput = {};
 
     if (nome) dataToUpdate.nome = encryptString(nome);
     if (objetivo) dataToUpdate.objetivo = encryptString(objetivo);
     if (observacoes) dataToUpdate.observacoes = encryptString(observacoes);
-    // Permite definir o profissionalId como null se ele for removido
-    if (profissionalId !== undefined) dataToUpdate.profissionalId = profissionalId;
-
+    if (profissionalId !== undefined) {
+        dataToUpdate.profissional = profissionalId ? { connect: { id: profissionalId } } : { disconnect: true };
+    }
 
     const updatedCondicao = await db.condicaoSaude.update({
       where: { id: condicaoId },
@@ -162,10 +135,11 @@ export async function PATCH(
     return NextResponse.json(decryptedCondicao);
 
   } catch (error) {
-    console.error('Erro ao atualizar condição de saúde:', error);
-    return new NextResponse(JSON.stringify({ error: 'Erro interno do servidor' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    let errorMessage = 'Não foi possível atualizar a condição de saúde.';
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        errorMessage = 'Condição de saúde não encontrada para atualização.';
+    }
+    await logErrorToDb(`Erro ao atualizar condição de saúde com ID: ${condicaoId}`, error instanceof Error ? error.stack || error.message : String(error), componentName);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

@@ -8,6 +8,14 @@ import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
 
+interface ResultadoInput {
+    nome: string;
+    valor: string;
+    unidade?: string | null;
+    referencia?: string | null;
+    valorReferencia?: string | null; // Manter por compatibilidade, se necessário
+}
+
 // GET /api/exames - Lista todos os exames de um usuário com paginação
 export async function GET(request: NextRequest) {
     const componentName = "API GET /api/exames";
@@ -119,7 +127,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Por favor, preencha todos os campos obrigatórios (tipo e nome do exame)." }, { status: 400 });
     }
 
-    const resultados = resultadosStr ? JSON.parse(resultadosStr) : [];
+    const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
     const novoExameCompleto = await prisma.$transaction(async (tx) => {
 
@@ -140,12 +148,12 @@ export async function POST(request: Request) {
 
       if (resultados && resultados.length > 0) {
         await tx.resultadoExame.createMany({
-          data: resultados.map((r: any) => ({
+          data: resultados.map((r: ResultadoInput) => ({
             exameId: novoExame.id,
             nome: safeEncrypt(r.nome),
             valor: safeEncrypt(r.valor),
             unidade: r.unidade ? safeEncrypt(r.unidade) : null,
-            referencia: r.referencia ? safeEncrypt(r.valorReferencia) : null,
+            referencia: r.referencia || r.valorReferencia ? safeEncrypt(r.referencia || r.valorReferencia || "") : null,
           })),
         });
       }

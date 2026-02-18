@@ -240,7 +240,7 @@ export function ExameFormWrapper({
     }
     
     if (analysisSuccessCount > 0) {
-        setSelectedFiles([]);
+        // A LINHA PROBLEMÁTICA FOI REMOVIDA DAQUI
         toast({ title: `Análise concluída para ${analysisSuccessCount} de ${selectedFiles.length} arquivo(s).` });
     }
 

@@ -120,7 +120,7 @@ const ProfissionalDetalhesPage = () => {
                       <div>
                         <p className="font-medium">{exame.tipo}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date(exame.dataExame).toLocaleDateString()} -{' '}
+                          {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString() : 'Data não informada'} -{' '}
                           {exame.tipo}
                         </p>
                         {exame.usuario?.name && (<p className="text-sm text-gray-500"> Usuário: {exame.usuario.name} </p>)}
