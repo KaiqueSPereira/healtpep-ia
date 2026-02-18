@@ -1,14 +1,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import { safeDecrypt, encryptString, encrypt as encryptBuffer } from "@/app/_lib/crypto";
+import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
+import { logErrorToDb } from "@/app/_lib/logger";
 
-
+// GET /api/exames - Lista todos os exames de um usuário com paginação
 export async function GET(request: NextRequest) {
+    const componentName = "API GET /api/exames";
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -54,13 +56,18 @@ export async function GET(request: NextRequest) {
                 referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
             }));
             
+            const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : "Exame";
             const decryptedTipo = exame.tipo ? safeDecrypt(exame.tipo) : null;
             const decryptedAnotacao = exame.anotacao ? safeDecrypt(exame.anotacao) : null;
+            const decryptedAnaliseIA = exame.analiseIA ? safeDecrypt(exame.analiseIA) : null;
+
 
             return {
                 ...exame,
+                nome: decryptedNome,
                 tipo: decryptedTipo,
                 anotacao: decryptedAnotacao, 
+                analiseIA: decryptedAnaliseIA,
                 profissional: decryptedProfissional,
                 unidades: decryptedUnidade,
                 resultados: decryptedResultados,
@@ -76,71 +83,109 @@ export async function GET(request: NextRequest) {
         }, { status: 200 });
 
     } catch (error) {
-        console.error("Erro ao buscar exames:", error);
-        return NextResponse.json({ error: "Erro interno do servidor ao buscar exames." }, { status: 500 });
+        await logErrorToDb(
+            "Erro ao buscar a lista de exames.", 
+            error instanceof Error ? error.stack || error.message : String(error), 
+            componentName
+        );
+        return NextResponse.json({ error: "Não foi possível carregar os exames. Tente novamente mais tarde." }, { status: 500 });
     }
 }
 
+// POST /api/exames - Cria um novo exame com resultados e anexos
 export async function POST(request: Request) {
+  const componentName = "API POST /api/exames";
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    return NextResponse.json({ error: "Você precisa estar autenticado para realizar esta ação." }, { status: 401 });
   }
 
   try {
     const formData = await request.formData();
+    
     const userId = formData.get("userId") as string;
     const tipo = formData.get("tipo") as string | null;
+    const nome = formData.get("nome") as string | null;
     const anotacao = formData.get("anotacao") as string | null;
     const dataExameStr = formData.get("dataExame") as string | null;
     const unidadesId = formData.get("unidadesId") as string | null;
     const profissionalId = formData.get("profissionalId") as string | null;
     const condicaoSaudeId = formData.get("condicaoSaudeId") as string | null;
     const consultaId = formData.get("consultaId") as string | null;
+    const resultadosStr = formData.get("resultados") as string | null;
     const files = formData.getAll("files") as File[];
 
-    if (!userId || !tipo) {
-      return NextResponse.json({ error: "Campos obrigatórios faltando" }, { status: 400 });
+    if (!userId || !tipo || !nome) {
+      return NextResponse.json({ error: "Por favor, preencha todos os campos obrigatórios (tipo e nome do exame)." }, { status: 400 });
     }
 
-    const createData: Prisma.ExameCreateInput = {
-      usuario: { connect: { id: userId } },
-      nome: encryptString(tipo),
-      tipo: encryptString(tipo),
-    };
+    const resultados = resultadosStr ? JSON.parse(resultadosStr) : [];
 
-    if (anotacao) createData.anotacao = encryptString(anotacao);
-    if (dataExameStr) createData.dataExame = new Date(dataExameStr);
-    if (unidadesId && unidadesId !== 'null') createData.unidades = { connect: { id: unidadesId } };
-    if (profissionalId && profissionalId !== 'null') createData.profissional = { connect: { id: profissionalId } };
-    if (condicaoSaudeId && condicaoSaudeId !== 'null') createData.condicaoSaude = { connect: { id: condicaoSaudeId } };
-    if (consultaId && consultaId !== 'null') createData.consulta = { connect: { id: consultaId } };
+    const novoExameCompleto = await prisma.$transaction(async (tx) => {
 
-    const novoExame = await prisma.exame.create({ data: createData });
+      const createData: Prisma.ExameCreateInput = {
+        usuario: { connect: { id: userId } },
+        nome: safeEncrypt(nome),
+        tipo: safeEncrypt(tipo),
+      };
 
-    if (files && files.length > 0) {
-      for (const file of files) {
-        const nomeArquivo = file.name;
-        const fileBuffer = await file.arrayBuffer();
-        const originalBuffer = Buffer.from(fileBuffer);
+      if (anotacao) createData.anotacao = safeEncrypt(anotacao);
+      if (dataExameStr) createData.dataExame = new Date(dataExameStr);
+      if (unidadesId && unidadesId !== 'null') createData.unidades = { connect: { id: unidadesId } };
+      if (profissionalId && profissionalId !== 'null') createData.profissional = { connect: { id: profissionalId } };
+      if (condicaoSaudeId && condicaoSaudeId !== 'null') createData.condicaoSaude = { connect: { id: condicaoSaudeId } };
+      if (consultaId && consultaId !== 'null') createData.consulta = { connect: { id: consultaId } };
 
-        await prisma.anexoExame.create({
-          data: {
+      const novoExame = await tx.exame.create({ data: createData });
+
+      if (resultados && resultados.length > 0) {
+        await tx.resultadoExame.createMany({
+          data: resultados.map((r: any) => ({
             exameId: novoExame.id,
-            nomeArquivo: encryptString(nomeArquivo),
-            mimetype: file.type,
-            arquivo: new Uint8Array(encryptBuffer(originalBuffer)),
-          }
+            nome: safeEncrypt(r.nome),
+            valor: safeEncrypt(r.valor),
+            unidade: r.unidade ? safeEncrypt(r.unidade) : null,
+            referencia: r.referencia ? safeEncrypt(r.valorReferencia) : null,
+          })),
         });
       }
-    }
 
-    return NextResponse.json({ message: "Exame criado com sucesso", exame: novoExame }, { status: 201 });
+      if (files && files.length > 0) {
+        for (const file of files) {
+          const nomeArquivo = file.name;
+          const fileBuffer = await file.arrayBuffer();
+          const originalBuffer = Buffer.from(fileBuffer);
+
+          await tx.anexoExame.create({
+            data: {
+              exameId: novoExame.id,
+              nomeArquivo: encryptString(nomeArquivo),
+              mimetype: file.type,
+              arquivo: new Uint8Array(encryptBuffer(originalBuffer)),
+            }
+          });
+        }
+      }
+      
+      const exameComRelacoes = await tx.exame.findUnique({
+        where: { id: novoExame.id },
+        include: {
+            resultados: true,
+            _count: { select: { anexos: true } }
+        }
+      });
+
+      return exameComRelacoes;
+    });
+
+    return NextResponse.json({ message: "Exame criado com sucesso!", exame: novoExameCompleto }, { status: 201 });
 
   } catch (error: unknown) {
-    console.error("Erro detalhado ao criar exame:", error);
-    const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
-    return NextResponse.json({ error: `Falha no servidor: ${errorMessage}` }, { status: 500 });
+    await logErrorToDb(
+        "Erro ao criar o exame.",
+        error instanceof Error ? error.stack || error.message : String(error),
+        componentName
+    );
+    return NextResponse.json({ error: "Não foi possível salvar o exame. Verifique os dados e tente novamente." }, { status: 500 });
   }
 }
-

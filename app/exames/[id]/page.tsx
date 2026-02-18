@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -6,12 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco, AnexoExame } from "@prisma/client";
 import Header from "@/app/_components/header";
 import { Button } from "@/app/_components/ui/button";
-import { Pencil, BrainCircuit, RefreshCw, Paperclip } from "lucide-react"; // Ícone de clipe para anexos
+import { Pencil, BrainCircuit, RefreshCw, Paperclip } from "lucide-react";
 import Link from "next/link";
 import useAuthStore from "@/app/_stores/authStore";
-import AnexosDialog from "../components/AnexosDialog"; // Importa o novo diálogo
+import AnexosDialog from "../components/AnexosDialog";
 
-// Tipos atualizados para refletir a nova estrutura da API
+// Tipos para refletir a estrutura da API, que agora envia dados descriptografados
 type UnidadeComEndereco = UnidadeDeSaude & {
   endereco: Endereco | null;
 };
@@ -24,8 +23,8 @@ type ExameComDetalhes = Exame & {
     profissional: Profissional | null;
     unidade: UnidadeDeSaude | null;
   }) | null;
-  anexos?: AnexoExame[]; // Anexos podem estar presentes ou não
-  _count?: { anexos: number }; // Contagem de anexos
+  anexos?: AnexoExame[];
+  _count?: { anexos: number };
 };
 
 export default function ExameDetalhePage() {
@@ -40,54 +39,52 @@ export default function ExameDetalhePage() {
   const [isAnexosDialogOpen, setIsAnexosDialogOpen] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startPolling = useCallback(() => {
+  const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
     }
-    setIsPolling(true);
-
-    pollingIntervalRef.current = setInterval(async () => {
-      try {
-        console.log("Verificando se a análise de IA está pronta...");
-        const pollRes = await fetch(`/api/exames/${id}`, { cache: 'no-store' });
-        if (!pollRes.ok) throw new Error('Falha na verificação da análise');
-        
-        const pollData = await pollRes.json();
-        const updatedExam: ExameComDetalhes = pollData?.exame;
-
-        if (updatedExam && updatedExam.analiseIA) {
-          console.log("Análise de IA recebida! Interrompendo a verificação.");
-          setExame(updatedExam);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            setIsPolling(false);
-          }
-        }
-      } catch (pollError) {
-        console.error("Erro durante a verificação da análise:", pollError);
-        if (pollingIntervalRef.current) {
-          clearInterval(pollingIntervalRef.current);
-          setIsPolling(false);
-        }
-      }
-    }, 5000);
-  }, [id]);
+    setIsPolling(false);
+  }, []);
 
   const triggerAnalysis = useCallback(async () => {
-    if (!id || !session?.user?.id) return;
+    if (!id || !session?.user?.id || isPolling) return;
+
+    console.log("Disparando análise de IA...");
+    setIsPolling(true);
+
     try {
-      console.log("Acionando análise de IA...");
       await fetch('/api/exames/analise-completa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ examId: id, userId: session.user.id }),
       });
-      startPolling();
+
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const pollRes = await fetch(`/api/exames/${id}`, { cache: 'no-store' });
+          if (!pollRes.ok) throw new Error('Falha na verificação da análise');
+
+          const pollData = await pollRes.json();
+          const updatedExam: ExameComDetalhes = pollData?.exame;
+
+          if (updatedExam && updatedExam.analiseIA) {
+            console.log("Análise de IA recebida!");
+            setExame(updatedExam);
+            stopPolling();
+          }
+        } catch (pollError) {
+          console.error("Erro durante a verificação da análise:", pollError);
+          stopPolling();
+        }
+      }, 5000);
+
     } catch (err) {
-      console.error("Falha ao acionar a análise de IA:", err);
+      console.error("Falha ao disparar a análise de IA:", err);
       setError("Não foi possível iniciar a análise de IA.");
+      setIsPolling(false);
     }
-  }, [id, session, startPolling]);
+  }, [id, session, isPolling, stopPolling]);
 
   useEffect(() => {
     if (!id) {
@@ -98,24 +95,25 @@ export default function ExameDetalhePage() {
     const fetchExameDetails = async () => {
       try {
         setLoading(true);
-        // A primeira chamada não inclui os anexos, apenas a contagem
-        const resExame = await fetch(`/api/exames/${id}`);
+        setError(null);
 
-        if (!resExame.ok) throw new Error(`Erro ao buscar detalhes do exame`);
-        
+        const resExame = await fetch(`/api/exames/${id}`);
+        if (!resExame.ok) {
+          const errorData = await resExame.json();
+          throw new Error(errorData.error || 'Erro ao buscar detalhes do exame');
+        }
+
         const dataExame = await resExame.json();
         const examData: ExameComDetalhes = dataExame?.exame;
+
         setExame(examData);
 
         if (examData && !examData.analiseIA) {
           triggerAnalysis();
         }
+
       } catch (err: unknown) {
-          if (err instanceof Error) {
-              setError(err.message);
-          } else {
-              setError("Ocorreu um erro inesperado.");
-          }
+        setError(err instanceof Error ? err.message : "Ocorreu um erro inesperado.");
       } finally {
         setLoading(false);
       }
@@ -124,36 +122,42 @@ export default function ExameDetalhePage() {
     fetchExameDetails();
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      stopPolling();
     };
-  }, [id, triggerAnalysis]);
+  }, [id, triggerAnalysis, stopPolling]);
 
   const handleRefreshAnalysis = () => {
-    setExame(prev => prev ? { ...prev, analiseIA: null } : null);
-    triggerAnalysis();
+    if (confirm("Tem certeza que deseja solicitar uma nova análise? A análise atual será substituída.")) {
+      setExame(prev => prev ? { ...prev, analiseIA: null } : null);
+      triggerAnalysis();
+    }
   };
-
+  
   if (loading && !exame) {
-    return <p className="p-4 text-muted-foreground">Carregando exame...</p>;
+    return <div className="p-4 text-center">Carregando exame...</div>;
   }
 
   if (error) {
-    return <p className="p-4 text-red-500">Erro: {error}</p>;
+    return <div className="p-4 text-center text-red-500">Erro: {error}</div>;
   }
 
   if (!exame) {
-    return <p className="p-4 text-muted-foreground">Exame não encontrado.</p>;
+    return <div className="p-4 text-center">Exame não encontrado.</div>;
   }
 
-  const formatarDataConsulta = (dataString: Date | undefined) => {
+  const formatarData = (dataString?: Date | string | null) => {
+    if (!dataString) return "Data não disponível";
+    return new Date(dataString).toLocaleDateString("pt-BR");
+  };
+
+  const formatarDataComHora = (dataString?: Date | string | null) => {
     if (!dataString) return "Data não disponível";
     const date = new Date(dataString);
-    return `${date.toLocaleDateString("pt-BR")} - ${date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+    const dataFormatada = date.toLocaleDateString("pt-BR");
+    const horaFormatada = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `${dataFormatada} - ${horaFormatada}`;
   };
-  
-  // Verifica se há anexos usando a contagem
+
   const hasAnexos = exame._count ? exame._count.anexos > 0 : false;
 
   return (
@@ -161,28 +165,23 @@ export default function ExameDetalhePage() {
       <Header />
       <main className="flex-1 px-4 py-6 md:px-10 lg:px-20">
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold">
-                Exame de {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString("pt-BR") : "Data não disponível"}
-              </h1>
+              <h1 className="text-2xl font-bold">Exame de {formatarData(exame.dataExame)}</h1>
               <p className="text-sm text-muted-foreground">{exame.unidades?.nome && `Unidade: ${exame.unidades.nome}`}</p>
               <p className="text-sm text-muted-foreground">{exame.profissional?.nome && `Profissional: ${exame.profissional.nome}`}</p>
-              {exame.anotacao && <p className="mt-2 text-sm italic text-muted-foreground">Anotação: {exame.anotacao}</p>}
+              {exame.anotacao && <p className="mt-2 text-sm italic text-gray-600"><b>Anotação:</b> {exame.anotacao}</p>}
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link href={`/exames/${id}/editar`}>
-                <Pencil className="mr-1 h-4 w-4" />
-                Editar
+                <Pencil className="mr-1 h-4 w-4" /> Editar
               </Link>
             </Button>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold flex items-center">
-                <BrainCircuit className="mr-2 h-5 w-5" /> Análise da IA
-              </h2>
+              <h2 className="text-lg font-semibold flex items-center"><BrainCircuit className="mr-2 h-5 w-5" /> Análise da IA</h2>
               <Button variant="ghost" size="icon" onClick={handleRefreshAnalysis} disabled={isPolling} className="h-7 w-7">
                 <RefreshCw className={`h-4 w-4 ${isPolling ? 'animate-spin' : ''}`} />
               </Button>
@@ -193,7 +192,7 @@ export default function ExameDetalhePage() {
               ) : (
                 <div className="flex items-center text-muted-foreground">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-3"></div>
-                  <span>Análise em processamento... A página será atualizada automaticamente.</span>
+                  <span>Análise em processamento...</span>
                 </div>
               )}
             </div>
@@ -202,73 +201,66 @@ export default function ExameDetalhePage() {
           <div>
             <h2 className="mb-2 text-lg font-semibold">Resultados</h2>
             {exame.resultados && exame.resultados.length > 0 ? (
-              <table className="w-full border text-sm">
+              <table className="w-full border-collapse border text-sm">
                 <thead className="bg-muted">
-                  <tr className="bg-muted">
-                    <th className="border p-2">Nome</th>
-                    <th className="border p-2">Valor</th>
-                    <th className="border p-2">Unidade</th>
-                    <th className="border p-2">Referência</th>
+                  <tr>
+                    <th className="border p-2 text-left">Nome</th>
+                    <th className="border p-2 text-left">Valor</th>
+                    <th className="border p-2 text-left">Unidade</th>
+                    <th className="border p-2 text-left">Referência</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {exame.resultados.map((item: ResultadoExame) => {
-                      const valor = parseFloat(item.valor);
-                      const referencia = item.referencia || "";
-                      const [minRef, maxRef] = referencia.split("-").map((v: string) => parseFloat(v.trim()));
-                      const foraDoIntervalo = !isNaN(minRef) && !isNaN(maxRef) && (valor < minRef || valor > maxRef);
-                      return (
-                        <tr key={item.id}>
-                          <td className="border p-2">{item.nome}</td>
-                          <td className={`border p-2 font-medium ${foraDoIntervalo ? "text-red-500" : ""}`}>{item.valor}</td>
-                          <td className="border p-2">{item.unidade}</td>
-                          <td className="border p-2">{item.referencia}</td>
-                        </tr>
-                      );
-                    })}
+                  {exame.resultados.map((item) => {
+                    let foraDoIntervalo = false;
+                    if (item.valor && typeof item.valor === 'string' && item.referencia && typeof item.referencia === 'string') {
+                      const valorNum = parseFloat(item.valor.replace(',', '.'));
+                      const partesRef = item.referencia.split('-').map(v => parseFloat(v.trim().replace(',', '.')));
+                      if (partesRef.length === 2 && !isNaN(valorNum) && !isNaN(partesRef[0]) && !isNaN(partesRef[1])) {
+                        foraDoIntervalo = valorNum < partesRef[0] || valorNum > partesRef[1];
+                      }
+                    }
+                    return (
+                      <tr key={item.id}>
+                        <td className="border p-2">{item.nome || 'N/A'}</td>
+                        <td className={`border p-2 font-medium ${foraDoIntervalo ? "text-red-500 font-bold" : ""}`}>{item.valor || 'N/A'}</td>
+                        <td className="border p-2">{item.unidade || 'N/A'}</td>
+                        <td className="border p-2">{item.referencia || 'N/A'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
-              <p className="text-sm">Sem dados de resultados.</p>
+              <p className="text-sm text-muted-foreground">Sem resultados para exibir.</p>
             )}
           </div>
 
-          {/* Botão para abrir o diálogo de anexos */}
           {hasAnexos && (
             <div>
               <h2 className="mb-2 text-lg font-semibold">Anexos</h2>
-              <Button onClick={() => setIsAnexosDialogOpen(true)}>
-                <Paperclip className="mr-2 h-4 w-4" />
-                Ver Anexos ({exame._count?.anexos})
+              <Button onClick={() => setIsAnexosDialogOpen(true)} variant="outline">
+                <Paperclip className="mr-2 h-4 w-4" /> Ver Anexos ({exame._count?.anexos})
               </Button>
             </div>
           )}
 
           {exame.consulta && (
-            <div className="rounded-md bg-muted p-4 text-sm">
+            <div className="rounded-md bg-muted p-4 text-sm mt-4">
               <h2 className="mb-2 text-lg font-semibold">Consulta Relacionada</h2>
-              <p><strong>Tipo:</strong> {exame.consulta.tipo}</p>
-              <p><strong>Data:</strong> {formatarDataConsulta(exame.consulta.data)}</p>
+              <p><strong>Tipo:</strong> {exame.consulta.tipo || 'N/A'}</p>
+              <p><strong>Data:</strong> {formatarDataComHora(exame.consulta.data)}</p>
               {exame.consulta.motivo && <p><strong>Queixas:</strong> {exame.consulta.motivo}</p>}
-              {exame.consulta.profissional?.nome && <p><strong>Profissional da Consulta:</strong> {exame.consulta.profissional.nome}</p>}
-              {exame.consulta.unidade?.nome && <p><strong>Unidade da Consulta:</strong> {exame.consulta.unidade.nome}</p>}
             </div>
           )}
 
-          <div> 
-            <Button variant="destructive" onClick={() => router.back()}>
-              Voltar
-            </Button>
+          <div className="pt-4">
+            <Button variant="outline" onClick={() => router.back()}>Voltar</Button>
           </div>
         </div>
       </main>
 
-      {/* Renderiza o diálogo */}
-      <AnexosDialog 
-        open={isAnexosDialogOpen} 
-        onOpenChange={setIsAnexosDialogOpen} 
-        examId={id}
-      />
+      <AnexosDialog open={isAnexosDialogOpen} onOpenChange={setIsAnexosDialogOpen} examId={id} />
     </div>
   );
 }

@@ -1,28 +1,11 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
-import OpenAI from "openai";
 import { encryptString, safeDecrypt } from "@/app/_lib/crypto";
+import { GoogleGenAI } from "@google/genai";
+import { logErrorToDb } from "@/app/_lib/logger";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Função para obter o mimetype a partir do nome do arquivo
-const getMimeType = (fileName: string): string | null => {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    if (!extension) return null;
-
-    switch (extension) {
-        case 'png': return 'image/png';
-        case 'jpg':
-        case 'jpeg': return 'image/jpeg';
-        case 'webp': return 'image/webp';
-        // A OpenAI não suporta PDFs diretamente via image_url, mas pode ser útil para outras integrações
-        case 'pdf': return 'application/pdf';
-        default: return null;
-    }
-};
-
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || "" });
 
 interface LocalResultadoExame {
     id: string;
@@ -48,8 +31,8 @@ function calcularIdade(dataNascimento: string): number {
 }
 
 async function analisarExame(examId: string, userId: string): Promise<string | null> {
+  const componentName = "analisarExame_Gemini";
   try {
-    // CORREÇÃO: Busca o Exame com seus campos escalares (incluindo arquivoExame)
     const exame = await prisma.exame.findUnique({
       where: { id: examId, userId: userId },
       include: {
@@ -66,7 +49,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     });
 
     if (!exame || !exame.usuario) {
-      console.error("Exame ou usuário não encontrado para análise.");
+      await logErrorToDb("Exame ou usuário não encontrado para análise completa.", { examId, userId }, componentName);
       return null;
     }
 
@@ -89,68 +72,40 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     if (exame.consulta) {
         const dataConsulta = new Date(exame.consulta.data).toLocaleDateString("pt-BR");
         const queixas = exame.consulta.motivo ? safeDecrypt(exame.consulta.motivo) : 'Não informado';
-        consultaInfo = `
-      - Data da Consulta: ${dataConsulta}
-      - Tipo de Consulta: ${exame.consulta.tipo || 'Não informado'}
-      - Queixas do Paciente na Consulta: ${queixas}
-    `;
+        consultaInfo = `\n- Data da Consulta: ${dataConsulta}\n- Tipo de Consulta: ${exame.consulta.tipo || 'Não informado'}\n- Queixas do Paciente na Consulta: ${queixas}\n`;
     }
 
     const anotacaoExame = exame.anotacao ? safeDecrypt(exame.anotacao) : "Nenhuma anotação fornecida.";
 
-    const textPrompt = `
-      Por favor, analise os seguintes resultados de exame e quaisquer imagens anexadas para um paciente. Forneça uma análise clara e concisa em português, destacando quaisquer resultados que estejam fora do padrão e explicando sua possível significância clínica de forma geral. Se imagens ou documentos forem fornecidos, descreva o que você vê e relacione com os dados do exame.
-      A análise não deve ser um diagnóstico, mas sim um resumo informativo para auxiliar o usuário/paciente a passar informações para o profissional de saúde. Leve em consideração todos os dados fornecidos para uma análise mais precisa e contextualizada.
+    const prompt = `Por favor, analise os seguintes dados de um paciente e seus resultados de exame. Atue como um assistente de análise de saúde.
+Forneça uma análise concisa em um único parágrafo de texto corrido em português.
+A análise deve destacar quaisquer resultados que pareçam fora do padrão e explicar sua possível significância de forma geral, sem dar um diagnóstico. Considere todo o contexto fornecido.
 
-      **Dados do Paciente:**
-      - Idade: ${idade} anos
-      - Sexo: ${sexo}
-      - Peso: ${peso}
-      - Tratamentos Atuais: 
-      ${tratamentosAtuais}
+**Dados do Paciente:**
+- Idade: ${idade} anos
+- Sexo: ${sexo}
+- Peso: ${peso}
+- Tratamentos Atuais: ${tratamentosAtuais}
 
-      **Contexto da Consulta Vinculada ao Exame:**
-      ${consultaInfo}
+**Contexto da Consulta:**${consultaInfo}
 
-      **Anotações do Usuário sobre o Exame:**
-      ${anotacaoExame}
+**Anotações sobre o Exame:**
+${anotacaoExame}
 
-      **Resultados do Exame (dados textuais):**
-      ${resultadosFormatados}
+**Resultados do Exame:**
+${resultadosFormatados}
 
-      **Formato da Resposta:**
-      Gere um parágrafo de texto corrido com a análise. Comece com uma visão geral e depois detalhe os pontos importantes. Seja objetivo e use uma linguagem que um leigo possa entender, mas que seja clinicamente relevante.
-    `;
+**Sua Resposta (APENAS o parágrafo de análise, sem títulos ou introduções):**`;
 
-    const messageContent: (OpenAI.Chat.ChatCompletionContentPartText | OpenAI.Chat.ChatCompletionContentPartImage)[] = [
-        { type: "text", text: textPrompt },
-    ];
-
-    // CORREÇÃO: Pega o anexo do próprio exame e o converte
-    if (exame.arquivoExame && exame.nomeArquivo) {
-        const mimetype = getMimeType(exame.nomeArquivo);
-        // Apenas processa imagens que a API da OpenAI aceita
-        if (mimetype && mimetype.startsWith('image/')) {
-            const base64Image = (exame.arquivoExame as Buffer).toString('base64');
-            const imageUrl = `data:${mimetype};base64,${base64Image}`;
-
-            messageContent.push({
-                type: "image_url",
-                image_url: { "url": imageUrl },
-            });
-        }
-    }
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: messageContent }],
-      temperature: 0.2,
+    // REVERTENDO PARA A CHAMADA ORIGINAL E FUNCIONAL DA API
+    const result = await genAI.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
     });
-
-    const analiseGerada = response.choices[0]?.message?.content;
+    const analiseGerada = result.text?.trim() ?? "";
 
     if (!analiseGerada) {
-      console.error("Resposta da IA para análise completa estava vazia.");
+      await logErrorToDb("Resposta da IA para análise completa estava vazia.", { examId }, componentName);
       return null;
     }
 
@@ -159,36 +114,46 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
       data: { analiseIA: encryptString(analiseGerada) }
     });
     
-    console.log(`Análise de IA gerada e salva para o exame ${examId}.`);
     return analiseGerada;
 
   } catch (error) {
-    console.error(`Erro ao gerar ou salvar análise de IA para o exame ${examId}:`, error);
+    await logErrorToDb(
+        `Erro ao gerar ou salvar análise de IA para o exame ${examId}.`,
+        error instanceof Error ? error.stack || error.message : String(error),
+        componentName
+    );
     return null;
   }
 }
 
 export async function POST(req: NextRequest) {
-  console.log("--- Início do POST em /api/exames/analise-completa ---");
-  
+  const componentName = "API /api/exames/analise-completa";
   try {
     const { examId, userId } = await req.json();
 
     if (!examId || !userId) {
-      return NextResponse.json({ error: "examId e userId são obrigatórios" }, { status: 400 });
+      return NextResponse.json({ error: "As informações necessárias para a análise não foram fornecidas." }, { status: 400 });
+    }
+
+    if (!process.env.GOOGLE_API_KEY) {
+        await logErrorToDb("Chave da API do Google não configurada.", "A variável de ambiente GOOGLE_API_KEY não foi encontrada.", componentName);
+        return NextResponse.json({ error: "O serviço de análise não está configurado corretamente." }, { status: 500 });
     }
 
     const analise = await analisarExame(examId, userId);
 
     if (!analise) {
-        return NextResponse.json({ error: "Falha ao gerar a análise do exame." }, { status: 500 });
+        return NextResponse.json({ error: "Não foi possível gerar a análise para este exame. Verifique se os dados estão completos ou tente novamente mais tarde." }, { status: 500 });
     }
 
-    console.log("--- Fim do POST em /api/exames/analise-completa ---");
     return NextResponse.json({ analysis: analise });
 
   } catch (error) {
-    console.error("Erro geral no handler POST de analise-completa:", error);
-    return NextResponse.json({ error: "Erro interno no servidor." }, { status: 500 });
+    await logErrorToDb(
+        "Erro geral no handler POST de analise-completa.", 
+        error instanceof Error ? error.stack || error.message : String(error), 
+        componentName
+    );
+    return NextResponse.json({ error: "Ocorreu um erro inesperado no servidor ao solicitar a análise." }, { status: 500 });
   }
 }

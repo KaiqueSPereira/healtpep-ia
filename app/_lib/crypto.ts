@@ -71,7 +71,28 @@ export function safeDecrypt(encryptedText: string): string {
         return encryptedText;
     }
   } catch (error) {
-    console.error("Erro ao decriptar:", error, "Valor:", encryptedText);
+    // console.error("Erro ao decriptar:", error, "Valor:", encryptedText);
     return encryptedText; // Retorna o valor original em caso de erro
+  }
+}
+
+// Função para encriptar de maneira segura (evita re-encriptar texto já encriptado)
+export function safeEncrypt(plainText: string): string {
+  if (!plainText) {
+    return plainText;
+  }
+  try {
+    // Verifica se a string já parece estar no formato encriptado (IV:dados)
+    const parts = plainText.split(":");
+    if (parts.length === 2 && Buffer.from(parts[0], "hex").length === ivLength) {
+      // Já está encriptado, retorna o valor original para evitar dupla encriptação
+      return plainText;
+    } else {
+      // Não está encriptado, então encripta
+      return encryptString(plainText);
+    }
+  } catch (error) {
+    // Se ocorrer um erro (ex: em Buffer.from), assume que não está encriptado e encripta.
+    return encryptString(plainText);
   }
 }

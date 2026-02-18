@@ -1,16 +1,18 @@
 
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { decrypt, safeDecrypt } from "@/app/_lib/crypto"; 
 import { Buffer } from 'buffer';
 import mime from 'mime-types';
+import { logErrorToDb } from "@/app/_lib/logger";
 
 export async function GET(req: NextRequest) {
+  const componentName = "API GET /api/exames/arquivo";
   const { searchParams } = new URL(req.url);
   const anexoId = searchParams.get("anexoId");
 
   if (!anexoId) {
-    return new Response("ID do anexo não fornecido", { status: 400 });
+    return NextResponse.json({ error: "O ID do anexo não foi fornecido." }, { status: 400 });
   }
 
   try {
@@ -23,13 +25,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (!anexo || !anexo.arquivo) {
-      return new Response("Arquivo não encontrado", { status: 404 });
+      return NextResponse.json({ error: "Arquivo não encontrado." }, { status: 404 });
     }
 
     const decryptedFileBuffer = decrypt(Buffer.from(anexo.arquivo));
     const fileName = safeDecrypt(anexo.nomeArquivo);
 
-    // Determina o Content-Type com base no nome do arquivo para mais precisão
     const contentType = mime.lookup(fileName) || "application/octet-stream";
 
     const body = new Uint8Array(decryptedFileBuffer);
@@ -38,13 +39,16 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        // Garante que o navegador tente exibir o arquivo em vez de baixar
         "Content-Disposition": `inline; filename="${fileName}"`,
       },
     });
 
   } catch (error) {
-    console.error("Erro interno ao buscar o arquivo do anexo:", error);
-    return new Response("Erro interno ao buscar o arquivo", { status: 500 });
+    await logErrorToDb(
+        `Erro ao buscar o arquivo de exame com ID: ${anexoId}`,
+        error instanceof Error ? error.stack || error.message : String(error),
+        componentName
+    );
+    return NextResponse.json({ error: "Ocorreu um erro interno ao buscar o arquivo. Tente novamente mais tarde." }, { status: 500 });
   }
 }
