@@ -7,6 +7,7 @@ import { Button } from '@/app/_components/ui/button';
 import { toast } from '@/app/_hooks/use-toast';
 import { Loader2, X, Download, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image'; // ADICIONADO: Importação do componente Image
 
 interface Anexo {
   id: string;
@@ -29,7 +30,7 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
     if (open && examId) {
       const fetchAnexos = async () => {
         setLoading(true);
-        setSelectedAnexoUrl(null); // Reseta a visualização
+        setSelectedAnexoUrl(null);
         try {
           const response = await fetch(`/api/exames/${examId}?includeAnexos=true`);
           if (!response.ok) throw new Error("Falha ao carregar anexos.");
@@ -77,12 +78,15 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
 
       let viewer;
       if (isImage) {
+        // CORREÇÃO: Utilizando o componente <Image> do Next.js
         viewer = (
-          <div className="w-full h-full flex items-center justify-center bg-muted/20 rounded-md">
-            <img 
+          <div className="relative w-full h-full flex items-center justify-center bg-muted/20 rounded-md">
+            <Image 
               src={selectedAnexoUrl} 
               alt={anexo?.nomeArquivo || 'Anexo'} 
-              className="max-w-full max-h-full object-contain"
+              fill
+              className="object-contain"
+              sizes="(max-width: 1024px) 90vw, 80vw"
             />
           </div>
         );

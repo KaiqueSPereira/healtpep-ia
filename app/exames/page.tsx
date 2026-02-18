@@ -61,7 +61,6 @@ export default function ExamesPage() {
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     
-    // Estados para o Lazy Loading
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -114,14 +113,12 @@ export default function ExamesPage() {
         fetchExames(page + 1).finally(() => setIsFetchingMore(false));
     }, [isFetchingMore, hasMore, fetchExames, page]);
 
-
     useEffect(() => {
         setInitialLoading(true);
         if (currentView === 'list') {
-            setExamesListaData([]); // Limpa a lista antes de buscar novos dados
+            setExamesListaData([]);
             fetchExames(1).finally(() => setInitialLoading(false));
         } else {
-            // Lógica para carregar dados do gráfico (não paginado por enquanto)
             const fetchChartData = async () => {
                  const userId = session?.user?.id;
                  if (!userId) return;
@@ -180,7 +177,8 @@ export default function ExamesPage() {
         return { examesAgendados: agendados, examesRealizados: realizados, examesPendentes: pendentes };
     }, [examesListaData]);
 
-    const filterExamsByDateAndType = (exames: ExameCompleto[], filterByDate: boolean) => {
+    // CORREÇÃO: Função de filtro movida para dentro de um useCallback
+    const filterExamsByDateAndType = useCallback((exames: ExameCompleto[], filterByDate: boolean) => {
         return exames.filter(exame => {
             if (filterByDate && exame.dataExame) {
                 const examDate = new Date(exame.dataExame);
@@ -193,11 +191,12 @@ export default function ExamesPage() {
             if (selectedListTypes.length > 0 && (!exame.tipo || !selectedListTypes.includes(exame.tipo))) return false;
             return true;
         });
-    };
+    }, [startDate, endDate, selectedListTypes]); // Dependências da função de filtro
     
-    const filteredAgendados = useMemo(() => filterExamsByDateAndType(examesAgendados, true), [examesAgendados, startDate, endDate, selectedListTypes]);
-    const filteredRealizados = useMemo(() => filterExamsByDateAndType(examesRealizados, true), [examesRealizados, startDate, endDate, selectedListTypes]);
-    const filteredPendentes = useMemo(() => filterExamsByDateAndType(examesPendentes, false), [examesPendentes, selectedListTypes]);
+    // CORREÇÃO: A função de filtro agora é uma dependência do useMemo
+    const filteredAgendados = useMemo(() => filterExamsByDateAndType(examesAgendados, true), [examesAgendados, filterExamsByDateAndType]);
+    const filteredRealizados = useMemo(() => filterExamsByDateAndType(examesRealizados, true), [examesRealizados, filterExamsByDateAndType]);
+    const filteredPendentes = useMemo(() => filterExamsByDateAndType(examesPendentes, false), [examesPendentes, filterExamsByDateAndType]);
 
     useEffect(() => {
         if (currentView !== 'charts' || selectedChartComponents.length === 0) {

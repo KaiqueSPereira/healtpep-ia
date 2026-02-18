@@ -108,9 +108,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
       try {
           await fetch('/api/logs', {
               method: 'POST',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(errorData),
           });
       } catch (logError) {
@@ -180,10 +178,16 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
           }
           toast({ title: "Consulta salva com sucesso!" });
           onSaveSuccess?.();
-        } catch (error: any) {
+        } catch (error: unknown) { // CORREÇÃO: trocado 'any' por 'unknown'
+            let errorMessage = "Ocorreu um erro desconhecido";
+            let errorStack = undefined;
+            if (error instanceof Error) {
+                errorMessage = error.message;
+                errorStack = error.stack;
+            }
             await logErrorToServer({
-                message: `Erro ao salvar consulta: ${error.message}`,
-                stack: error.stack,
+                message: `Erro ao salvar consulta: ${errorMessage}`,
+                stack: errorStack,
                 url: "/api/consultas (frontend)",
             });
             toast({
@@ -231,10 +235,16 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         }
         toast({ title: "Exame salvo com sucesso!" });
         onSaveSuccess?.();
-      } catch (error: any) {
+      } catch (error: unknown) { // CORREÇÃO: trocado 'any' por 'unknown'
+        let errorMessage = "Ocorreu um erro desconhecido";
+        let errorStack = undefined;
+        if (error instanceof Error) {
+            errorMessage = error.message;
+            errorStack = error.stack;
+        }
         await logErrorToServer({
-            message: `Erro ao salvar exame: ${error.message}`,
-            stack: error.stack,
+            message: `Erro ao salvar exame: ${errorMessage}`,
+            stack: errorStack,
             url: "/api/exames (frontend)",
         });
         toast({
