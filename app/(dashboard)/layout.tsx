@@ -17,23 +17,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="relative min-h-screen">
-      <header className="fixed top-0 left-0 right-0 z-50">
-        <Header />
-      </header>
-      
-      {/* 
-        O conteúdo principal agora tem padding-top (pt-20) e padding-bottom (pb-20)
-        para não ser sobreposto pelo Header e Footer.
-        Ajuste esses valores se a altura do seu header/footer mudar.
-      */}
-      <main className="pt-20 pb-20">
+    <div className="flex flex-col h-screen">
+      <Header />
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
-      
-      <footer className="fixed bottom-0 left-0 right-0 z-50">
-        <Footer />
-      </footer>
+      <Footer />
     </div>
   );
 }

@@ -55,7 +55,7 @@ const EXAMES_PER_PAGE = 10;
 
 export default function ExamesPage() {
     const { session, status } = useAuthStore();
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const [examesGraficosData, setExamesGraficosData] = useState<ExameGraficos[]>([]);
     const [examesListaData, setExamesListaData] = useState<ExameCompleto[]>([]);
     
@@ -175,7 +175,6 @@ export default function ExamesPage() {
         return { examesAgendados: agendados, examesRealizados: realizados, examesPendentes: pendentes };
     }, [examesListaData]);
 
-    // CORREÇÃO: Função de filtro movida para dentro de um useCallback
     const filterExamsByDateAndType = useCallback((exames: ExameCompleto[], filterByDate: boolean) => {
         return exames.filter(exame => {
             if (filterByDate && exame.dataExame) {
@@ -189,9 +188,8 @@ export default function ExamesPage() {
             if (selectedListTypes.length > 0 && (!exame.tipo || !selectedListTypes.includes(exame.tipo))) return false;
             return true;
         });
-    }, [startDate, endDate, selectedListTypes]); // Dependências da função de filtro
+    }, [startDate, endDate, selectedListTypes]);
     
-    // CORREÇÃO: A função de filtro agora é uma dependência do useMemo
     const filteredAgendados = useMemo(() => filterExamsByDateAndType(examesAgendados, true), [examesAgendados, filterExamsByDateAndType]);
     const filteredRealizados = useMemo(() => filterExamsByDateAndType(examesRealizados, true), [examesRealizados, filterExamsByDateAndType]);
     const filteredPendentes = useMemo(() => filterExamsByDateAndType(examesPendentes, false), [examesPendentes, filterExamsByDateAndType]);
@@ -270,73 +268,71 @@ export default function ExamesPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen">
-            <div className="flex flex-1 overflow-hidden">
-                <ExameSidebar
-                    isCollapsed={isSidebarCollapsed}
-                    setIsCollapsed={setIsSidebarCollapsed}
-                    currentView={currentView}
-                    onViewChange={setCurrentView}
-                    startDate={startDate}
-                    onStartDateChange={setStartDate}
-                    endDate={endDate}
-                    onEndDateChange={setEndDate}
-                    listFilterOptions={listFilterOptions}
-                    selectedListTypes={selectedListTypes}
-                    onListTypeChange={setSelectedListTypes}
-                    listStatusFilter={listStatusFilter}
-                    onListStatusFilterChange={setListStatusFilter}
-                    selectedChartType={selectedChartType}
-                    onChartTypeChange={setSelectedChartType}
-                    chartComponentOptions={chartComponentOptions}
-                    selectedChartComponents={selectedChartComponents}
-                    onChartComponentChange={setSelectedChartComponents}
-                />
-                <main className="flex-1 p-6 overflow-y-auto">
-                    <h1 className="text-2xl font-bold mb-6">Resultados</h1>
+        <div className="flex h-full">
+            <ExameSidebar
+                isCollapsed={isSidebarCollapsed}
+                setIsCollapsed={setIsSidebarCollapsed}
+                currentView={currentView}
+                onViewChange={setCurrentView}
+                startDate={startDate}
+                onStartDateChange={setStartDate}
+                endDate={endDate}
+                onEndDateChange={setEndDate}
+                listFilterOptions={listFilterOptions}
+                selectedListTypes={selectedListTypes}
+                onListTypeChange={setSelectedListTypes}
+                listStatusFilter={listStatusFilter}
+                onListStatusFilterChange={setListStatusFilter}
+                selectedChartType={selectedChartType}
+                onChartTypeChange={setSelectedChartType}
+                chartComponentOptions={chartComponentOptions}
+                selectedChartComponents={selectedChartComponents}
+                onChartComponentChange={setSelectedChartComponents}
+            />
+            <main className="flex-1 overflow-y-auto p-6">
+                <h1 className="text-2xl font-bold mb-6">Resultados</h1>
 
-                    {initialLoading ? (
-                        <div className="flex h-full items-center justify-center">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                    ) : (
-                        <>
-                            {currentView === 'list' && (() => {
-                                const agendadosView = (listStatusFilter === 'todos' || listStatusFilter === 'agendados') && filteredAgendados.length > 0 && (
-                                    <div className="mb-8">
-                                        <h2 className="text-xl font-semibold mb-4">Exames Agendados</h2>
-                                        <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
-                                    </div>
-                                );
-                                const realizadosView = (listStatusFilter === 'todos' || listStatusFilter === 'realizados') && filteredRealizados.length > 0 && (
-                                    <div className="mb-8">
-                                        <h2 className="text-xl font-semibold mb-4">Exames Realizados</h2>
-                                        <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
-                                    </div>
-                                );
-                                const pendentesView = (listStatusFilter === 'todos' || listStatusFilter === 'pendentes') && filteredPendentes.length > 0 && (
-                                    <div className="mb-8">
-                                        <h2 className="text-xl font-semibold mb-4">Exames Pendentes</h2>
-                                        <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
-                                    </div>
-                                );
+                {initialLoading ? (
+                    <div className="flex h-full items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin" />
+                    </div>
+                ) : (
+                    <>
+                        {currentView === 'list' && (() => {
+                            const agendadosView = (listStatusFilter === 'todos' || listStatusFilter === 'agendados') && filteredAgendados.length > 0 && (
+                                <div className="mb-8">
+                                    <h2 className="text-xl font-semibold mb-4">Exames Agendados</h2>
+                                    <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                </div>
+                            );
+                            const realizadosView = (listStatusFilter === 'todos' || listStatusFilter === 'realizados') && filteredRealizados.length > 0 && (
+                                <div className="mb-8">
+                                    <h2 className="text-xl font-semibold mb-4">Exames Realizados</h2>
+                                    <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                </div>
+                            );
+                            const pendentesView = (listStatusFilter === 'todos' || listStatusFilter === 'pendentes') && filteredPendentes.length > 0 && (
+                                <div className="mb-8">
+                                    <h2 className="text-xl font-semibold mb-4">Exames Pendentes</h2>
+                                    <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                </div>
+                            );
 
-                                if (agendadosView || realizadosView || pendentesView) {
-                                    return <>{agendadosView}{realizadosView}{pendentesView}</>;
-                                }
+                            if (agendadosView || realizadosView || pendentesView) {
+                                return <>{agendadosView}{realizadosView}{pendentesView}</>;
+                            }
 
-                                return <p className="text-center text-gray-500 py-10">Nenhum exame encontrado para os filtros selecionados.</p>;
-                            })()}
+                            return <p className="text-center text-gray-500 py-10">Nenhum exame encontrado para os filtros selecionados.</p>;
+                        })()}
 
-                            {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? (
-                                <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} />
-                            ) : (
-                                <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
-                            ))}
-                        </>
-                    )}
-                </main>
-            </div>
+                        {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? (
+                            <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} />
+                        ) : (
+                            <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
+                        ))}
+                    </>
+                )}
+            </main>
             <AlertDialog open={isConfirmDeleteDialogOpen} onOpenChange={setIsConfirmDeleteDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader><AlertDialogTitle>Tem certeza?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita e excluirá permanentemente o exame.</AlertDialogDescription></AlertDialogHeader>

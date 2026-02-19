@@ -146,7 +146,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
   const tiposConsultaList: Consultatype[] = Object.values(Consultatype);
 
   return (
-    <div>
+    <div className="h-full overflow-y-auto">
       <div className="p-5">
         <ConsultaFilter
           professionals={profissionaisList}
@@ -159,7 +159,7 @@ const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
             : "Todas as Consultas"}
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {consultas && consultas.length > 0 ? (
             consultas.map((consulta) => {
               // CORREÇÃO: Mapeia o objeto 'consulta' para o formato 'AgendamentoUnificado'
