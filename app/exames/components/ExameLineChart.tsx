@@ -1,4 +1,6 @@
 'use client';
+
+import * as React from 'react';
 import { Line } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
@@ -10,6 +12,7 @@ import {
     Tooltip,
     Legend,
 } from 'chart.js';
+import { useTheme } from 'next-themes';
 
 ChartJS.register(
     CategoryScale,
@@ -37,10 +40,18 @@ export interface ExameLineChartProps {
 }
 
 const ExameLineChart: React.FC<ExameLineChartProps> = ({ data, title }) => {
-    
-    // Detect theme (this is a simplified example, you might have a more robust theme provider)
-    const isDarkMode = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const textColor = isDarkMode ? '#FFFFFF' : '#000000';
+    const { theme } = useTheme();
+    const [mounted, setMounted] = React.useState(false);
+
+    React.useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const textColor = theme === 'dark' ? '#f8fafc' : '#020617';
+    const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)';
+    const tooltipBackgroundColor = theme === 'dark' ? '#0f172a' : '#ffffff';
+    const tooltipTitleColor = theme === 'dark' ? '#f8fafc' : '#020617';
+    const tooltipBodyColor = theme === 'dark' ? '#cbd5e1' : '#475569';
 
     const options = {
         responsive: true,
@@ -49,35 +60,40 @@ const ExameLineChart: React.FC<ExameLineChartProps> = ({ data, title }) => {
             legend: {
                 position: 'top' as const,
                 labels: {
-                    color: textColor, // Adjust legend text color for theme
+                    color: textColor,
                 }
             },
             title: {
                 display: true,
                 text: title,
-                color: textColor, // Adjust title text color for theme
+                color: textColor,
             },
             tooltip: {
                 mode: 'index' as const,
                 intersect: false,
+                backgroundColor: tooltipBackgroundColor,
+                titleColor: tooltipTitleColor,
+                bodyColor: tooltipBodyColor,
+                borderColor: gridColor,
+                borderWidth: 1,
             },
         },
         scales: {
             y: {
                 beginAtZero: false,
                 ticks: {
-                    color: textColor, // Adjust Y-axis labels color
+                    color: textColor,
                 },
                 grid: {
-                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)', // Adjust grid line color
+                    color: gridColor,
                 }
             },
             x: {
                 ticks: {
-                    color: textColor, // Adjust X-axis labels color
+                    color: textColor,
                 },
                 grid: {
-                    color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)', // Adjust grid line color
+                    color: gridColor,
                 }
             }
         },
@@ -87,6 +103,10 @@ const ExameLineChart: React.FC<ExameLineChartProps> = ({ data, title }) => {
             intersect: false
         }
     };
+
+    if (!mounted) {
+        return <div className="h-[450px] w-full rounded-lg border bg-background p-4 shadow-sm" />;
+    }
 
     return (
         <div className="h-[450px] w-full rounded-lg border bg-background p-4 shadow-sm">

@@ -1,6 +1,8 @@
-"use client";
+'use client';
 
+import * as React from 'react';
 import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
+import { useTheme } from 'next-themes';
 
 interface ExameLineChartContentProps {
   data: {
@@ -16,6 +18,13 @@ interface ExameLineChartContentProps {
 }
 
 const ExameLineChartContent = ({ data, title }: ExameLineChartContentProps) => {
+  const { theme } = useTheme();
+
+  // Colors for dark/light themes
+  const textColor = theme === 'dark' ? '#f8fafc' : '#020617';
+  const gridColor = theme === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.1)';
+  const tooltipBg = theme === 'dark' ? '#0f172a' : '#ffffff';
+
   const transformedData = data.labels.map((label, index) => {
     const dataPoint: { [key: string]: string | number } = { date: label };
     data.datasets.forEach(dataset => {
@@ -23,6 +32,14 @@ const ExameLineChartContent = ({ data, title }: ExameLineChartContentProps) => {
     });
     return dataPoint;
   });
+
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    // Render a placeholder or nothing on the server to avoid hydration mismatch
+    return <div className="w-full h-80 rounded-lg border bg-background p-4 shadow-sm" />;
+  }
 
   return (
     <div className="w-full h-80">
@@ -37,18 +54,27 @@ const ExameLineChartContent = ({ data, title }: ExameLineChartContentProps) => {
             bottom: 5,
           }}
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
+          <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
+          <XAxis dataKey="date" stroke={textColor} tick={{ fill: textColor }} />
+          <YAxis stroke={textColor} tick={{ fill: textColor }} />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: tooltipBg, 
+              borderColor: gridColor,
+              borderRadius: '0.5rem',
+              boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+            }}
+            itemStyle={{ color: textColor }}
+            labelStyle={{ color: textColor, fontWeight: 'bold' }}
+          />
+          <Legend wrapperStyle={{ color: textColor }} />
           {data.datasets.map(dataset => (
             <Line
               key={dataset.label}
               type="monotone"
               dataKey={dataset.label}
               stroke={dataset.borderColor}
-              fill={dataset.backgroundColor}
+              fill={dataset.backgroundColor} // As provided by user
               activeDot={{ r: 8 }}
             />
           ))}

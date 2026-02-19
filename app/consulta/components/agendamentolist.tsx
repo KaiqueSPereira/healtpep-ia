@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "@/app/_hooks/use-toast";
 import AgendamentoItem from "./agendamentosItem";
 import { Button } from "@/app/_components/ui/button";
+import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Consultas, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
 
 type ConsultaComRelacoes = Consultas & { 
@@ -81,12 +82,29 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
       fetchAgendamentos();
     }
   }, [userId, fetchAgendamentos]);
+
+  const renderSkeletons = () => (
+    <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
+      {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28 w-64 rounded-lg" />)}
+    </div>
+  );
+  
+  if (loading) {
+    return (
+        <div>
+            <div className="flex justify-end mb-2">
+                <Button variant="ghost" size="sm" disabled>Recarregar</Button>
+            </div>
+            <h2 className="text-xs font-bold uppercase text-gray-400 mt-5">Próximos Agendamentos</h2>
+            {renderSkeletons()}
+            <h2 className="text-xs font-bold uppercase text-gray-400 mt-5">Últimas Consultas</h2>
+            {renderSkeletons()}
+        </div>
+    );
+  }
   
   return (
     <div>
-      {loading ? (
-        <p className="text-gray-500">Carregando agendamentos...</p>
-      ) : (
         <>
           <div className="flex justify-end mb-2">
             <Button
@@ -107,7 +125,6 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
             agendamentos={agendamentosPassados}
           />
         </>
-      )}
     </div>
   );
 };

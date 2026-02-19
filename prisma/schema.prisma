@@ -42,8 +42,8 @@ model PermissionOnRole {
 model ResourceLimit {
   id       String @id @default(cuid())
   roleId   String
-  resource String // e.g., "exams", "consultas", "profissionais"
-  limit    Int    // The limit for the resource. -1 can mean unlimited.
+  resource String 
+  limit    Int    
 
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
