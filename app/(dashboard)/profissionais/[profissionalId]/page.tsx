@@ -9,7 +9,7 @@ import AgendamentoItem from '@/app/(dashboard)/consulta/components/agendamentosI
 import CondicaoSaudeSelectorMultiple from '@/app/(dashboard)/condicoes/_Components/TratamentoSelectorMultiple';
 import type { Prisma, CondicaoSaude } from '@prisma/client';
 
-// Define os tipos complexos com base nos tipos do Prisma, garantindo consistência.
+// Tipos complexos baseados no Prisma, agora refletem os dados já descriptografados que vêm da API.
 type ProfissionalCompleto = Prisma.ProfissionalGetPayload<{
   include: {
     consultas: { include: { unidade: true } };
@@ -27,7 +27,6 @@ const ProfissionalDetalhesPage = () => {
   const [profissional, setProfissional] = useState<ProfissionalCompleto | null>(null);
   const [consultas, setConsultas] = useState<ConsultaComUnidade[]>([]);
   const [exames, setExames] = useState<ExameComDetalhes[]>([]);
-  // CORREÇÃO: Usa o tipo CondicaoSaude importado diretamente, resolvendo o erro do linter.
   const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,11 +40,14 @@ const ProfissionalDetalhesPage = () => {
           const errorData = await profRes.json();
           throw new Error(errorData.error || 'Erro ao carregar dados do profissional');
         }
+        // Os dados já chegam descriptografados da API
         const profData: ProfissionalCompleto = await profRes.json();
+        
         setProfissional(profData);
         setConsultas(profData.consultas || []);
         setExames(profData.exames || []);
         setCondicoesSaude(profData.condicoesSaude || []);
+
       } catch (err: unknown) {
         console.error('Erro ao carregar dados:', err);
         setError(err instanceof Error ? err.message : 'Erro ao carregar dados desconhecido');
@@ -59,7 +61,7 @@ const ProfissionalDetalhesPage = () => {
   const handleExameClick = (exameId: string) => { router.push(`/exames/${exameId}`); };
 
   if (loading) return (<div className="flex min-h-screen items-center justify-center py-10"> <Loader2 className="h-8 w-8 animate-spin" /> </div>);
-  if (error) return <div className="text-red-500 text-center py-10">{error}</div>;
+  if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
   if (!profissional) return <div className="text-center py-10">Profissional não encontrado.</div>;
 
   return (

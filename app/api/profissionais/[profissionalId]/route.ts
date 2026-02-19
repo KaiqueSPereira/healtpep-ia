@@ -1,20 +1,16 @@
 // app/api/profissional/[profissionalId]/route.ts
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
-import { z } from "zod"; // Importar Zod para validação no PATCH
+import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { decryptString } from "@/app/_lib/crypto";
+import { safeDecrypt } from "@/app/_lib/crypto";
 
-// Schema para validação parcial dos dados no PATCH
 const profissionalPatchSchema = z.object({
-  nome: z.string().min(1, "O nome e obrigatorio.").optional(), // Tornar campos opcionais para atualização parcial
+  nome: z.string().min(1, "O nome e obrigatorio.").optional(),
   especialidade: z.string().min(1, "A especialidade e obrigatoria.").optional(),
   NumClasse: z.string().min(1, "O numero de classe e obrigatorio.").optional(),
-  // A atualização de unidades será feita pelos novos endpoints aninhados
-  // unidadeId: z.string().uuid("ID da unidade invalido.").optional(), // Remover unidadeId daqui
-}).strict().partial(); // Permitir apenas campos definidos e torná-los todos opcionais
+}).strict().partial();
 
-// Método GET (Buscar um profissional específico por ID)
 export async function GET(
   request: Request,
   { params }: { params: { profissionalId: string } },
@@ -24,23 +20,23 @@ export async function GET(
       where: { id: params.profissionalId },
       include: {
         unidades: true,
-         condicoesSaude: true,
-         consultas: {
-           include: {
-             usuario: true,
-             unidade: true,
-           },
-         },
-         exames: {
-            include: {
-              usuario: true,
-              unidades: true,
-            },
-             orderBy: {
-               dataExame: 'desc',
-             },
-             take: 5,
-         },
+        condicoesSaude: true,
+        consultas: {
+          include: {
+            usuario: true,
+            unidade: true,
+          },
+        },
+        exames: {
+          include: {
+            usuario: true,
+            unidades: true,
+          },
+          orderBy: {
+            dataExame: 'desc',
+          },
+          take: 5,
+        },
       },
     });
 
@@ -50,26 +46,32 @@ export async function GET(
         { status: 404 },
       );
     }
-    const profissionalComExamesDescriptografados = {
+
+    // Descriptografar todos os dados sensíveis aqui no servidor
+    const decryptedData = {
       ...profissional,
-      exames: profissional.exames?.map(exame => ({
-          ...exame,
-          anotacao: exame.anotacao ? decryptString(exame.anotacao) : null,
-          nome: exame.nome ? decryptString(exame.nome) : null,
-      }))
-  };
+      nome: safeDecrypt(profissional.nome),
+      especialidade: profissional.especialidade ? safeDecrypt(profissional.especialidade) : profissional.especialidade,
+      exames: profissional.exames.map(exame => ({
+        ...exame,
+        tipo: exame.tipo ? safeDecrypt(exame.tipo) : exame.tipo,
+        usuario: (exame.usuario && exame.usuario.name)
+          ? { ...exame.usuario, name: safeDecrypt(exame.usuario.name) }
+          : exame.usuario,
+      })),
+    };
 
-  return NextResponse.json(profissionalComExamesDescriptografados);
-} catch (error) {
-  console.error("Erro ao buscar profissional:", error);
-  return NextResponse.json(
-    { error: "Erro interno do servidor" },
-    { status: 500 },
-  );
-}
+    return NextResponse.json(decryptedData);
+
+  } catch (error) {
+    console.error("Erro ao buscar profissional:", error);
+    return NextResponse.json(
+      { error: "Erro interno do servidor" },
+      { status: 500 },
+    );
+  }
 }
 
-// Método PATCH (Atualizar os dados principais de um profissional por ID)
 export async function PATCH(
   request: Request,
   { params }: { params: { profissionalId: string } },
@@ -78,11 +80,9 @@ export async function PATCH(
     const { profissionalId } = params;
     const body = await request.json();
 
-    // Validação parcial dos dados com Zod
     const parsedData = profissionalPatchSchema.parse(body);
 
-    // Construir o objeto de atualização apenas com os campos presentes no body
-    const updateData: Prisma.ProfissionalUpdateInput = {}; // Use o tipo gerado pelo Prisma
+    const updateData: Prisma.ProfissionalUpdateInput = {};
     if (parsedData.nome !== undefined) updateData.nome = parsedData.nome;
     if (parsedData.especialidade !== undefined) updateData.especialidade = parsedData.especialidade;
     if (parsedData.NumClasse !== undefined) updateData.NumClasse = parsedData.NumClasse;
@@ -90,12 +90,11 @@ export async function PATCH(
     const profissionalAtualizado = await db.profissional.update({
       where: { id: profissionalId },
       data: updateData,
-       include: { 
+      include: { 
         unidades: true,
       },
     });
 
-    // Retornar apenas os dados atualizados do profissional (e unidades se incluídas)
     return NextResponse.json(profissionalAtualizado);
   } catch (error) {
     console.error("Erro ao atualizar profissional:", error);
@@ -104,7 +103,7 @@ export async function PATCH(
     }
      if (error instanceof Error && error.message.includes("Record to update not found")) {
          return NextResponse.json({ error: "Profissional não encontrado para atualização" }, { status: 404 });
-    }
+     }
     return NextResponse.json(
       { error: "Falha ao atualizar o cadastro do profissional" },
       { status: 500 },
@@ -112,7 +111,6 @@ export async function PATCH(
   }
 }
 
-// Método DELETE (Excluir um profissional específico por ID)
 export async function DELETE(
   request: Request,
   { params }: { params: { profissionalId: string } },
@@ -133,7 +131,6 @@ export async function DELETE(
      if (error instanceof Error && error.message.includes("Record to delete not found")) {
          return NextResponse.json({ error: "Profissional não encontrado para exclusão" }, { status: 404 });
      }
-     // Lidar com erros de chave estrangeira se houver (ex: não pode deletar profissional se tiver consultas/exames vinculados e não tiver CASCADE)
      if (error instanceof Error && error.message.includes("Foreign key constraint failed")) {
           return NextResponse.json({ error: "Não é possível excluir o profissional devido a dados vinculados (consultas, exames, etc.). Remova os dados vinculados primeiro." }, { status: 409 });
      }
