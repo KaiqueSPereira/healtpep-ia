@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { db } from "@/app/_lib/prisma";
-import { manageableResources } from '@/app/admin/_config/resources';
+import { manageableResources } from '@/app/(dashboard)/admin/_config/resources';
 import type { Role, Permission, ResourceLimit } from "@prisma/client";
 
 // Tipagem interna para o perfil completo com todas as relações
