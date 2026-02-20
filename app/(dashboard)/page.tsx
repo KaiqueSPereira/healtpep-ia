@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -125,7 +124,7 @@ const Home = () => {
   const hasSearchResults = searchResults && (searchResults.consultas.length > 0 || searchResults.tratamentos.length > 0 || searchResults.exames.length > 0);
 
   return (
-    <div>
+    <div className="h-full overflow-y-auto"> {/* <-- AQUI ESTÁ A CORREÇÃO */}
       <div className="p-5">
         <h2 className="text-2xl font-bold">Olá, {session.user.name}</h2>
         <p>{formattedDate}</p>

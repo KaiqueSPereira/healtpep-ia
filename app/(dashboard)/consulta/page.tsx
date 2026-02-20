@@ -1,192 +1,158 @@
-// Este arquivo é um Server Component por padrão no App Router.
-import { Consultas, Consultatype, Profissional, UnidadeDeSaude } from "@prisma/client";
-import { db } from "@/app/_lib/prisma";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import axios from "axios";
+import { useInView } from "react-intersection-observer";
 import AgendamentoItem from "./components/agendamentosItem";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/_lib/auth";
-import ConsultaFilter from './components/ConsultaFilter';
-import { AgendamentoUnificado } from "./components/agendamentolist"; 
+import { AgendamentoUnificado } from "./components/agendamentolist";
+import ConsultaFilter from './components/ConsultaFilter'; 
+import { Consultas, Consultatype, Profissional, UnidadeDeSaude } from "@prisma/client";
+import { Loader2 } from "lucide-react";
+import { useDebounce } from 'use-debounce';
 
-
-const parseDate = (dateString: string) => {
-  const regexFullDate = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-  const regexYearShort = /^(\d{2})\/(\d{2})\/(\d{2})$/;
-  const regexMonthDay = /^(\d{2})\/(\d{2})$/;
-  const regexDayOnly = /^(\d{2})$/;
-
-  let date: Date | null = null;
-
-  const matchFullDate = dateString.match(regexFullDate);
-  if (matchFullDate) {
-    const [, day, month, year] = matchFullDate;
-    date = new Date(`${year}-${month}-${day}`);
-  } else {
-    const matchShortYear = dateString.match(regexYearShort);
-    if (matchShortYear) {
-      const [, day, month, year] = matchShortYear;
-      date = new Date(`20${year}-${month}-${day}`);
-    } else {
-      const matchMonthDay = dateString.match(regexMonthDay);
-      if (matchMonthDay) {
-        const [, day, month] = matchMonthDay;
-        date = new Date(
-          new Date().getFullYear(),
-          parseInt(month) - 1,
-          parseInt(day),
-        );
-      } else {
-        const matchDayOnly = dateString.match(regexDayOnly);
-        if (matchDayOnly) {
-          const [, day] = matchDayOnly;
-          date = new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            parseInt(day),
-          );
-        }
-      }
-    }
-  }
-
-  if (date && isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
+type ConsultaComRelacoes = Consultas & {
+  profissional: Profissional | null;
+  unidade: UnidadeDeSaude | null;
 };
 
+const ConsultasPage = () => {
+  // Estados para os dados e paginação
+  const [consultas, setConsultas] = useState<ConsultaComRelacoes[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
 
-interface ConsultaspageProps {
-  searchParams: {
-    search?: string;
-    profissionalId?: string;
-    tipo?: Consultatype;
-  };
-}
-interface SearchCondition {
-  motivo?: { contains: string; mode: "insensitive" };
-  tipodeexame?: { contains: string; mode: "insensitive" };
-  profissional?: { nome: { contains: string; mode: "insensitive" } };
-  Anotacoes?: { some: { anotacao: { contains: string; mode: "insensitive" } } } | undefined;
-  unidade?: { nome: { contains: string; mode: "insensitive" } };
-}
-interface ConsultaWhereClause {
-  profissionalId?: string;
-  tipo?: Consultatype;
-  AND?: SearchCondition[];
-  OR?: SearchCondition[];
-  data?: { equals: Date };
-}
+  // Estados para os filtros
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
+  const [profissionalId, setProfissionalId] = useState(searchParams.get('profissionalId') || '');
+  const [tipo, setTipo] = useState<Consultatype | ''>(searchParams.get('tipo') as Consultatype || '');
+  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
 
-// CORREÇÃO: Define um tipo mais preciso para as consultas que vêm da base de dados
-type ConsultaComRelacoes = Consultas & { 
-    profissional: Profissional | null; 
-    unidade: UnidadeDeSaude | null; 
-};
+  // Estados para popular os filtros
+  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+  const [tiposConsulta, setTiposConsulta] = useState<Consultatype[]>([]);
 
-const Consultaspage = async ({ searchParams }: ConsultaspageProps) => {
-  const session = await getServerSession(authOptions);
+  const { ref, inView } = useInView({ threshold: 0 });
 
-  if (!session || !session.user?.id) {
-    return <div className="p-5">Usuário não autenticado.</div>;
-  }
-
-  const userId = session.user.id;
-
-  const search = searchParams.search?.trim() || "";
-  const profissionalId = searchParams.profissionalId;
-  const tipo = searchParams.tipo;
-
-  const whereClause: ConsultaWhereClause & { userId: string } = { userId };
-
-  if (profissionalId) {
-    whereClause.profissionalId = profissionalId;
-  }
-  if (tipo && Object.values(Consultatype).includes(tipo)) {
-    whereClause.tipo = tipo;
-  }
-
-  if (search) {
-    const parsedDate = parseDate(search);
-    if (parsedDate && Object.keys(whereClause).length === 1) { // Verifica se só tem userId
-      whereClause.data = { equals: parsedDate };
-    } else if (!parsedDate) {
-      const searchConditions: SearchCondition[] = [
-        { motivo: { contains: search, mode: "insensitive" } },
-        { tipodeexame: { contains: search, mode: "insensitive" } },
-        { profissional: { nome: { contains: search, mode: "insensitive" } } },
-        { Anotacoes: { some: { anotacao: { contains: search, mode: "insensitive" } } } },
-        { unidade: { nome: { contains: search, mode: "insensitive" } } },
-      ].filter(Boolean) as SearchCondition[];
-      
-      if (Object.keys(whereClause).length > 1) {
-        whereClause.AND = (whereClause.AND || []).concat(searchConditions);
-      } else {
-        whereClause.OR = searchConditions;
+  // Função para buscar dados para os filtros
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        const [profRes, tiposRes] = await Promise.all([
+          axios.get('/api/consultas?get=profissionais'),
+          axios.get('/api/consultas?get=tipos')
+        ]);
+        setProfissionais(profRes.data);
+        setTiposConsulta(tiposRes.data);
+      } catch (error) {
+        console.error("Erro ao buscar dados para os filtros:", error);
       }
+    };
+    fetchFilterData();
+  }, []);
+
+  // Função centralizada de busca
+  const loadConsultas = useCallback(async (cursor: string | null, isNewSearch: boolean) => {
+    if (loading) return;
+    setLoading(true);
+    if(isNewSearch) setInitialLoad(true);
+
+    try {
+      const params = new URLSearchParams();
+      params.append('limit', '8');
+      if (cursor) params.append('cursor', cursor);
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
+      if (profissionalId) params.append('profissionalId', profissionalId);
+      if (tipo) params.append('tipo', tipo);
+
+      const response = await axios.get(`/api/consultas?${params.toString()}`);
+      const { items, nextCursor: newNextCursor } = response.data;
+
+      setConsultas(prev => isNewSearch ? items : [...prev, ...items]);
+      setNextCursor(newNextCursor);
+      setHasMore(!!newNextCursor);
+
+    } catch (error) {
+      console.error("Erro ao carregar consultas:", error);
+    } finally {
+      setLoading(false);
+      setInitialLoad(false);
     }
-  }
+  }, [debouncedSearchTerm, profissionalId, tipo]); // CORREÇÃO: Removido 'loading' das dependências
 
-  const consultas: ConsultaComRelacoes[] = await db.consultas.findMany({
-    where: whereClause,
-    include: {
-      profissional: true,
-      unidade: true,
-    },
-    orderBy: {
-      data: 'desc',
+  // Efeito para atualizar a URL com os filtros
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+    if (debouncedSearchTerm) params.set('search', debouncedSearchTerm); else params.delete('search');
+    if (profissionalId) params.set('profissionalId', profissionalId); else params.delete('profissionalId');
+    if (tipo) params.set('tipo', tipo); else params.delete('tipo');
+    router.replace(`${pathname}?${params.toString()}`);
+  }, [debouncedSearchTerm, profissionalId, tipo, pathname, router, searchParams]);
+  
+  // Efeito para buscar quando os filtros mudam
+  useEffect(() => {
+    loadConsultas(null, true); // Nova busca, reseta a lista
+  }, [debouncedSearchTerm, profissionalId, tipo]);
+
+  // Efeito para carregamento infinito (scroll)
+  useEffect(() => {
+    const isNewSearch = false;
+    // Evita carregar mais se for uma busca inicial ou se não houver mais itens
+    if (inView && !loading && hasMore && !initialLoad) {
+      loadConsultas(nextCursor, isNewSearch);
     }
-  });
-
-  const profissionaisList: Profissional[] = await db.profissional.findMany({
-    where: { userId: userId },
-    orderBy: { nome: 'asc' },
-  });
-
-  const tiposConsultaList: Consultatype[] = Object.values(Consultatype);
-
+  }, [inView, loading, hasMore, nextCursor, initialLoad, loadConsultas]);
+  
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-5">
+        <h1 className="text-xl font-bold mb-4">Minhas Consultas</h1>
         <ConsultaFilter
-          professionals={profissionaisList}
-          consultationTypes={tiposConsultaList}
+          professionals={profissionais}
+          consultationTypes={tiposConsulta}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          profissionalId={profissionalId}
+          setProfissionalId={setProfissionalId}
+          tipo={tipo}
+          setTipo={setTipo}
         />
 
-        <h2 className="text-xs font-bold uppercase text-gray-400 mt-6 mb-2">
-          {search || profissionalId || tipo ?
-            `Resultados da Busca:`
-            : "Todas as Consultas"}
-        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
+          {consultas.map((consulta) => {
+            const agendamento: AgendamentoUnificado = {
+              id: consulta.id,
+              data: consulta.data.toString(),
+              nomeProfissional: consulta.profissional?.nome || "Não especificado",
+              especialidade: consulta.profissional?.especialidade || "Clínico Geral",
+              local: consulta.unidade?.nome || "Local não especificado",
+              tipo: "Consulta",
+              userId: consulta.userId,
+            };
+            return <AgendamentoItem key={consulta.id} agendamento={agendamento} />;
+          })}
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {consultas && consultas.length > 0 ? (
-            consultas.map((consulta) => {
-              // CORREÇÃO: Mapeia o objeto 'consulta' para o formato 'AgendamentoUnificado'
-              const agendamento: AgendamentoUnificado = {
-                id: consulta.id,
-                data: consulta.data.toISOString(),
-                nomeProfissional: consulta.profissional?.nome || 'Não especificado',
-                especialidade: consulta.profissional?.especialidade || 'Clínico Geral',
-                local: consulta.unidade?.nome || 'Local não especificado',
-                tipo: 'Consulta',
-                userId: consulta.userId,
-              };
-
-              return (
-                <AgendamentoItem
-                  key={consulta.id}
-                  agendamento={agendamento}
-                />
-              );
-            })
-          ) : (
-            <p className="text-sm text-gray-500">Nenhum resultado encontrado com os critérios especificados.</p>
+        <div ref={ref} className="h-10 flex justify-center items-center my-4">
+          {loading && <Loader2 className="h-8 w-8 animate-spin text-primary" />}
+          {!hasMore && consultas.length > 0 && !initialLoad && (
+             <p className="text-sm text-gray-500">Você chegou ao fim.</p>
           )}
         </div>
+
+        {!loading && !initialLoad && consultas.length === 0 && (
+          <p className="text-sm text-gray-500 text-center mt-4">
+            Nenhum resultado encontrado com os critérios especificados.
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-export default Consultaspage;
+export default ConsultasPage;

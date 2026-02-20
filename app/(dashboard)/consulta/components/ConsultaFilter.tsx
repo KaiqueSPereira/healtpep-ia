@@ -1,133 +1,75 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { Dispatch, SetStateAction } from 'react';
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
-import { Consultatype, Profissional } from '@prisma/client'; // Importar Consultatype e Profissional
-
-// Importar componentes de dropdown/select do Shadcn UI (descomente se estiver usando)
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/app/_components/ui/select";
+import { Consultatype, Profissional } from '@prisma/client';
 
 interface ConsultaFilterProps {
-  // Props para receber a lista real de profissionais e tipos de consulta do Server Component
-  professionals: Profissional[]; // Usar o tipo Profissional do Prisma Client
-  consultationTypes: Consultatype[]; // Usar o tipo Consultatype do Prisma Client
+  professionals: Profissional[];
+  consultationTypes: Consultatype[];
+  searchTerm: string;
+  setSearchTerm: Dispatch<SetStateAction<string>>;
+  profissionalId: string;
+  setProfissionalId: Dispatch<SetStateAction<string>>;
+  tipo: Consultatype | '';
+  setTipo: Dispatch<SetStateAction<Consultatype | ''>>;
 }
 
-const ConsultaFilter: React.FC<ConsultaFilterProps> = ({ professionals, consultationTypes }) => {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+const ConsultaFilter: React.FC<ConsultaFilterProps> = ({
+  professionals,
+  consultationTypes,
+  searchTerm,
+  setSearchTerm,
+  profissionalId,
+  setProfissionalId,
+  tipo,
+  setTipo,
+}) => {
 
-  // Estados locais para a barra de pesquisa e filtros, inicializados com os searchParams da URL
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [selectedProfissional, setSelectedProfissional] = useState(searchParams.get('profissionalId') || '');
-  const [selectedTipo, setSelectedTipo] = useState(searchParams.get('tipo') || '');
+  // A lógica de estado e useEffect foi movida para o componente pai (ConsultasPage)
+  // Este componente agora apenas renderiza a UI e chama as funções do pai.
 
-  // Efeito para atualizar os searchParams na URL quando os estados locais mudam
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    // Definir ou remover o parâmetro 'search'
-    if (searchTerm) {
-      params.set('search', searchTerm);
-    } else {
-      params.delete('search');
-    }
-
-    // Definir ou remover o parâmetro 'profissionalId'
-    if (selectedProfissional) {
-      params.set('profissionalId', selectedProfissional);
-    } else {
-      params.delete('profissionalId');
-    }
-
-    // Definir ou remover o parâmetro 'tipo'
-    if (selectedTipo) {
-      params.set('tipo', selectedTipo);
-    } else {
-      params.delete('tipo');
-    }
-
-    // Atualiza a URL sem recarregar a página.
-    // Adicionado um debounce para não atualizar a URL a cada tecla digitada na busca.
-    const handler = setTimeout(() => {
-        router.push(`?${params.toString()}`, { scroll: false });
-    }, 500); // Delay de 500ms antes de aplicar a busca/filtros
-
-    // Limpar o timeout se os estados mudarem antes do delay terminar
-    return () => {
-        clearTimeout(handler);
-    };
-
-  }, [searchTerm, selectedProfissional, selectedTipo, router, searchParams]); // Dependências do useEffect
-
-  // Handlers para as mudanças nos inputs/selects
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(event.target.value);
-  };
-
-  const handleProfissionalChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-      setSelectedProfissional(event.target.value);
-  };
-
-  const handleTipoChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-      setSelectedTipo(event.target.value);
-  };
-
-  // Função para resetar os filtros
   const handleResetFilters = () => {
-      setSearchTerm('');
-      setSelectedProfissional('');
-      setSelectedTipo('');
-      // O useEffect se encarregará de atualizar a URL com os valores vazios
+    setSearchTerm('');
+    setProfissionalId('');
+    setTipo('');
   };
-
 
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
-      {/* Barra de Pesquisa */}
       <Input
         type="text"
-        placeholder="Pesquisar consultas..."
+        placeholder="Pesquisar por termo ou data..."
         value={searchTerm}
-        onChange={handleSearchChange}
+        onChange={(e) => setSearchTerm(e.target.value)}
         className="flex-grow"
       />
 
-      {/* Dropdown de Profissionais (usando select nativo) */}
-       <select
-         value={selectedProfissional}
-         onChange={handleProfissionalChange} // Usar o handler para select nativo
-         className="border rounded-md p-2"
-       >
-           <option value="">Todos Profissionais</option>
-           {/* Mapear sobre a lista REAL de profissionais recebida via props */}
-           {professionals.map(profissional => (
-               <option key={profissional.id} value={profissional.id}>{profissional.nome}</option>
-           ))}
-       </select>
-
-
-      {/* Dropdown de Tipos de Consulta (usando select nativo) */}
-        <select
-          value={selectedTipo}
-          onChange={handleTipoChange} // Usar o handler para select nativo
-          className="border rounded-md p-2"
-        >
-            <option value="">Todos Tipos</option>
-            {/* Mapear sobre a lista REAL de tipos de consulta recebida via props */}
-            {consultationTypes.map(tipo => (
-                <option key={tipo} value={tipo}>{tipo}</option>
-            ))}
-        </select>
-
-      {/* Botão de Reset */}
-      <Button
-        onClick={handleResetFilters} // Usar o handler de reset
-        variant="outline"
+      <select
+        value={profissionalId}
+        onChange={(e) => setProfissionalId(e.target.value)}
+        className="border rounded-md p-2 bg-white text-black dark:bg-gray-800 dark:text-white"
       >
-        Limpar Filtros
+        <option value="">Todos Profissionais</option>
+        {professionals.map(p => (
+          <option key={p.id} value={p.id}>{p.nome}</option>
+        ))}
+      </select>
+
+      <select
+        value={tipo}
+        onChange={(e) => setTipo(e.target.value as Consultatype | '')}
+        className="border rounded-md p-2 bg-white text-black dark:bg-gray-800 dark:text-white"
+      >
+        <option value="">Todos Tipos</option>
+        {consultationTypes.map(t => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+
+      <Button onClick={handleResetFilters} variant="outline">
+        Limpar
       </Button>
     </div>
   );

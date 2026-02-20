@@ -3,11 +3,10 @@ import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 import { encryptString, decryptString } from "@/app/_lib/crypto";
-import { Anotacoes, Prisma } from '@prisma/client';
+import { Anotacoes, Consultatype, Prisma } from '@prisma/client';
 import { Session } from "next-auth";
-import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
 
-export const dynamic = 'force-dynamic'; // Garante que a rota é sempre dinâmica
+export const dynamic = 'force-dynamic';
 
 const getUserSessionAndId = async (): Promise<{ session: Session | null, userId: string | null }> => {
   const session = await getServerSession(authOptions);
@@ -17,146 +16,153 @@ const getUserSessionAndId = async (): Promise<{ session: Session | null, userId:
   return { session, userId: session.user.id };
 };
 
+const parseDate = (dateString: string) => {
+    const regexFullDate = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const regexYearShort = /^(\d{2})\/(\d{2})\/(\d{2})$/;
+    const regexMonthDay = /^(\d{2})\/(\d{2})$/;
+    const regexDayOnly = /^(\d{2})$/;
+
+    let date: Date | null = null;
+    const now = new Date();
+
+    const matchFullDate = dateString.match(regexFullDate);
+    if (matchFullDate) {
+        const [, day, month, year] = matchFullDate;
+        date = new Date(`${year}-${month}-${day}`);
+    } else {
+        const matchShortYear = dateString.match(regexYearShort);
+        if (matchShortYear) {
+        const [, day, month, year] = matchShortYear;
+        date = new Date(`20${year}-${month}-${day}`);
+        } else {
+        const matchMonthDay = dateString.match(regexMonthDay);
+        if (matchMonthDay) {
+            const [, day, month] = matchMonthDay;
+            date = new Date(now.getFullYear(), parseInt(month) - 1, parseInt(day));
+        } else {
+            const matchDayOnly = dateString.match(regexDayOnly);
+            if (matchDayOnly) {
+            const [, day] = matchDayOnly;
+            date = new Date(now.getFullYear(), now.getMonth(), parseInt(day));
+            }
+        }
+        }
+    }
+
+    if (date && isNaN(date.getTime())) return null;
+    return date;
+};
+
+// Função helper para descriptografar uma consulta, evitando repetição de código
+const decryptConsulta = (consulta: any) => {
+    const { condicoes, Anotacoes, ...restOfConsulta } = consulta;
+    return {
+        ...restOfConsulta,
+        motivo: restOfConsulta.motivo ? decryptString(restOfConsulta.motivo) : null,
+        Anotacoes: Anotacoes?.map((anotacao: Anotacoes) => ({
+            ...anotacao,
+            anotacao: decryptString(anotacao.anotacao),
+        })) || [],
+        tipodeexame: restOfConsulta.tipodeexame ? decryptString(restOfConsulta.tipodeexame) : null,
+        condicaoSaude: condicoes,
+    };
+};
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-
-    if (searchParams.get("tipo") === "true") {
-      const consultaTipos: { tipo: string }[] = await db.$queryRaw`
-        SELECT e.enumlabel AS tipo
-        FROM pg_type t
-        JOIN pg_enum e ON t.oid = e.enumtypid
-        WHERE t.typname = 'Consultatype';
-      `;
-      return NextResponse.json(consultaTipos.map((row) => row.tipo));
-    }
-
     const { userId } = await getUserSessionAndId();
 
     if (!userId) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    type ConsultaFromDb = Prisma.ConsultasGetPayload<{
-      include: {
-        profissional: true;
-        unidade: true;
-        Anotacoes: true;
-        condicoes: true;
-      };
-    }>;
+    const getData = searchParams.get("get");
+    const now = new Date();
 
-    const consultas: ConsultaFromDb[] = await db.consultas.findMany({
-      where: {
-        userId: userId
-      },
-      include: {
-        profissional: true,
-        unidade: true,
-        Anotacoes: true,
-        condicoes: true,
-      },
+    // ROTA OTIMIZADA PARA O DASHBOARD
+    if (getData === "dashboard") {
+      const [futuros, passados] = await db.$transaction([
+        db.consultas.findMany({
+          where: { userId, data: { gte: now } },
+          orderBy: { data: 'asc' },
+          include: { profissional: true, unidade: true },
+        }),
+        db.consultas.findMany({
+          where: { userId, data: { lt: now } },
+          orderBy: { data: 'desc' },
+          take: 5,
+          include: { profissional: true, unidade: true },
+        }),
+      ]);
+
+      return NextResponse.json({
+        futuros: futuros.map(decryptConsulta),
+        passados: passados.map(decryptConsulta),
+      });
+    }
+
+    if (getData === "tipos") {
+      return NextResponse.json(Object.values(Consultatype));
+    }
+
+    if (getData === "profissionais") {
+      const profissionais = await db.profissional.findMany({
+        where: { userId: userId },
+        orderBy: { nome: 'asc' },
+      });
+      return NextResponse.json(profissionais);
+    }
+    
+    // LÓGICA DE PAGINAÇÃO PARA A PÁGINA DE CONSULTAS
+    const limit = parseInt(searchParams.get("limit") || "8");
+    const cursor = searchParams.get("cursor") || null;
+    const searchTerm = searchParams.get("search")?.trim() || "";
+    const profissionalId = searchParams.get("profissionalId");
+    const tipo = searchParams.get("tipo") as Consultatype | null;
+
+    let where: Prisma.ConsultasWhereInput = { userId };
+    if (profissionalId) where.profissionalId = profissionalId;
+    if (tipo) where.tipo = tipo;
+    
+    if (searchTerm) {
+      const parsedDate = parseDate(searchTerm);
+      if (parsedDate) {
+         where = { userId, data: { gte: parsedDate, lt: new Date(parsedDate.getTime() + 24 * 60 * 60 * 1000) } };
+      } else {
+        where.OR = [
+          { motivo: { contains: searchTerm, mode: "insensitive" } },
+          { tipodeexame: { contains: searchTerm, mode: "insensitive" } },
+          { profissional: { nome: { contains: searchTerm, mode: "insensitive" } } },
+          { unidade: { nome: { contains: searchTerm, mode: "insensitive" } } },
+          { Anotacoes: { some: { anotacao: { contains: searchTerm, mode: "insensitive" } } } },
+        ];
+      }
+    }
+    
+    const consultas = await db.consultas.findMany({
+      where,
+      take: limit + 1, // Busca um item a mais para saber se há próxima página
+      cursor: cursor ? { id: cursor } : undefined,
+      include: { profissional: true, unidade: true, Anotacoes: true, condicoes: true },
       orderBy: { data: "desc" },
     });
 
-    const decryptedAndMappedConsultas = consultas.map(consulta => {
-      const { condicoes, ...restOfConsulta } = consulta;
-
-      const decryptedMotivo = restOfConsulta.motivo ? decryptString(restOfConsulta.motivo) : null;
-      const decryptedAnotacoes = restOfConsulta.Anotacoes.map((anotacao: Anotacoes) => ({
-        ...anotacao,
-        anotacao: decryptString(anotacao.anotacao),
-      }));
-      const decryptedTipoExame = typeof restOfConsulta.tipodeexame === 'string' && restOfConsulta.tipodeexame ? decryptString(restOfConsulta.tipodeexame) : null;
-
-      return {
-        ...restOfConsulta,
-        motivo: decryptedMotivo,
-        Anotacoes: decryptedAnotacoes,
-        tipodeexame: decryptedTipoExame,
-        condicaoSaude: condicoes,
-      };
+    let nextCursor: string | null = null;
+    if (consultas.length > limit) {
+      const nextItem = consultas.pop(); // Remove o item extra
+      nextCursor = nextItem!.id;
+    }
+    
+    return NextResponse.json({
+      items: consultas.map(decryptConsulta),
+      nextCursor,
     });
-
-    return NextResponse.json(decryptedAndMappedConsultas);
 
   } catch (error) {
     let errorMessage = "Erro ao buscar os dados";
-    if (error instanceof Error) {
-      errorMessage = `Erro ao buscar dados: ${error.message}`;
-    }
+    if (error instanceof Error) { errorMessage = `Erro ao buscar dados: ${error.message}`; }
     console.error(errorMessage, error);
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 },
-    );
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const { session, userId } = await getUserSessionAndId();
-
-    if (!session || !userId) {
-      return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
-    }
-    
-    const permissions = await getPermissionsForUser(userId);
-  
-    if (await permissions.hasReachedLimit('consultas')) {
-      return NextResponse.json(
-        { error: "Você atingiu o limite de consultas para o seu plano." },
-        { status: 403 }
-      );
-    }
-
-    const body = await request.json();
-
-    const {
-      data,
-      tipo,
-      profissionalId,
-      unidadeId,
-      condicaoSaudeId,
-      queixas,
-      tipoexame,
-      consultaOrigemId,
-    } = body;
-
-    if (!data || !tipo) {
-      return NextResponse.json(
-        { error: `Campos obrigatórios faltando: data e tipo` },
-        { status: 400 }
-      );
-    }
-
-    const encryptedMotivo = queixas ? encryptString(queixas) : "";
-    const encryptedTipoExame = tipo === "Exame" && tipoexame ? encryptString(tipoexame) : null;
-
-    const novaConsulta = await db.consultas.create({
-      data: {
-        userId: userId,
-        data: new Date(data),
-        tipo,
-        profissionalId: profissionalId || null,
-        unidadeId: unidadeId || null,
-        motivo: encryptedMotivo,
-        tipodeexame: encryptedTipoExame,
-        condicoes: condicaoSaudeId ? { connect: { id: condicaoSaudeId } } : undefined,
-        consultaOrigemId: consultaOrigemId || null,
-      },
-    });
-
-    return NextResponse.json(novaConsulta, { status: 201 });
-  } catch (error) {
-    let errorMessage = "Erro ao criar consulta";
-    if (error instanceof Error) {
-      errorMessage = `Erro ao criar consulta: ${error.message}`;
-    }
-    console.error(errorMessage, error);
-    return NextResponse.json(
-      { error: errorMessage },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }

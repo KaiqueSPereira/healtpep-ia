@@ -6,6 +6,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Consultas, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
 
+// Tipos permanecem os mesmos
 type ConsultaComRelacoes = Consultas & { 
     profissional: Profissional | null; 
     unidade: UnidadeDeSaude | null; 
@@ -23,6 +24,7 @@ export type AgendamentoUnificado = {
 };
 
 interface AgendamentosListProps {
+  // O userId não é mais necessário aqui, mas mantemos por enquanto para não quebrar a chamada no dashboard
   userId: string;
 }
 
@@ -34,17 +36,18 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
   const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
     try {
-      const [consultasRes] = await Promise.all([
-        fetch(`/api/consultas?userId=${userId}`),
-      ]);
+      // 1. A chamada da API foi alterada para o novo endpoint otimizado
+      const res = await fetch(`/api/consultas?get=dashboard`);
 
-      if (!consultasRes.ok) {
+      if (!res.ok) {
         throw new Error("Erro ao buscar agendamentos");
       }
 
-      const consultas: ConsultaComRelacoes[] = await consultasRes.json();
+      // 2. A resposta agora é um objeto com as chaves 'futuros' e 'passados'
+      const { futuros, passados }: { futuros: ConsultaComRelacoes[], passados: ConsultaComRelacoes[] } = await res.json();
 
-      const consultasMapeadas: AgendamentoUnificado[] = consultas.map(c => ({
+      // 3. A lógica de mapeamento é aplicada a cada array separadamente
+      const mapToAgendamento = (c: ConsultaComRelacoes): AgendamentoUnificado => ({
         id: c.id,
         data: c.data as unknown as string,
         nomeProfissional: c.profissional?.nome || 'Não especificado',
@@ -53,21 +56,12 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
         tipo: 'Consulta',
         tipoConsulta: c.tipo,
         userId: c.userId,
-      }));
+      });
 
-      const todosAgendamentos = [...consultasMapeadas];
-      const agora = new Date();
-
-      const futuros = todosAgendamentos
-        .filter(ag => new Date(ag.data) >= agora)
-        .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-
-      const passados = todosAgendamentos
-        .filter(ag => new Date(ag.data) < agora)
-        .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
-
-      setAgendamentosFuturos(futuros);
-      setAgendamentosPassados(passados.slice(0, 5));
+      // 4. Os estados são atualizados diretamente com os dados da API
+      // A lógica de filtro, sort e slice foi removida porque a API já faz isso.
+      setAgendamentosFuturos(futuros.map(mapToAgendamento));
+      setAgendamentosPassados(passados.map(mapToAgendamento));
 
     } catch (error) {
       console.error("Erro ao buscar agendamentos:", error);
@@ -75,13 +69,11 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []); // userId foi removido das dependências
 
   useEffect(() => {
-    if (userId) {
-      fetchAgendamentos();
-    }
-  }, [userId, fetchAgendamentos]);
+    fetchAgendamentos();
+  }, [fetchAgendamentos]);
 
   const renderSkeletons = () => (
     <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
@@ -105,26 +97,24 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
   
   return (
     <div>
-        <>
-          <div className="flex justify-end mb-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={fetchAgendamentos}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              Recarregar
-            </Button>
-          </div>
-          <AgendamentoSection
-            title="Próximos Agendamentos"
-            agendamentos={agendamentosFuturos}
-          />
-          <AgendamentoSection
-            title="Últimas Consultas"
-            agendamentos={agendamentosPassados}
-          />
-        </>
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={fetchAgendamentos}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          Recarregar
+        </Button>
+      </div>
+      <AgendamentoSection
+        title="Próximos Agendamentos"
+        agendamentos={agendamentosFuturos}
+      />
+      <AgendamentoSection
+        title="Últimas Consultas"
+        agendamentos={agendamentosPassados}
+      />
     </div>
   );
 };
@@ -137,7 +127,6 @@ interface AgendamentoSectionProps {
 const AgendamentoSection = ({ title, agendamentos }: AgendamentoSectionProps) => (
   <div className="mt-5">
     <h2 className="text-xs font-bold uppercase text-gray-400">{title}</h2>
-    {/* REVERSÃO: Voltando ao layout de flex com rolagem para consistência */}
     <div className="flex gap-4 overflow-auto [&::-webkit-scrollbar]:hidden py-2">
       {agendamentos.length > 0 ? (
         agendamentos.map((agendamento) => (
