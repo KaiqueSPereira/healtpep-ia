@@ -1,6 +1,6 @@
 {
   "name": "healtpep-ia",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -33,6 +33,7 @@
     "@radix-ui/react-select": "^2.1.6",
     "@radix-ui/react-separator": "^1.1.4",
     "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@thednp/dommatrix": "^2.0.11",
@@ -65,9 +66,10 @@
     "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^5.3.31",
     "pdfreader": "^3.0.7",
-    "react": "18.2.0",
+    "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-day-picker": "^8.10.1",
+    "react-dom": "^18.3.1",
     "react-hook-form": "^7.54.2",
     "react-intersection-observer": "^10.0.3",
     "react-select": "^5.10.2",

@@ -3,9 +3,9 @@ import { NextResponse } from "next/server";
 import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
-import { Prisma } from '@prisma/client';
+import { Prisma, Consultatype } from '@prisma/client';
 
-// Tipos para as funções de descriptografia
+// Tipos
 interface AnotacaoParaDescriptografar {
   id: string;
   anotacao: string;
@@ -17,43 +17,37 @@ interface ExameParaDescriptografar {
     tipo: string;
     anotacao: string;
     dataExame: Date;
+    profissional?: { nome: string } | null; 
+    unidades?: { nome: string } | null;
 }
 
+interface HistoricoItem {
+  id: string;
+  tipo: Consultatype;
+  motivo: string | null;
+  data: Date;
+  profissional: { nome: string } | null;
+  unidade: { nome: string } | null;
+}
+
+// Validador Prisma com relações existentes
 const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
   include: {
+    condicoes: true,
     profissional: true,
-    unidade: { 
-      include: {
-        endereco: true,
-      }
-    },
+    unidade: { include: { endereco: true } },
     Anotacoes: { orderBy: { createdAt: 'desc' } },
     anexos: true,
     Exame: { 
-        include: { 
-            profissional: true, 
-            unidades: { 
-              include: {
-                endereco: true,
-              }
-            } 
-        }, 
+        include: { profissional: true, unidades: { include: { endereco: true } } }, 
         orderBy: { dataExame: 'desc' } 
     },
-    condicoes: true, 
     consultaOrigem: {
       include: {
         Anotacoes: { orderBy: { createdAt: 'desc' } },
         anexos: true,
         Exame: {
-          include: {
-            profissional: true,
-            unidades: { 
-              include: {
-                endereco: true,
-              }
-            }
-          },
+          include: { profissional: true, unidades: { include: { endereco: true } } },
           orderBy: { dataExame: 'desc' }
         }
       }
@@ -61,11 +55,7 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({
     retornos: { 
         include: {
             profissional: true,
-            unidade: { 
-              include: {
-                endereco: true,
-              }
-            },
+            unidade: { include: { endereco: true } },
         },
         orderBy: { data: 'desc' } 
     },
@@ -111,21 +101,60 @@ export async function GET(request: Request, { params }: { params: { consultaId: 
       return NextResponse.json({ error: "Consulta não encontrada" }, { status: 404 });
     }
 
+    let historicoTratamento: HistoricoItem[] | null = null;
+
+    if (consulta.condicoes && consulta.condicoes.length > 0) {
+      const condicaoId = consulta.condicoes[0].id;
+
+      const consultasDoTratamento = await db.consultas.findMany({
+        where: {
+          userId,
+          condicoes: {
+            some: {
+              id: condicaoId,
+            },
+          },
+        },
+        include: {
+          profissional: true,
+          unidade: true,
+        },
+        orderBy: {
+          data: 'asc',
+        },
+      });
+
+      historicoTratamento = consultasDoTratamento.map(c => ({
+        id: c.id,
+        tipo: c.tipo,
+        motivo: c.motivo ? decryptString(c.motivo) : null,
+        data: c.data,
+        profissional: c.profissional ? { nome: c.profissional.nome } : null,
+        unidade: c.unidade ? { nome: c.unidade.nome } : null,
+      }));
+    }
+
     const responseData = {
-      ...consulta,
+      id: consulta.id,
+      userId: consulta.userId,
+      tipo: consulta.tipo,
+      data: consulta.data,
       motivo: consulta.motivo ? decryptString(consulta.motivo) : null,
-      tipodeexame: consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null,
+      unidade: consulta.unidade,
+      profissional: consulta.profissional,
       Anotacoes: decryptAnotacoes(consulta.Anotacoes as AnotacaoParaDescriptografar[]),
       Exame: decryptExames(consulta.Exame as ExameParaDescriptografar[]),
-      
+      tratamento: consulta.condicoes,
+      anexos: consulta.anexos,
       consultaOrigem: consulta.consultaOrigem ? {
         ...consulta.consultaOrigem,
         motivo: consulta.consultaOrigem.motivo ? decryptString(consulta.consultaOrigem.motivo) : null,
         Anotacoes: decryptAnotacoes(consulta.consultaOrigem.Anotacoes as AnotacaoParaDescriptografar[]),
         Exame: decryptExames(consulta.consultaOrigem.Exame as ExameParaDescriptografar[])
       } : null,
-      
       consultasDeRetorno: consulta.retornos,
+      historicoTratamento: historicoTratamento,
+      tipodeexame: consulta.tipodeexame ? decryptString(consulta.tipodeexame) : null,
     };
 
     return NextResponse.json(responseData);
@@ -144,26 +173,46 @@ export async function PATCH(request: Request, { params }: { params: { consultaId
     }
 
     const body = await request.json();
-    const { motivo, tipodeexame, data, ...rest } = body;
+    const { motivo, tipodeexame, data, profissionalId, unidadeId, consultaOrigemId, ...rest } = body;
 
     const dataToUpdate: Prisma.ConsultasUpdateInput = { ...rest };
 
     if (motivo !== undefined) {
-        if (!motivo) {
-            return NextResponse.json({ error: "O campo 'motivo' é obrigatório e não pode ser vazio." }, { status: 400 });
+        // Correção Definitiva: Verifica se o resultado da encriptação não é nulo antes de atribuir.
+        const encryptedMotivo = encryptString(motivo || '');
+        if (encryptedMotivo !== null) {
+            dataToUpdate.motivo = encryptedMotivo;
         }
-        dataToUpdate.motivo = encryptString(motivo);
     }
 
     if (tipodeexame !== undefined) {
-        if (!tipodeexame) {
-            return NextResponse.json({ error: "O campo 'tipode exame' é obrigatório e não pode ser vazio." }, { status: 400 });
+        // Aplicando a mesma lógica segura para o campo tipodeexame.
+        const encryptedTipodeexame = encryptString(tipodeexame || '');
+        if (encryptedTipodeexame !== null) {
+            dataToUpdate.tipodeexame = encryptedTipodeexame;
         }
-        dataToUpdate.tipodeexame = encryptString(tipodeexame);
+    }
+    
+    if (profissionalId) {
+        dataToUpdate.profissional = { connect: { id: profissionalId } };
+    } else {
+        dataToUpdate.profissional = { disconnect: true };
+    }
+
+    if (unidadeId) {
+        dataToUpdate.unidade = { connect: { id: unidadeId } };
+    } else {
+        dataToUpdate.unidade = { disconnect: true };
     }
 
     if (data) {
       dataToUpdate.data = new Date(data);
+    }
+
+    if (consultaOrigemId) {
+      dataToUpdate.consultaOrigem = { connect: { id: consultaOrigemId } };
+    } else {
+      dataToUpdate.consultaOrigem = { disconnect: true };
     }
 
     const consultaAtualizada = await db.consultas.update({

@@ -163,6 +163,46 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 }
 
+// PATCH /api/exames/[id] - Atualiza parcialmente um exame, ideal para vincular/desvincular consultas.
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+    const componentName = "API PATCH /api/exames/[id]";
+    const id = params.id;
+
+    if (!id) {
+        return NextResponse.json({ error: "O ID do exame é obrigatório." }, { status: 400 });
+    }
+
+    try {
+        const body = await request.json();
+        const { consultaId } = body;
+
+        // Validar se consultaId é uma string ou null
+        if (consultaId !== null && typeof consultaId !== 'string') {
+            return NextResponse.json({ error: "O campo 'consultaId' deve ser uma string ou nulo." }, { status: 400 });
+        }
+
+        const updateData: Prisma.ExameUpdateInput = {};
+
+        if (consultaId) {
+            updateData.consulta = { connect: { id: consultaId } };
+        } else {
+            updateData.consulta = { disconnect: true };
+        }
+
+        const updatedExame = await prisma.exame.update({
+            where: { id },
+            data: updateData,
+        });
+
+        return NextResponse.json({ message: "Vínculo do exame atualizado com sucesso!", exame: updatedExame });
+
+    } catch (error) {
+        await logErrorToDb(`Erro ao atualizar vínculo do exame ${id}`, error instanceof Error ? error.stack || error.message : String(error), componentName);
+        return NextResponse.json({ error: "Não foi possível atualizar o vínculo do exame." }, { status: 500 });
+    }
+}
+
+
 // DELETE /api/exames/[id] - Deleta um exame.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API DELETE /api/exames/[id]";

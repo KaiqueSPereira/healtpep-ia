@@ -13,13 +13,54 @@ interface ResultadoInput {
     valor: string;
     unidade?: string | null;
     referencia?: string | null;
-    valorReferencia?: string | null; // Manter por compatibilidade, se necessário
+    valorReferencia?: string | null; 
 }
 
-// GET /api/exames - Lista todos os exames de um usuário com paginação
+// GET /api/exames
 export async function GET(request: NextRequest) {
     const componentName = "API GET /api/exames";
     const searchParams = request.nextUrl.searchParams;
+
+    // Nova rota para buscar todos os exames para o menu de seleção
+    if (searchParams.get('forMenu') === 'true') {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: "Você precisa estar autenticado." }, { status: 401 });
+        }
+        try {
+            const exames = await prisma.exame.findMany({
+                where: { userId: session.user.id },
+                include: {
+                    profissional: true,
+                    unidades: true,
+                },
+                orderBy: { dataExame: 'desc' },
+            });
+
+            const decryptedExames = exames.map(exame => ({
+                ...exame,
+                tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+                profissional: exame.profissional && exame.profissional.nome
+                    ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) }
+                    : exame.profissional,
+                unidades: exame.unidades && exame.unidades.nome
+                    ? { ...exame.unidades, nome: safeDecrypt(exame.unidades.nome) }
+                    : exame.unidades,
+            }));
+
+            return NextResponse.json(decryptedExames, { status: 200 });
+
+        } catch (error) {
+             await logErrorToDb(
+                "Erro ao buscar lista de exames para o menu.",
+                error instanceof Error ? error.stack || error.message : String(error),
+                componentName
+            );
+            return NextResponse.json({ error: "Não foi possível carregar os exames para o menu." }, { status: 500 });
+        }
+    }
+
+    // Lógica original de listagem paginada de exames
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);

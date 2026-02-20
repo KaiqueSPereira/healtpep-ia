@@ -1,177 +1,181 @@
 'use client';
 
-import { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { toast } from "@/app/_hooks/use-toast";
-import { ChevronLeftIcon } from "lucide-react";
-import { Button } from "@/app/_components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
-import BotaoEditarConsulta from "../components/buttoneditConsulta";
-import AnexoUploader from "../components/AnexoUploader";
-import AnexosList from "../components/AnexosList";
-import ConsultaOrigemCard from "../components/ConsultaOrigemCard";
-import DetalhesConsultaCard from "../components/DetalhesConsultaCard";
-import EventosVinculadosCard from "../components/EventosVinculadosCard";
-import AnotacoesCard from "../components/AnotacoesCard";
-import { ConsultaData } from "../types";
+import { useEffect, useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { toast } from '@/app/_hooks/use-toast';
+import { Button } from '@/app/_components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
+import { ChevronLeftIcon, Edit, PlusCircle } from 'lucide-react';
+import AnexoPreviewModal from '../components/AnexoPreviewModal';
+import { Anexo, Consulta, TimelineItem } from '@/app/_components/types'; 
+import { HistoricoTratamentoItem, ExameComRelacoes } from '../types';
+import AnexosList from '../components/AnexosList';
+import AnexoUploader from '../components/AnexoUploader';
+import HistoricoTratamentoCard from '../components/HistoricoTratamentoCard';
+import ConsultaPageSkeleton from '../components/ConsultaPageSkeleton';
 
 const ConsultaPage = () => {
-  const params = useParams();
-  const router = useRouter();
-  const consultaId = params.id as string;
+    const router = useRouter();
+    const params = useParams();
+    const [consulta, setConsulta] = useState<Consulta | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [showAddAnexo, setShowAddAnexo] = useState(false);
+    const [selectedAnexo, setSelectedAnexo] = useState<Anexo | null>(null);
 
-  const [consulta, setConsulta] = useState<ConsultaData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [novaAnotacaoContent, setNovaAnotacaoContent] = useState("");
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
+    useEffect(() => {
+        const fetchConsulta = async () => {
+            setLoading(true);
+            try {
+                if (!params.id) return;
+                const response = await fetch(`/api/consultas/${params.id}`);
+                if (!response.ok) throw new Error('Consulta não encontrada');
+                const data = await response.json();
+                setConsulta(data);
+            } catch (error) {
+                toast({ title: "Erro", description: (error as Error).message, variant: "destructive" });
+                router.push('/consultas');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-  const fetchConsulta = useCallback(async () => {
-    if (!consultaId) return;
-    setLoading(true);
-    try {
-      const consultaResponse = await fetch(`/api/consultas/${consultaId}`);
+        fetchConsulta();
+    }, [params.id, router]);
 
-      if (!consultaResponse.ok) {
-        const errorData = await consultaResponse.json();
-        throw new Error(errorData.error || "Erro ao buscar consulta.");
-      }
-      const data: ConsultaData = await consultaResponse.json();
-      setConsulta(data);
-
-    } catch (err) {
-      const message = (err as Error).message;
-      setError(message);
-      toast({ title: `Erro ao carregar dados: ${message}`, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  }, [consultaId]);
-
-  useEffect(() => {
-    fetchConsulta();
-  }, [fetchConsulta]);
-
-  const handleAdicionarAnotacao = async () => {
-    if (!novaAnotacaoContent.trim() || !consulta) return;
-    try {
-      const response = await fetch('/api/consultas/anotacao', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ consultaId: consulta.id, anotacao: novaAnotacaoContent }),
-      });
-      if (!response.ok) {
-        throw new Error(await response.json().then(d => d.error) || 'Falha ao adicionar anotação.');
-      }
-      toast({ title: "Anotação adicionada com sucesso!" });
-      setNovaAnotacaoContent("");
-      fetchConsulta();
-    } catch (err) {
-      toast({ title: `Erro: ${(err as Error).message}`, variant: "destructive" });
-    }
-  };
-
-  const handleDeleteAnexo = async (anexoId: string) => {
-    if (!consulta) return;
-    if (!window.confirm("Tem certeza que deseja apagar este anexo?")) return;
-
-    try {
-      const response = await fetch(`/api/consultas/${consulta.id}/anexos/${anexoId}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha ao apagar o anexo.');
-      }
-      toast({ title: "Anexo apagado com sucesso!" });
-      fetchConsulta();
-    } catch (err) {
-      toast({ title: `Erro ao apagar anexo: ${(err as Error).message}`, variant: "destructive" });
-    }
-  };
-
-  const handleDeleteConsulta = async () => {
-    setDeleting(true);
-    try {
-      const response = await fetch(`/api/consultas/${consultaId}`, { method: "DELETE" });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Falha ao apagar a consulta.');
-      }
-      toast({ title: "Consulta apagada com sucesso!" });
-      router.push("/consulta");
-    } catch (err) {
-      toast({ title: `Erro: ${(err as Error).message}`, variant: "destructive" });
-      setDeleting(false);
-      setShowConfirmDelete(false);
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center">Carregando...</div>;
-  if (error) return <div className="p-8 text-center"><h1 className="text-xl text-red-600">Erro: {error}</h1></div>;
-  if (!consulta) return <div className="p-8 text-center"><h1>Consulta não encontrada</h1></div>;
-
-  const isRetorno = !!consulta.consultaOrigem;
-  const examesParaMostrar = isRetorno ? consulta.consultaOrigem?.Exame || [] : consulta.Exame;
-
-  return (
-    <div>
-      <div className="relative w-full px-5 py-6">
-        <Button size="icon" variant="secondary" className="absolute left-5 top-6" onClick={() => router.back()}>
-          <ChevronLeftIcon />
-        </Button>
-        <div className="absolute right-5 top-6 flex gap-2">
-          <BotaoEditarConsulta consultaId={consulta.id} />
-          <Button variant="destructive" onClick={() => setShowConfirmDelete(true)} disabled={deleting}>Apagar</Button>
-        </div>
-      </div>
-
-      {showConfirmDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-96">
-            <CardHeader><CardTitle>Confirmar Exclusão</CardTitle></CardHeader>
-            <CardContent className="flex justify-end gap-4">
-              <Button variant="outline" onClick={() => setShowConfirmDelete(false)}>Cancelar</Button>
-              <Button variant="destructive" onClick={handleDeleteConsulta} disabled={deleting}>
-                {deleting ? "Apagando..." : "Confirmar"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <main className="container mx-auto px-5 py-6 space-y-6">
-        {isRetorno && consulta.consultaOrigem && <ConsultaOrigemCard consultaOrigem={consulta.consultaOrigem} />}
+    const timelineUnificada: TimelineItem[] = useMemo(() => {
+        if (!consulta) return [];
         
-        <DetalhesConsultaCard 
-          tipo={consulta.tipo}
-          data={consulta.data}
-          unidade={consulta.unidade}
-          profissional={consulta.profissional}
-          motivo={consulta.motivo}
-        />
+        const historico: HistoricoTratamentoItem[] = (consulta.historicoTratamento as unknown as HistoricoTratamentoItem[]) || [];
 
-        <AnexosList anexos={consulta.anexos || []} onDeleteAnexo={handleDeleteAnexo} />
+        const consultas: TimelineItem[] = historico
+            .filter(item => !!item.data)
+            .map((item: HistoricoTratamentoItem) => ({
+                id: item.id,
+                data: item.data,
+                tipo: item.tipo,
+                motivo: item.motivo || 'Consulta de rotina',
+                profissional: item.profissional,
+                unidade: item.unidade,
+                entryType: 'consulta',
+                href: `/consulta/${item.id}`,
+                anotacao: null, 
+            }));
 
-        <Card>
-          <CardHeader><CardTitle>Adicionar Novo Anexo</CardTitle></CardHeader>
-          <CardContent><AnexoUploader consultaId={consulta.id} onUploadSuccess={fetchConsulta} /></CardContent>
-        </Card>
+        const isRetorno = !!consulta.consultaOrigem;
+        const examesDoContexto: ExameComRelacoes[] = (isRetorno ? consulta.consultaOrigem?.Exame || [] : consulta.Exame || []) as ExameComRelacoes[];
 
-        <EventosVinculadosCard 
-          isRetorno={isRetorno}
-          exames={examesParaMostrar}
-          retornos={consulta.consultasDeRetorno || []}
-        />
+        const exames: TimelineItem[] = examesDoContexto
+            .filter(exame => !!exame.dataExame)
+            .map((exame: ExameComRelacoes) => ({
+                id: exame.id,
+                data: exame.dataExame!,
+                tipo: exame.tipo || 'Exame',
+                motivo: 'Solicitação de Exame',
+                profissional: exame.profissional,
+                unidade: exame.unidades,
+                entryType: 'exame',
+                href: `/exames/${exame.id}`,
+                anotacao: exame.anotacao,
+            }));
 
-        <AnotacoesCard 
-          anotacoes={consulta.Anotacoes}
-          novaAnotacaoContent={novaAnotacaoContent}
-          setNovaAnotacaoContent={setNovaAnotacaoContent}
-          handleAdicionarAnotacao={handleAdicionarAnotacao}
-        />
-      </main>
-    </div>
-  );
+        const todosOsItens = [...consultas, ...exames];
+        todosOsItens.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+        return todosOsItens;
+    }, [consulta]);
+
+    const handleAnexoAdicionado = (newAnexo: Anexo) => {
+        if (consulta) {
+            setConsulta(prev => prev ? { ...prev, anexos: [...(prev.anexos || []), newAnexo] } : null);
+        }
+        setShowAddAnexo(false);
+    };
+
+    const handleDeleteAnexo = async (anexoId: string) => {
+        if (!consulta) return;
+        try {
+            const response = await fetch(`/api/consultas/${consulta.id}/anexos/${anexoId}`, { method: 'DELETE' });
+            if (!response.ok) {
+                 const errorData = await response.json();
+                 throw new Error(errorData.error || 'Falha ao deletar anexo');
+            }
+            setConsulta(prev => prev ? { ...prev, anexos: prev.anexos?.filter(a => a.id !== anexoId) } : null);
+            toast({ title: "Anexo deletado com sucesso!" });
+        } catch (error) {
+            toast({ title: "Erro ao deletar anexo", description: (error as Error).message, variant: "destructive" });
+        }
+    };
+
+    if (loading) return <ConsultaPageSkeleton />;
+    if (!consulta) return <div className="container mx-auto p-6"><h1>Consulta não encontrada</h1></div>;
+
+    return (
+        <div className="h-full flex flex-col">
+            <header className="relative w-full px-5 py-6 flex items-center justify-between">
+                <Button variant="ghost" onClick={() => router.push('/consultas')} className="absolute left-5 top-1/2 -translate-y-1/2">
+                    <ChevronLeftIcon className="h-6 w-6" />
+                    <span className="ml-2">Voltar</span>
+                </Button>
+                <div className="flex-1 text-center">
+                    <h1 className="text-xl font-semibold">Detalhes da Consulta</h1>
+                </div>
+                <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                    <Button onClick={() => router.push(`/consulta/${consulta.id}/editar`)}>
+                        <Edit className="h-4 w-4 mr-2" /> Editar
+                    </Button>
+                </div>
+            </header>
+
+            <main className="flex-1 overflow-y-auto p-6">
+                <div className="container mx-auto flex flex-col lg:flex-row gap-6">
+                    <div className="w-full lg:w-2/3 space-y-6">
+                        <Card>
+                            <CardHeader><CardTitle>Informações da Consulta</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <p><strong>Tipo:</strong> {consulta.tipo}</p>
+                                {consulta.consultaOrigem && (
+                                    <p><strong>Retorno de:</strong> <a href={`/consulta/${consulta.consultaOrigem.id}`} className="text-blue-500 hover:underline">
+                                        Consulta de {new Date(consulta.consultaOrigem.data).toLocaleDateString()}
+                                    </a></p>
+                                )}
+                                {consulta.condicaoSaude && (
+                                    <p><strong>Condição de Saúde:</strong> {consulta.condicaoSaude.nome}</p>
+                                )}
+                                <p><strong>Data:</strong> {new Date(consulta.data).toLocaleString()}</p>
+                                <p><strong>Profissional:</strong> {consulta.profissional?.nome || 'Não especificado'}</p>
+                                <p><strong>Unidade:</strong> {consulta.unidade?.nome || 'Não especificada'}</p>
+                                <p><strong>Motivo:</strong> {consulta.motivo}</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle>Anexos</CardTitle>
+                                <Button onClick={() => setShowAddAnexo(true)} size="sm">
+                                    <PlusCircle className="h-4 w-4 mr-2" />
+                                    Adicionar Anexo
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                <AnexosList
+                                    anexos={consulta.anexos || []}
+                                    onAnexoClick={setSelectedAnexo}
+                                    onDeleteAnexo={handleDeleteAnexo}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    <div className="w-full lg:w-1/3 space-y-6">
+                       <HistoricoTratamentoCard items={timelineUnificada} consultaAtualId={consulta.id} />
+                    </div>
+                </div>
+            </main>
+            
+            {selectedAnexo && <AnexoPreviewModal anexo={selectedAnexo} onClose={() => setSelectedAnexo(null)} />}
+            {/* --- NOME DA PROP E DO HANDLER CORRIGIDOS -- */}
+            {showAddAnexo && <AnexoUploader consultaId={consulta.id} onAnexoAdicionado={handleAnexoAdicionado} onClose={() => setShowAddAnexo(false)} />}
+        </div>
+    );
 };
 
 export default ConsultaPage;

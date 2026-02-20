@@ -1,158 +1,146 @@
-"use client";
-
-import { useState, useEffect, useCallback } from "react";
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
-import axios from "axios";
-import { useInView } from "react-intersection-observer";
-import AgendamentoItem from "./components/agendamentosItem";
-import { AgendamentoUnificado } from "./components/agendamentolist";
-import ConsultaFilter from './components/ConsultaFilter'; 
-import { Consultas, Consultatype, Profissional, UnidadeDeSaude } from "@prisma/client";
-import { Loader2 } from "lucide-react";
+'use client';
+import { useState, useEffect, useCallback } from 'react';
+import { Input } from "@/app/_components/ui/input";
+import { Button } from "@/app/_components/ui/button";
+import { Card, CardHeader, CardTitle, CardContent } from "@/app/_components/ui/card";
+import { useRouter } from 'next/navigation';
+import { PlusCircle } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
+import { useInView } from 'react-intersection-observer';
+import { Consulta, Profissional } from '@/app/_components/types';
+import { Consultatype } from '@prisma/client';
 
-type ConsultaComRelacoes = Consultas & {
-  profissional: Profissional | null;
-  unidade: UnidadeDeSaude | null;
-};
+
+interface FilterState {
+    search: string;
+    tipo: string;
+    profissionalId: string;
+}
 
 const ConsultasPage = () => {
-  // Estados para os dados e paginação
-  const [consultas, setConsultas] = useState<ConsultaComRelacoes[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [initialLoad, setInitialLoad] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
+    const router = useRouter();
+    const [consultas, setConsultas] = useState<Consulta[]>([]);
+    const [profissionais, setProfissionais] = useState<Profissional[]>([]);
+    const [tipos, setTipos] = useState<Consultatype[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+    const [cursor, setCursor] = useState<string | null>(null);
+    const [filters, setFilters] = useState<FilterState>({ search: '', tipo: '', profissionalId: '' });
+    const [debouncedSearch] = useDebounce(filters.search, 500);
 
-  // Estados para os filtros
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [profissionalId, setProfissionalId] = useState(searchParams.get('profissionalId') || '');
-  const [tipo, setTipo] = useState<Consultatype | ''>(searchParams.get('tipo') as Consultatype || '');
-  const [debouncedSearchTerm] = useDebounce(searchTerm, 500);
+    const { ref, inView } = useInView({ threshold: 1.0 });
 
-  // Estados para popular os filtros
-  const [profissionais, setProfissionais] = useState<Profissional[]>([]);
-  const [tiposConsulta, setTiposConsulta] = useState<Consultatype[]>([]);
+    const loadConsultas = useCallback(async (reset = false) => {
+        if (loading || (!hasMore && !reset)) return;
+        setLoading(true);
 
-  const { ref, inView } = useInView({ threshold: 0 });
+        const currentCursor = reset ? null : cursor;
+        const params = new URLSearchParams();
+        params.append('limit', '8');
+        if (currentCursor) params.append('cursor', currentCursor);
+        if (debouncedSearch) params.append('search', debouncedSearch);
+        if (filters.tipo) params.append('tipo', filters.tipo);
+        if (filters.profissionalId) params.append('profissionalId', filters.profissionalId);
 
-  // Função para buscar dados para os filtros
-  useEffect(() => {
-    const fetchFilterData = async () => {
-      try {
-        const [profRes, tiposRes] = await Promise.all([
-          axios.get('/api/consultas?get=profissionais'),
-          axios.get('/api/consultas?get=tipos')
-        ]);
-        setProfissionais(profRes.data);
-        setTiposConsulta(tiposRes.data);
-      } catch (error) {
-        console.error("Erro ao buscar dados para os filtros:", error);
-      }
+        try {
+            const response = await fetch(`/api/consultas?${params.toString()}`);
+            const data = await response.json();
+            setConsultas(prev => reset ? data.items : [...prev, ...data.items]);
+            setCursor(data.nextCursor);
+            setHasMore(!!data.nextCursor);
+        } catch (error) {
+            console.error("Erro ao buscar consultas", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [debouncedSearch, filters.tipo, filters.profissionalId, cursor, hasMore, loading]);
+
+    useEffect(() => {
+        const fetchInitialData = async () => {
+            try {
+                const [profResponse, tiposResponse] = await Promise.all([
+                    fetch('/api/consultas?get=profissionais'),
+                    fetch('/api/consultas?get=tipos')
+                ]);
+                const profData = await profResponse.json();
+                const tiposData = await tiposResponse.json();
+                setProfissionais(Array.isArray(profData) ? profData : []);
+                setTipos(Array.isArray(tiposData) ? tiposData : []);
+            } catch (error) {
+                console.error("Erro ao buscar filtros", error);
+            }
+        };
+        fetchInitialData();
+    }, []);
+
+    useEffect(() => {
+        loadConsultas(true);
+    }, [debouncedSearch, filters.tipo, filters.profissionalId, loadConsultas]);
+
+    useEffect(() => {
+        if (inView && !loading && hasMore) {
+            loadConsultas();
+        }
+    }, [inView, loading, hasMore, loadConsultas]);
+
+    const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFilters(prev => ({ ...prev, [name]: value }));
     };
-    fetchFilterData();
-  }, []);
 
-  // Função centralizada de busca
-  const loadConsultas = useCallback(async (cursor: string | null, isNewSearch: boolean) => {
-    if (loading) return;
-    setLoading(true);
-    if(isNewSearch) setInitialLoad(true);
+    return (
+        <div className="h-full flex flex-col p-6 space-y-6">
+            <div className="flex justify-between items-center">
+                <h1 className="text-3xl font-bold">Consultas</h1>
+                <Button onClick={() => router.push('/consulta/nova')}>
+                    <PlusCircle className="mr-2 h-4 w-4" /> Nova Consulta
+                </Button>
+            </div>
 
-    try {
-      const params = new URLSearchParams();
-      params.append('limit', '8');
-      if (cursor) params.append('cursor', cursor);
-      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
-      if (profissionalId) params.append('profissionalId', profissionalId);
-      if (tipo) params.append('tipo', tipo);
+            <Card>
+                <CardHeader>
+                    <CardTitle>Filtros</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Input
+                        name="search"
+                        placeholder="Buscar por palavra-chave..."
+                        value={filters.search}
+                        onChange={handleFilterChange}
+                        className="md:col-span-2"
+                    />
+                     <select name="tipo" value={filters.tipo} onChange={handleFilterChange} className="input input-bordered w-full">
+                        <option value="">Todos os Tipos</option>
+                        {tipos.map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+                    </select>
+                    <select name="profissionalId" value={filters.profissionalId} onChange={handleFilterChange} className="input input-bordered w-full">
+                        <option value="">Todos os Profissionais</option>
+                        {profissionais.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    </select>
+                </CardContent>
+            </Card>
 
-      const response = await axios.get(`/api/consultas?${params.toString()}`);
-      const { items, nextCursor: newNextCursor } = response.data;
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {consultas.map(consulta => (
+                    <Card key={consulta.id} className="cursor-pointer hover:shadow-lg transition-shadow"
+                          onClick={() => router.push(`/consulta/${consulta.id}`)}>
+                        <CardHeader>
+                            <CardTitle className="text-lg">{consulta.tipo}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p>{new Date(consulta.data).toLocaleDateString('pt-BR')}</p>
+                            <p>{consulta.profissional?.nome || 'N/A'}</p>
+                            <p className="text-sm text-gray-500 truncate">{consulta.motivo}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
 
-      setConsultas(prev => isNewSearch ? items : [...prev, ...items]);
-      setNextCursor(newNextCursor);
-      setHasMore(!!newNextCursor);
-
-    } catch (error) {
-      console.error("Erro ao carregar consultas:", error);
-    } finally {
-      setLoading(false);
-      setInitialLoad(false);
-    }
-  }, [debouncedSearchTerm, profissionalId, tipo]); // CORREÇÃO: Removido 'loading' das dependências
-
-  // Efeito para atualizar a URL com os filtros
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-    if (debouncedSearchTerm) params.set('search', debouncedSearchTerm); else params.delete('search');
-    if (profissionalId) params.set('profissionalId', profissionalId); else params.delete('profissionalId');
-    if (tipo) params.set('tipo', tipo); else params.delete('tipo');
-    router.replace(`${pathname}?${params.toString()}`);
-  }, [debouncedSearchTerm, profissionalId, tipo, pathname, router, searchParams]);
-  
-  // Efeito para buscar quando os filtros mudam
-  useEffect(() => {
-    loadConsultas(null, true); // Nova busca, reseta a lista
-  }, [debouncedSearchTerm, profissionalId, tipo]);
-
-  // Efeito para carregamento infinito (scroll)
-  useEffect(() => {
-    const isNewSearch = false;
-    // Evita carregar mais se for uma busca inicial ou se não houver mais itens
-    if (inView && !loading && hasMore && !initialLoad) {
-      loadConsultas(nextCursor, isNewSearch);
-    }
-  }, [inView, loading, hasMore, nextCursor, initialLoad, loadConsultas]);
-  
-  return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-5">
-        <h1 className="text-xl font-bold mb-4">Minhas Consultas</h1>
-        <ConsultaFilter
-          professionals={profissionais}
-          consultationTypes={tiposConsulta}
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          profissionalId={profissionalId}
-          setProfissionalId={setProfissionalId}
-          tipo={tipo}
-          setTipo={setTipo}
-        />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mt-6">
-          {consultas.map((consulta) => {
-            const agendamento: AgendamentoUnificado = {
-              id: consulta.id,
-              data: consulta.data.toString(),
-              nomeProfissional: consulta.profissional?.nome || "Não especificado",
-              especialidade: consulta.profissional?.especialidade || "Clínico Geral",
-              local: consulta.unidade?.nome || "Local não especificado",
-              tipo: "Consulta",
-              userId: consulta.userId,
-            };
-            return <AgendamentoItem key={consulta.id} agendamento={agendamento} />;
-          })}
+            {loading && <p>Carregando...</p>}
+            {!loading && hasMore && <div ref={ref}></div>}
+            {!loading && !hasMore && <p className="text-center text-gray-500">Fim dos resultados.</p>}
         </div>
-
-        <div ref={ref} className="h-10 flex justify-center items-center my-4">
-          {loading && <Loader2 className="h-8 w-8 animate-spin text-primary" />}
-          {!hasMore && consultas.length > 0 && !initialLoad && (
-             <p className="text-sm text-gray-500">Você chegou ao fim.</p>
-          )}
-        </div>
-
-        {!loading && !initialLoad && consultas.length === 0 && (
-          <p className="text-sm text-gray-500 text-center mt-4">
-            Nenhum resultado encontrado com os critérios especificados.
-          </p>
-        )}
-      </div>
-    </div>
-  );
+    );
 };
 
 export default ConsultasPage;

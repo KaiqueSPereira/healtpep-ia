@@ -7,13 +7,15 @@ import {
     Exame as PrismaExame,
     ResultadoExame as PrismaResultadoExame,
     Endereco as PrismaEndereco,
-    User as PrismaUsuario
+    User as PrismaUsuario,
+    AnexoConsulta as PrismaAnexo
 } from '@prisma/client';
 
 // --- Base Entity Types ---
 
 export type Endereco = PrismaEndereco;
 export type Usuario = PrismaUsuario;
+export type Anexo = PrismaAnexo;
 
 export type Unidade = PrismaUnidade & {
     endereco?: Endereco;
@@ -30,12 +32,15 @@ export type CondicaoSaude = PrismaCondicaoSaude & {
   profissional?: Profissional | null;
 };
 
-// CORREÇÃO: O campo 'data' agora aceita string ou Date.
 export type Consulta = Omit<PrismaConsulta, 'data'> & {
-  data: Date | string; // Permite que a data seja string (do JSON) ou Date
+  data: Date | string; 
   profissional?: Profissional | null;
   unidade?: Unidade | null;
   condicaoSaude?: CondicaoSaude | null;
+  anexos?: Anexo[];
+  historicoTratamento?: Consulta[];
+  consultaOrigem?: Consulta | null;
+  Exame?: Exame[]; 
 };
 
 export type ResultadoExame = PrismaResultadoExame;
@@ -50,14 +55,27 @@ export type Exame = PrismaExame & {
 };
 
 export type MedicamentoComRelacoes = PrismaMedicamento & {
-    dosagem?: string | null; // Adicionado
-    quantidadePorDose?: number | null; // Adicionado
+    dosagem?: string | null; 
+    quantidadePorDose?: number | null; 
     profissional: Profissional | null;
     consulta: Consulta | null;
     condicaoSaude: CondicaoSaude | null; 
 };
 
 // --- Auxiliary Types ---
+
+// Tipo TimelineItem centralizado para evitar conflitos
+export interface TimelineItem {
+    id: string;
+    data: string | Date; // data não pode ser nula
+    tipo: string;
+    motivo?: string | null;
+    anotacao?: string | null;
+    profissional?: Profissional | null;
+    unidade?: Unidade | null;
+    entryType: 'consulta' | 'exame';
+    href: string;
+}
 
 export enum ConsultaType {
   Rotina = "Rotina",

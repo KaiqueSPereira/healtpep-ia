@@ -2,11 +2,20 @@ import { authOptions } from "@/app/_lib/auth";
 import { db } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { encryptString, decryptString } from "@/app/_lib/crypto";
-import { Anotacoes, Consultatype, Prisma } from '@prisma/client';
+import { decryptString } from "@/app/_lib/crypto";
+import { Anotacoes, Consultas, Consultatype, Prisma, Profissional, UnidadeDeSaude, CondicaoSaude } from '@prisma/client';
 import { Session } from "next-auth";
+import { Anexo } from "@/app/_components/types"; 
 
 export const dynamic = 'force-dynamic';
+
+type ConsultaComRelacoes = Consultas & {
+    Anotacoes?: Anotacoes[];
+    condicoes?: CondicaoSaude[]; 
+    profissional?: Profissional | null;
+    unidade?: UnidadeDeSaude | null;
+    anexos?: Anexo[];
+};
 
 const getUserSessionAndId = async (): Promise<{ session: Session | null, userId: string | null }> => {
   const session = await getServerSession(authOptions);
@@ -53,18 +62,17 @@ const parseDate = (dateString: string) => {
     return date;
 };
 
-// Função helper para descriptografar uma consulta, evitando repetição de código
-const decryptConsulta = (consulta: any) => {
-    const { condicoes, Anotacoes, ...restOfConsulta } = consulta;
+// Função para descriptografar uma consulta
+const decryptConsulta = (consulta: ConsultaComRelacoes) => {
+    const { Anotacoes: anotacoes, ...restOfConsulta } = consulta;
     return {
         ...restOfConsulta,
         motivo: restOfConsulta.motivo ? decryptString(restOfConsulta.motivo) : null,
-        Anotacoes: Anotacoes?.map((anotacao: Anotacoes) => ({
+        Anotacoes: anotacoes?.map((anotacao: Anotacoes) => ({
             ...anotacao,
             anotacao: decryptString(anotacao.anotacao),
         })) || [],
         tipodeexame: restOfConsulta.tipodeexame ? decryptString(restOfConsulta.tipodeexame) : null,
-        condicaoSaude: condicoes,
     };
 };
 
@@ -80,7 +88,6 @@ export async function GET(request: Request) {
     const getData = searchParams.get("get");
     const now = new Date();
 
-    // ROTA OTIMIZADA PARA O DASHBOARD
     if (getData === "dashboard") {
       const [futuros, passados] = await db.$transaction([
         db.consultas.findMany({
@@ -102,6 +109,15 @@ export async function GET(request: Request) {
       });
     }
 
+    if (getData === "all") {
+      const allConsultas = await db.consultas.findMany({
+        where: { userId },
+        orderBy: { data: 'desc' },
+        include: { profissional: true, unidade: true },
+      });
+      return NextResponse.json(allConsultas.map(decryptConsulta));
+    }
+
     if (getData === "tipos") {
       return NextResponse.json(Object.values(Consultatype));
     }
@@ -114,7 +130,6 @@ export async function GET(request: Request) {
       return NextResponse.json(profissionais);
     }
     
-    // LÓGICA DE PAGINAÇÃO PARA A PÁGINA DE CONSULTAS
     const limit = parseInt(searchParams.get("limit") || "8");
     const cursor = searchParams.get("cursor") || null;
     const searchTerm = searchParams.get("search")?.trim() || "";
@@ -142,15 +157,16 @@ export async function GET(request: Request) {
     
     const consultas = await db.consultas.findMany({
       where,
-      take: limit + 1, // Busca um item a mais para saber se há próxima página
+      take: limit + 1, 
       cursor: cursor ? { id: cursor } : undefined,
-      include: { profissional: true, unidade: true, Anotacoes: true, condicoes: true },
+      // --- CORREÇÃO: `condicaoSaude` para `condicoes` ---
+      include: { profissional: true, unidade: true, Anotacoes: true, condicoes: true, anexos: true }, 
       orderBy: { data: "desc" },
     });
 
     let nextCursor: string | null = null;
     if (consultas.length > limit) {
-      const nextItem = consultas.pop(); // Remove o item extra
+      const nextItem = consultas.pop();
       nextCursor = nextItem!.id;
     }
     

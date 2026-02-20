@@ -1,56 +1,73 @@
-"use client";
+'use client';
 
-import { AnexoConsulta } from "@prisma/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { FileText, Trash2 } from "lucide-react";
-import Link from "next/link";
 import { Button } from "@/app/_components/ui/button";
+import { FileText, Trash2, Download } from "lucide-react";
+import { Anexo } from "@/app/_components/types";
+
 
 interface AnexosListProps {
-    anexos: AnexoConsulta[];
-    onDeleteAnexo: (anexoId: string) => void;
+  anexos: Anexo[];
+  onDeleteAnexo: (anexoId: string) => void;
+  onAnexoClick: (anexo: Anexo) => void;
 }
 
-export default function AnexosList({ anexos, onDeleteAnexo }: AnexosListProps) {
-    if (anexos.length === 0) {
-        return null; // Não renderiza nada se não houver anexos
-    }
+const AnexosList = ({ anexos, onDeleteAnexo, onAnexoClick }: AnexosListProps) => {
 
-    const formatTipo = (tipo: string) => {
-        return tipo.replace(/_/g, ' ').charAt(0).toUpperCase() + tipo.replace(/_/g, ' ').slice(1).toLowerCase();
-    }
+  const handleDownload = (anexo: Anexo) => {
+    if (!anexo.arquivo) return;
 
+    // anexo.arquivo já é o array de bytes. Não precisa acessar .data
+    const blob = new Blob([anexo.arquivo], { type: anexo.mimetype || 'application/octet-stream' });
+    const url = window.URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', anexo.nomeArquivo);
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  };
+
+  if (!anexos || anexos.length === 0) {
     return (
-        <Card className="mt-6">
-            <CardHeader>
-                <CardTitle>Anexos da Consulta</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <ul className="space-y-3">
-                    {anexos.map(anexo => (
-                        <li key={anexo.id} className="flex items-center justify-between p-2 rounded-md border hover:bg-accent">
-                            <div className="flex items-center gap-3">
-                                <FileText className="h-5 w-5 text-primary" />
-                                <div className="flex flex-col">
-                                     {/* CORREÇÃO: O link agora aponta para a rota da API que serve o ficheiro para download */}
-                                     <Link href={`/api/consultas/${anexo.consultaId}/anexos/${anexo.id}`} className="font-medium hover:underline">
-                                        {anexo.nomeArquivo}
-                                    </Link>
-                                    <span className="text-sm text-muted-foreground">{formatTipo(anexo.tipo)}</span>
-                                </div>
-                            </div>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => onDeleteAnexo(anexo.id)}
-                            >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                                <span className="sr-only">Apagar anexo</span>
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
-            </CardContent>
-        </Card>
+      <Card>
+        <CardHeader><CardTitle>Anexos</CardTitle></CardHeader>
+        <CardContent><p className="text-muted-foreground">Nenhum anexo encontrado.</p></CardContent>
+      </Card>
     );
-}
+  }
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Anexos</CardTitle></CardHeader>
+      <CardContent>
+        <ul className="space-y-3">
+          {anexos.map((anexo) => (
+            <li key={anexo.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+              <button 
+                onClick={() => onAnexoClick(anexo)}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left"
+              >
+                <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                <span className="text-sm font-medium truncate">{anexo.nomeArquivo}</span>
+              </button>
+              <div className="flex items-center gap-2 ml-4">
+                <Button variant="ghost" size="icon" onClick={() => handleDownload(anexo)} aria-label="Baixar anexo">
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => onDeleteAnexo(anexo.id)} aria-label="Apagar anexo">
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
+  );
+};
+
+export default AnexosList;

@@ -23,12 +23,11 @@ export type AgendamentoUnificado = {
   userId: string;
 };
 
-interface AgendamentosListProps {
-  // O userId não é mais necessário aqui, mas mantemos por enquanto para não quebrar a chamada no dashboard
-  userId: string;
-}
+// A interface agora não tem mais props
+interface AgendamentosListProps {}
 
-const AgendamentosList = ({ userId }: AgendamentosListProps) => {
+// O userId foi removido da assinatura do componente
+const AgendamentosList = () => {
   const [agendamentosFuturos, setAgendamentosFuturos] = useState<AgendamentoUnificado[]>([]);
   const [agendamentosPassados, setAgendamentosPassados] = useState<AgendamentoUnificado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +58,6 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
       });
 
       // 4. Os estados são atualizados diretamente com os dados da API
-      // A lógica de filtro, sort e slice foi removida porque a API já faz isso.
       setAgendamentosFuturos(futuros.map(mapToAgendamento));
       setAgendamentosPassados(passados.map(mapToAgendamento));
 
@@ -69,7 +67,7 @@ const AgendamentosList = ({ userId }: AgendamentosListProps) => {
     } finally {
       setLoading(false);
     }
-  }, []); // userId foi removido das dependências
+  }, []); 
 
   useEffect(() => {
     fetchAgendamentos();

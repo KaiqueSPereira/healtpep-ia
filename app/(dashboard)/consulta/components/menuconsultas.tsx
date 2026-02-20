@@ -25,19 +25,23 @@ interface MenuConsultasProps {
 }
 
 const MenuConsultas: React.FC<MenuConsultasProps> = ({
-  consultas = [],
+  consultas: propConsultas, // Renomeado para evitar conflito
   onConsultaSelect,
   selectedConsulta,
 }) => {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  // Filtra para mostrar apenas consultas que já aconteceram (data <= hoje)
+  // **A CORREÇÃO DEFINITIVA**
+  // Garante que `consultas` seja SEMPRE um array. Se a propriedade recebida
+  // for um objeto, nula ou indefinida, um array vazio será usado.
+  const consultas = Array.isArray(propConsultas) ? propConsultas : [];
+
+  // Agora, o código abaixo é seguro e não vai mais quebrar.
   const today = new Date();
-  today.setHours(23, 59, 59, 999); // Garante que consultas de hoje sejam incluídas
+  today.setHours(23, 59, 59, 999); 
   const pastConsultas = consultas.filter(consulta => new Date(consulta.data) <= today);
 
-  // Aplica o filtro de busca sobre as consultas passadas
   const filteredConsultas = pastConsultas.filter(consulta =>
     (consulta.tipo.toLowerCase().includes(searchValue.toLowerCase())) ||
     (new Date(consulta.data).toLocaleDateString().includes(searchValue)) ||
@@ -72,12 +76,11 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
         <PopoverContent className="w-full p-0">
           <Command>
             <CommandInput
-              placeholder="Buscar consulta..." // Texto revertido
+              placeholder="Buscar consulta..."
               value={searchValue}
               onValueChange={setSearchValue}
             />
             <CommandList>
-              {/* Mensagem genérica quando a lista (já filtrada por data) está vazia */}
               <CommandEmpty>Nenhuma consulta encontrada.</CommandEmpty>
               <CommandGroup>
                 <CommandItem
@@ -95,7 +98,6 @@ const MenuConsultas: React.FC<MenuConsultasProps> = ({
                       key={consulta.id}
                       value={formatConsultaText(consulta).toLowerCase()}
                       onSelect={() => {
-                        // Lógica de toggle: seleciona se for diferente, deseleciona se for igual
                         if (selectedConsulta?.id === consulta.id) {
                             onConsultaSelect(null);
                         } else {

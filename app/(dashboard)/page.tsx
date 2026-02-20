@@ -206,7 +206,7 @@ const Home = () => {
               <NovaConsulta />
             </div>
             <div>
-              <AgendamentosList userId={session.user.id} />
+              <AgendamentosList />
             </div>
             <div>
              <ExamesList userId={session.user.id} />

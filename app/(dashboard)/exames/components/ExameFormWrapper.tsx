@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import useAuthStore from "@/app/_stores/authStore";
-import Header from "../../../_components/header";
 import TabelaExames from "./TabelaExames";
 import { Button } from "../../../_components/ui/button";
 import { Input } from "../../../_components/ui/input";
@@ -323,7 +322,6 @@ export function ExameFormWrapper({
 
   return (
     <>
-      <Header />
       <main className="container mx-auto space-y-8 py-8">
         <h1 className="text-3xl font-bold">
           {existingExamData ? "Editar Exame" : "Cadastrar Exame"}
