@@ -1,11 +1,12 @@
 'use client';
-import { useState, useEffect, useCallback, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useDebounce } from 'use-debounce';
 import { useInView } from 'react-intersection-observer';
 import { Profissional, Consultatype } from '@prisma/client';
 import { Consulta } from '@/app/_components/types';
 import AgendamentoItem, { AgendamentoUnificado } from './agendamentosItem';
-import ConsultaFilter from './ConsultaFilter'; // Importa o componente de filtro corrigido
+import ConsultaFilter from './ConsultaFilter';
+import { Skeleton } from '@/app/_components/ui/skeleton';
 
 interface ConsultasListProps {
   initialConsultas: Consulta[];
@@ -24,6 +25,15 @@ const mapConsultaToAgendamento = (consulta: Consulta): AgendamentoUnificado => (
   tipoConsulta: consulta.tipo,
 });
 
+const fetchConsultasAPI = async (params: URLSearchParams) => {
+    const response = await fetch(`/api/consultas?${params.toString()}`);
+    if (!response.ok) {
+        console.error("Erro ao buscar consultas na API");
+        throw new Error('Failed to fetch consultations');
+    }
+    return response.json();
+};
+
 const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCursor }: ConsultasListProps) => {
   const [consultas, setConsultas] = useState<Consulta[]>(initialConsultas);
   const [agendamentosFuturos, setAgendamentosFuturos] = useState<AgendamentoUnificado[]>([]);
@@ -34,7 +44,7 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
   const [cursor, setCursor] = useState<string | null>(initialNextCursor);
   const [hasMore, setHasMore] = useState(!!initialNextCursor);
 
-  // Estado para os filtros
+  // Estados para os filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [profissionalId, setProfissionalId] = useState('');
   const [tipo, setTipo] = useState<Consultatype | '' >('');
@@ -42,52 +52,59 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
 
   const { ref, inView } = useInView({ threshold: 1.0 });
 
-  // Função centralizada para buscar dados
-  const fetchAndSetConsultas = useCallback(async (isNewFilter = false) => {
-    if (isNewFilter) {
-        startTransition(() => {
-            setConsultas([]);
-            setAgendamentosFuturos([]);
-            setAgendamentosPassados([]);
-        });
-    } else {
-        setLoadingMore(true);
-    }
-
-    const params = new URLSearchParams();
-    params.append('limit', '8');
-    if (cursor && !isNewFilter) params.append('cursor', cursor);
-    if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
-    if (tipo) params.append('tipo', tipo);
-    if (profissionalId) params.append('profissionalId', profissionalId);
-
-    try {
-      const response = await fetch(`/api/consultas?${params.toString()}`);
-      const data: { items: Consulta[], nextCursor: string | null } = await response.json();
-
-      setConsultas(prev => isNewFilter ? data.items : [...prev, ...data.items]);
-      setCursor(data.nextCursor);
-      setHasMore(!!data.nextCursor);
-    } catch (error) {
-      console.error("Erro ao buscar consultas", error);
-    } finally {
-      if (!isNewFilter) setLoadingMore(false);
-    }
-  }, [cursor, debouncedSearchTerm, tipo, profissionalId]);
-
-  // Efeito para buscar dados quando os filtros mudam
+  // Efeito para NOVAS buscas (acionado por filtros)
   useEffect(() => {
-    // Reseta o cursor e busca do início sempre que um filtro for alterado.
-    setCursor(null);
-    fetchAndSetConsultas(true);
+    const performSearch = async () => {
+      startTransition(async () => {
+        const params = new URLSearchParams();
+        params.append('limit', '8');
+        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
+        if (tipo) params.append('tipo', tipo);
+        if (profissionalId) params.append('profissionalId', profissionalId);
+
+        try {
+          const data = await fetchConsultasAPI(params);
+          setConsultas(data.items);
+          setCursor(data.nextCursor);
+          setHasMore(!!data.nextCursor);
+        } catch (error) {
+          console.error("Erro ao realizar nova busca", error);
+        }
+      });
+    };
+
+    performSearch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm, profissionalId, tipo]);
 
-  // Efeito para carregar mais itens no scroll infinito (não deve ser acionado por mudança de filtro)
+  // Efeito para CARREGAR MAIS (scroll infinito)
   useEffect(() => {
-    if (inView && hasMore && !loadingMore && !isPending) {
-        fetchAndSetConsultas(false);
-    }
-  }, [inView, hasMore, loadingMore, isPending, fetchAndSetConsultas]);
+    const loadMore = async () => {
+      if (inView && hasMore && !loadingMore && !isPending) {
+        setLoadingMore(true);
+        const params = new URLSearchParams();
+        params.append('limit', '8');
+        if (cursor) params.append('cursor', cursor);
+        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
+        if (tipo) params.append('tipo', tipo);
+        if (profissionalId) params.append('profissionalId', profissionalId);
+
+        try {
+          const data = await fetchConsultasAPI(params);
+          setConsultas(prev => [...prev, ...data.items]);
+          setCursor(data.nextCursor);
+          setHasMore(!!data.nextCursor);
+        } catch (error) {
+          console.error("Erro ao carregar mais consultas", error);
+        } finally {
+          setLoadingMore(false);
+        }
+      }
+    };
+    loadMore();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inView, hasMore, isPending]);
+
 
   // Efeito para processar e separar as consultas em futuras e passadas
   useEffect(() => {
@@ -105,16 +122,20 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
     });
 
     futuros.sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
-    // As passadas já vêm ordenadas do backend (desc)
+    passados.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 
     setAgendamentosFuturos(futuros);
     setAgendamentosPassados(passados);
-
   }, [consultas]);
 
+  const renderSkeletons = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
+    </div>
+  );
+
   return (
-    <div className="h-full flex flex-col p-6 space-y-6">
-      {/* Usando o componente de filtro corrigido */}
+    <div className="flex flex-col flex-grow p-6 space-y-6 min-h-0">
       <ConsultaFilter 
         professionals={profissionais} 
         consultationTypes={tipos} 
@@ -126,37 +147,51 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
         setTipo={setTipo}
       />
 
-      {isPending ? (
-        <p className="text-center">Atualizando...</p>
-      ) : (
-        <>
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
-            {agendamentosFuturos.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {agendamentosFuturos.map(ag => <AgendamentoItem key={ag.id} agendamento={ag} />)}
-              </div>
-            ) : (
-              <p className="text-gray-500">Nenhuma consulta agendada encontrada para os filtros selecionados.</p>
-            )}
-          </section>
+      <div className="flex-grow overflow-y-auto space-y-6 pb-10">
+        {isPending ? (
+          <>
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
+                {renderSkeletons()}
+            </section>
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Consultas Passadas</h2>
+                {renderSkeletons()}
+            </section>
+          </>
+        ) : (
+          <>
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
+              {agendamentosFuturos.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {agendamentosFuturos.map(ag => <AgendamentoItem key={`futuro-${ag.id}`} agendamento={ag} />)}
+                </div>
+              ) : (
+                <p className="text-gray-500">Nenhuma consulta agendada encontrada para os filtros selecionados.</p>
+              )}
+            </section>
 
-          <section>
-            <h2 className="text-xl font-semibold mb-4">Consultas Passadas</h2>
-            {agendamentosPassados.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {agendamentosPassados.map(ag => <AgendamentoItem key={ag.id} agendamento={ag} />)}
-              </div>
-            ) : (
-              <p className="text-gray-500">Nenhuma consulta passada encontrada para os filtros selecionados.</p>
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Consultas Passadas</h2>
+              {agendamentosPassados.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {agendamentosPassados.map(ag => <AgendamentoItem key={`passado-${ag.id}`} agendamento={ag} />)}
+                </div>
+              ) : (
+                <p className="text-gray-500">Nenhuma consulta passada encontrada para os filtros selecionados.</p>
+              )}
+            </section>
+            
+            {loadingMore && <div className="flex justify-center"><p className="text-center">Carregando mais...</p></div>}
+            {!loadingMore && hasMore && <div ref={ref} className="h-10" />}
+            {!loadingMore && !hasMore && consultas.length > 0 && <p className="text-center text-gray-500 py-4">Fim dos resultados.</p>}
+            {!isPending && consultas.length === 0 && (
+                <p className="text-center text-gray-500 py-4">Nenhum resultado encontrado para os filtros selecionados.</p>
             )}
-          </section>
-        </>
-      )}
-
-      {loadingMore && <p className="text-center">Carregando mais...</p>}
-      {!loadingMore && hasMore && <div ref={ref} className="h-10" />}
-      {!loadingMore && !hasMore && consultas.length > 0 && <p className="text-center text-gray-500 py-4">Fim dos resultados.</p>}
+          </>
+        )}
+      </div>
     </div>
   );
 };
