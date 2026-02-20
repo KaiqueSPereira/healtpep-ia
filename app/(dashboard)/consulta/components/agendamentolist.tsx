@@ -6,7 +6,7 @@ import { Button } from "@/app/_components/ui/button";
 import { Skeleton } from "@/app/_components/ui/skeleton";
 import { Consultas, Profissional, UnidadeDeSaude, Consultatype } from "@prisma/client";
 
-// Tipos permanecem os mesmos
+// Tipos
 type ConsultaComRelacoes = Consultas & { 
     profissional: Profissional | null; 
     unidade: UnidadeDeSaude | null; 
@@ -23,10 +23,8 @@ export type AgendamentoUnificado = {
   userId: string;
 };
 
-// A interface agora não tem mais props
-interface AgendamentosListProps {}
+// Correção: Interface 'AgendamentosListProps' removida pois não era utilizada.
 
-// O userId foi removido da assinatura do componente
 const AgendamentosList = () => {
   const [agendamentosFuturos, setAgendamentosFuturos] = useState<AgendamentoUnificado[]>([]);
   const [agendamentosPassados, setAgendamentosPassados] = useState<AgendamentoUnificado[]>([]);
@@ -35,17 +33,14 @@ const AgendamentosList = () => {
   const fetchAgendamentos = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. A chamada da API foi alterada para o novo endpoint otimizado
       const res = await fetch(`/api/consultas?get=dashboard`);
 
       if (!res.ok) {
         throw new Error("Erro ao buscar agendamentos");
       }
 
-      // 2. A resposta agora é um objeto com as chaves 'futuros' e 'passados'
       const { futuros, passados }: { futuros: ConsultaComRelacoes[], passados: ConsultaComRelacoes[] } = await res.json();
 
-      // 3. A lógica de mapeamento é aplicada a cada array separadamente
       const mapToAgendamento = (c: ConsultaComRelacoes): AgendamentoUnificado => ({
         id: c.id,
         data: c.data as unknown as string,
@@ -57,7 +52,6 @@ const AgendamentosList = () => {
         userId: c.userId,
       });
 
-      // 4. Os estados são atualizados diretamente com os dados da API
       setAgendamentosFuturos(futuros.map(mapToAgendamento));
       setAgendamentosPassados(passados.map(mapToAgendamento));
 

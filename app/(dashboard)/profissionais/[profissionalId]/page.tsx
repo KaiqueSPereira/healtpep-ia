@@ -1,140 +1,133 @@
-'use client';
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Loader2, ChevronRight } from 'lucide-react';
-import { Button } from '@/app/_components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import AgendamentoItem from '@/app/(dashboard)/consulta/components/agendamentosItem';
-import CondicaoSaudeSelectorMultiple from '@/app/(dashboard)/condicoes/_Components/TratamentoSelectorMultiple';
-import type { Prisma, CondicaoSaude } from '@prisma/client';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/_lib/auth";
+import { db } from "@/app/_lib/prisma";
+import { notFound } from "next/navigation";
+import { Card, CardContent } from "@/app/_components/ui/card";
+import { Avatar, AvatarFallback } from "@/app/_components/ui/avatar";
+import { Button } from "@/app/_components/ui/button"; // Mantido para o botão de edição
+import Link from "next/link";
+import AgendamentoItem from "../../consulta/components/agendamentosItem";
 
-// Tipos complexos baseados no Prisma, agora refletem os dados já descriptografados que vêm da API.
-type ProfissionalCompleto = Prisma.ProfissionalGetPayload<{
-  include: {
-    consultas: { include: { unidade: true } };
-    exames: { include: { unidades: true, usuario: true } };
-    condicoesSaude: true;
-    unidades: true;
-  }
-}>;
-type ConsultaComUnidade = ProfissionalCompleto['consultas'][0];
-type ExameComDetalhes = ProfissionalCompleto['exames'][0];
 
-const ProfissionalDetalhesPage = () => {
-  const { profissionalId } = useParams<{ profissionalId: string }>();
-  const router = useRouter();
-  const [profissional, setProfissional] = useState<ProfissionalCompleto | null>(null);
-  const [consultas, setConsultas] = useState<ConsultaComUnidade[]>([]);
-  const [exames, setExames] = useState<ExameComDetalhes[]>([]);
-  const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const profRes = await fetch(`/api/profissionais/${profissionalId}`);
-        if (!profRes.ok) {
-          const errorData = await profRes.json();
-          throw new Error(errorData.error || 'Erro ao carregar dados do profissional');
-        }
-        // Os dados já chegam descriptografados da API
-        const profData: ProfissionalCompleto = await profRes.json();
-        
-        setProfissional(profData);
-        setConsultas(profData.consultas || []);
-        setExames(profData.exames || []);
-        setCondicoesSaude(profData.condicoesSaude || []);
-
-      } catch (err: unknown) {
-        console.error('Erro ao carregar dados:', err);
-        setError(err instanceof Error ? err.message : 'Erro ao carregar dados desconhecido');
-      } finally {
-        setLoading(false);
-      }
+interface ProfissionalDetailsPageProps {
+    params: {
+        profissionalId: string;
     };
-    if (profissionalId) fetchData();
-  }, [profissionalId]);
+}
 
-  const handleExameClick = (exameId: string) => { router.push(`/exames/${exameId}`); };
+const ProfissionalDetailsPage = async ({ params }: ProfissionalDetailsPageProps) => {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+        return notFound();
+    }
 
-  if (loading) return (<div className="flex min-h-screen items-center justify-center py-10"> <Loader2 className="h-8 w-8 animate-spin" /> </div>);
-  if (error) return <div className="text-center text-red-500 py-10">{error}</div>;
-  if (!profissional) return <div className="text-center py-10">Profissional não encontrado.</div>;
+    const profissional = await db.profissional.findUnique({
+        where: {
+            id: params.profissionalId,
+            userId: session.user.id,
+        },
+    });
 
-  return (
-    <div className="flex flex-col">
-      <div className="p-4">
-        <Button variant="outline" onClick={() => router.push('/profissionais')} >
-            <ChevronRight className="mr-2 h-4 w-4 transform rotate-180" /> Voltar
-        </Button>
-      </div>
+    if (!profissional) {
+        return notFound();
+    }
 
-      <main className="container mx-auto flex-1 p-4">
-        <h1 className="mb-6 text-2xl font-bold text-center">{profissional.nome}</h1>
+    const consultas = await db.consultas.findMany({
+        where: {
+            profissionalId: params.profissionalId,
+            userId: session.user.id,
+        },
+        include: {
+            unidade: true,
+        },
+        orderBy: {
+            data: 'desc',
+        },
+    });
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card> <CardHeader><CardTitle>Especialidade</CardTitle></CardHeader> <CardContent><p>{profissional.especialidade || 'N/A'}</p></CardContent> </Card>
-          <Card> <CardHeader><CardTitle>Número de Classe</CardTitle></CardHeader> <CardContent><p>{profissional.NumClasse || 'N/A'}</p></CardContent> </Card>
+    const agora = new Date();
+    const consultasFuturas = consultas
+        .filter(c => new Date(c.data) >= agora)
+        .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
-          {profissional.unidades && profissional.unidades.length > 0 && (
-            <Card className="md:col-span-2"> <CardHeader><CardTitle>Unidades Vinculadas</CardTitle></CardHeader>
-              <CardContent> <ul className="list-disc list-inside pl-4 space-y-1">
-                  {profissional.unidades.map(unidade => ( <li key={unidade.id}>{unidade.nome} ({unidade.tipo})</li> ))}
-              </ul> </CardContent>
-            </Card>
-          )}
+    const consultasPassadas = consultas
+        .filter(c => new Date(c.data) < agora);
 
-          <Card> <CardHeader><CardTitle>Gerenciar Condições de Saúde</CardTitle></CardHeader>
-            <CardContent> <CondicaoSaudeSelectorMultiple profissionalId={profissional.id} currentCondicoes={condicoesSaude} onCondicoesChange={setCondicoesSaude} /> </CardContent>
-          </Card>
+    const inicialDoNome = profissional.nome?.charAt(0).toUpperCase() || '?';
 
-          <Card className="md:col-span-2"> <CardHeader><CardTitle>Últimos Agendamentos</CardTitle></CardHeader>
-            <CardContent> <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2">
-                {consultas.length > 0 ? (
-                  consultas.map((consulta) => (
-                    <AgendamentoItem
-                      key={consulta.id}
-                      agendamento={{
-                        id: consulta.id,
-                        userId: consulta.userId,
-                        tipo: 'Consulta',
-                        data: new Date(consulta.data).toISOString(),
-                        nomeProfissional: profissional.nome || '',
-                        especialidade: profissional.especialidade || 'Não especificado',
-                        local: consulta.unidade?.nome || 'Não especificado',
-                      }}
-                    />
-                  ))
-                ) : (<p className="text-center text-gray-500">Nenhuma consulta encontrada.</p>)}</div> </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2"> <CardHeader><CardTitle>Últimos Exames</CardTitle></CardHeader>
-            <CardContent> <div className="max-h-[500px] space-y-4 overflow-y-auto pr-2">
-                {exames.length > 0 ? (
-                  exames.map((exame) => (
-                    <div key={exame.id} className="flex cursor-pointer items-center justify-between rounded-lg border p-4 transition-colors hover:bg-gray-100" onClick={() => handleExameClick(exame.id)}>
-                      <div>
-                        <p className="font-medium">{exame.tipo}</p>
-                        <p className="text-sm text-gray-500">
-                          {exame.dataExame ? new Date(exame.dataExame).toLocaleDateString() : 'Data não informada'} -{' '}
-                          {exame.tipo}
-                        </p>
-                        {exame.usuario?.name && (<p className="text-sm text-gray-500"> Usuário: {exame.usuario.name} </p>)}
-                        {exame.unidades?.nome && (<p className="text-sm text-gray-500"> Unidade: {exame.unidades.nome} </p>)}
-                      </div>
-                      <ChevronRight className="h-5 w-5 text-gray-400" />
+    return (
+        <div className="h-full flex flex-col p-6 space-y-6">
+            <Card>
+                <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6">
+                    <Avatar className="h-24 w-24">
+                        {/* Se houver uma URL de imagem, pode ser usada aqui */}
+                        {/* <AvatarImage src={profissional.imageUrl} alt={profissional.nome} /> */}
+                        <AvatarFallback>{inicialDoNome}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 text-center md:text-left">
+                        <h1 className="text-2xl font-bold">{profissional.nome}</h1>
+                        {profissional.especialidade && (
+                            <p className="text-lg text-muted-foreground">{profissional.especialidade}</p>
+                        )}
                     </div>
-                  ))
-                ) : (<p className="text-center text-gray-500">Nenhum exame encontrado.</p>)}</div> </CardContent>
-          </Card>
+                    <Link href={`/profissionais/${profissional.id}/edit`}>
+                        <Button variant="outline">Editar</Button>
+                    </Link>
+                </CardContent>
+            </Card>
 
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
+                {consultasFuturas.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {consultasFuturas.map(consulta => (
+                            <AgendamentoItem
+                                key={consulta.id}
+                                agendamento={{
+                                    id: consulta.id,
+                                    // Correção: A propriedade 'userId' foi removida, pois não existe no tipo AgendamentoUnificado
+                                    tipo: 'Consulta',
+                                    data: new Date(consulta.data).toISOString(),
+                                    nomeProfissional: profissional.nome || '',
+                                    especialidade: profissional.especialidade || 'Clínico Geral',
+                                    local: consulta.unidade?.nome || 'Não informado',
+                                    tipoConsulta: consulta.tipo,
+                                }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">Nenhuma consulta agendada com este profissional.</p>
+                )}
+            </section>
+
+            <section>
+                <h2 className="text-xl font-semibold mb-4">Histórico de Consultas</h2>
+                {consultasPassadas.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {consultasPassadas.map(consulta => (
+                            <AgendamentoItem
+                                key={consulta.id}
+                                agendamento={{
+                                    id: consulta.id,
+                                     // Correção: A propriedade 'userId' foi removida
+                                    tipo: 'Consulta',
+                                    data: new Date(consulta.data).toISOString(),
+                                    nomeProfissional: profissional.nome || '',
+                                    especialidade: profissional.especialidade || 'Clínico Geral',
+                                    local: consulta.unidade?.nome || 'Não informado',
+                                    tipoConsulta: consulta.tipo,
+                                }}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-gray-500">Nenhum histórico de consultas com este profissional.</p>
+                )}
+            </section>
         </div>
-      </main>
-    </div>
-  );
+    );
 };
 
-export default ProfissionalDetalhesPage;
+export default ProfissionalDetailsPage;

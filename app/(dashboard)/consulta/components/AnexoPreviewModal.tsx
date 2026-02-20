@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/app/_components/ui/dialog';
 import { Button } from '@/app/_components/ui/button';
 import { Anexo } from '@/app/_components/types';
+import Image from 'next/image'; // Correção: Importar o componente Image
 
 interface AnexoPreviewModalProps {
   onClose: () => void;
@@ -15,8 +16,6 @@ const AnexoPreviewModal = ({ onClose, anexo }: AnexoPreviewModalProps) => {
 
   useEffect(() => {
     if (anexo && anexo.arquivo) {
-      // --- CORREÇÃO FINAL: anexo.arquivo JÁ É O BUFFER ---
-      // Acessar anexo.arquivo.data estava incorreto.
       const blob = new Blob([anexo.arquivo], { type: anexo.mimetype || 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       setPreviewUrl(url);
@@ -42,10 +41,19 @@ const AnexoPreviewModal = ({ onClose, anexo }: AnexoPreviewModalProps) => {
               <DialogTitle className="truncate">{anexo.nomeArquivo}</DialogTitle>
           </DialogHeader>
           
-          <div className="flex-1 p-4 overflow-auto justify-center items-center flex">
+          <div className="flex-1 p-4 overflow-auto justify-center items-center flex relative">
               {previewUrl ? (
                   <> 
-                      {isImage && <img src={previewUrl} alt={anexo.nomeArquivo} className="max-w-full max-h-full object-contain" />}
+                      {/* Correção: Substituir <img> por <Image> */}
+                      {isImage && (
+                        <Image 
+                          src={previewUrl} 
+                          alt={anexo.nomeArquivo} 
+                          fill
+                          style={{ objectFit: 'contain' }}
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        />
+                      )}
                       {isPdf && <iframe src={previewUrl} className="w-full h-full border-0" title={anexo.nomeArquivo}></iframe>}
                       {!isImage && !isPdf && (
                         <div className="text-center text-muted-foreground">

@@ -1,10 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
 import { Badge } from "@/app/_components/ui/badge";
 import { ArrowRightIcon } from "lucide-react";
-// A importação de TimelineItem foi adicionada aqui
-import { Profissional, Unidade, TimelineItem } from "@/app/_components/types";
-
-// A definição local de TimelineItem foi removida para usar a versão centralizada.
+// Correção: Remover importações não utilizadas de Profissional e Unidade
+import { TimelineItem } from "@/app/_components/types";
 
 interface HistoricoTratamentoCardProps {
     items: TimelineItem[];
