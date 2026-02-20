@@ -3,6 +3,13 @@
 import { Dispatch, SetStateAction } from 'react';
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/_components/ui/select";
 import { Consultatype, Profissional } from '@prisma/client';
 
 interface ConsultaFilterProps {
@@ -16,6 +23,9 @@ interface ConsultaFilterProps {
   setTipo: Dispatch<SetStateAction<Consultatype | ''>>;
 }
 
+// Valor especial para representar a opção "todos"
+const ALL_ITEMS_VALUE = 'all';
+
 const ConsultaFilter: React.FC<ConsultaFilterProps> = ({
   professionals,
   consultationTypes,
@@ -27,9 +37,6 @@ const ConsultaFilter: React.FC<ConsultaFilterProps> = ({
   setTipo,
 }) => {
 
-  // A lógica de estado e useEffect foi movida para o componente pai (ConsultasPage)
-  // Este componente agora apenas renderiza a UI e chama as funções do pai.
-
   const handleResetFilters = () => {
     setSearchTerm('');
     setProfissionalId('');
@@ -40,33 +47,41 @@ const ConsultaFilter: React.FC<ConsultaFilterProps> = ({
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       <Input
         type="text"
-        placeholder="Pesquisar por termo ou data..."
+        placeholder="Pesquisar por termo..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="flex-grow"
       />
 
-      <select
-        value={profissionalId}
-        onChange={(e) => setProfissionalId(e.target.value)}
-        className="border rounded-md p-2 bg-white text-black dark:bg-gray-800 dark:text-white"
+      <Select 
+        value={profissionalId || ALL_ITEMS_VALUE} 
+        onValueChange={(value) => setProfissionalId(value === ALL_ITEMS_VALUE ? '' : value)}
       >
-        <option value="">Todos Profissionais</option>
-        {professionals.map(p => (
-          <option key={p.id} value={p.id}>{p.nome}</option>
-        ))}
-      </select>
+        <SelectTrigger className="w-full md:w-[200px]">
+          <SelectValue placeholder="Todos Profissionais" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_ITEMS_VALUE}>Todos Profissionais</SelectItem>
+          {professionals.map(p => (
+            <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      <select
-        value={tipo}
-        onChange={(e) => setTipo(e.target.value as Consultatype | '')}
-        className="border rounded-md p-2 bg-white text-black dark:bg-gray-800 dark:text-white"
+      <Select 
+        value={tipo || ALL_ITEMS_VALUE} 
+        onValueChange={(value) => setTipo(value === ALL_ITEMS_VALUE ? '' : (value as Consultatype))}
       >
-        <option value="">Todos Tipos</option>
-        {consultationTypes.map(t => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-      </select>
+        <SelectTrigger className="w-full md:w-[180px]">
+          <SelectValue placeholder="Todos Tipos" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_ITEMS_VALUE}>Todos Tipos</SelectItem>
+          {consultationTypes.map(t => (
+            <SelectItem key={t} value={t}>{t}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <Button onClick={handleResetFilters} variant="outline">
         Limpar

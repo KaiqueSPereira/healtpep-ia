@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/_lib/auth';
-import { db } from '@/app/_lib/prisma'; // Corrigido: Mantendo 'db' como o nome da variável
+import { db } from '@/app/_lib/prisma';
 import { decryptString, encryptString } from '@/app/_lib/crypto';
 import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker";
 import { logErrorToDb } from '@/app/_lib/logger';

@@ -4,7 +4,7 @@ import { Consultatype, Prisma, Consultas, Anotacoes, Profissional, UnidadeDeSaud
 import { authOptions } from "@/app/_lib/auth";
 import { getServerSession } from "next-auth";
 import { decryptString } from "@/app/_lib/crypto";
-import { Consulta } from "@/app/_components/types"; 
+import { Consulta } from "@/app/_components/types";
 
 // Tipo para a consulta com relações, usado para a desencriptação
 type ConsultaParaDesencriptar = Consultas & {
@@ -41,7 +41,7 @@ const decryptConsulta = (consulta: ConsultaParaDesencriptar): Consulta => {
             anotacao: decryptString(anotacao.anotacao),
         })) || [],
         tipodeexame: restOfConsulta.tipodeexame ? decryptString(restOfConsulta.tipodeexame) : null,
-    } as unknown as Consulta; // Usar 'as unknown as Consulta' para garantir a compatibilidade
+    } as unknown as Consulta;
 };
 
 interface FetchConsultasParams {
@@ -61,37 +61,57 @@ export async function fetchConsultas(params: FetchConsultasParams) {
   const { search, tipo, profissionalId, limit = 8, cursor } = params;
   const userId = session.user.id;
 
-  const where: Prisma.ConsultasWhereInput = { userId }; // Correção: de let para const
+  // 1. A busca no banco de dados filtra APENAS por campos não encriptados
+  const where: Prisma.ConsultasWhereInput = { userId };
   if (profissionalId) where.profissionalId = profissionalId;
   if (tipo) where.tipo = tipo as Consultatype;
 
-  if (search) {
-    where.OR = [
-      { motivo: { contains: search, mode: "insensitive" } },
-      { tipodeexame: { contains: search, mode: "insensitive" } },
-      { profissional: { nome: { contains: search, mode: "insensitive" } } },
-      { unidade: { nome: { contains: search, mode: "insensitive" } } },
-    ];
-  }
+  // O filtro de "search" foi REMOVIDO daqui
 
-  const consultas = await db.consultas.findMany({
+  const consultasDoBanco = await db.consultas.findMany({
     where,
-    take: limit + 1, 
-    cursor: cursor ? { id: cursor } : undefined,
-    include: { profissional: true, unidade: true, Anotacoes: true }, // Anotacoes incluídas para desencriptação
+    // Se estivermos a pesquisar, temos de obter todos os registos para filtrar em memória.
+    // A paginação será aplicada após a filtragem.
+    take: search ? undefined : limit + 1, 
+    cursor: search ? undefined : (cursor ? { id: cursor } : undefined),
+    include: { profissional: true, unidade: true, Anotacoes: true },
     orderBy: { data: "desc" },
   });
 
+  // 2. Desencriptamos TODOS os resultados obtidos
+  const decryptedConsultas = consultasDoBanco.map(decryptConsulta);
+
+  // 3. Aplicamos o filtro de busca em MEMÓRIA (se existir)
+  const filteredConsultas = search
+    ? decryptedConsultas.filter(c => {
+        const searchTerm = search.toLowerCase();
+        const motivo = c.motivo?.toLowerCase() || '';
+        const tipoExame = c.tipodeexame?.toLowerCase() || '';
+        const nomeProfissional = c.profissional?.nome.toLowerCase() || '';
+        const nomeUnidade = c.unidade?.nome.toLowerCase() || '';
+        
+        return motivo.includes(searchTerm) ||
+               tipoExame.includes(searchTerm) ||
+               nomeProfissional.includes(searchTerm) ||
+               nomeUnidade.includes(searchTerm);
+      })
+    : decryptedConsultas;
+
+  // 4. Aplicamos a lógica de paginação no resultado FINAL (já filtrado)
   let nextCursor: string | null = null;
-  if (consultas.length > limit) {
-    const nextItem = consultas.pop();
-    nextCursor = nextItem!.id;
+  let items = filteredConsultas;
+
+  if (!search) { // A lógica de cursor só se aplica se não estivermos a pesquisar
+      if (filteredConsultas.length > limit) {
+        const nextItem = items.pop();
+        nextCursor = nextItem!.id;
+      }
+  } else { // Se estamos a pesquisar, podemos simplesmente limitar os resultados
+      items = filteredConsultas.slice(0, limit);
   }
-
-  const decryptedConsultas = consultas.map(decryptConsulta);
-
+  
   return {
-    items: decryptedConsultas,
+    items,
     nextCursor,
   };
 }
