@@ -140,7 +140,7 @@ export function ExamDetailsForm({
                   <SelectItem value="Raio-X">Raio-X</SelectItem>
                   <SelectItem value="Tomografia">Tomografia</SelectItem>
                   <SelectItem value="Ressonancia">Ressonância Magnética</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
+                  <SelectItem value="Outros">Outros</SelectItem>
                 </SelectContent>
               </Select>
             </div>

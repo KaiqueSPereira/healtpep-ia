@@ -42,7 +42,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 profissional: true,
                 profissionalExecutante: true,
                 consulta: { include: { profissional: true, unidade: true } },
-                anexos: includeAnexos,
+                anexos: includeAnexos ? {
+                    select: {
+                        id: true,
+                        nomeArquivo: true,
+                        createdAt: true,
+                        mimetype: true,
+                    }
+                } : undefined,
                 _count: includeAnexos ? undefined : { select: { anexos: true } },
             },
         });
@@ -112,18 +119,21 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const condicaoSaudeId = formData.get("condicaoSaudeId") as string | null;
         const consultaId = formData.get("consultaId") as string | null;
         const resultadosStr = formData.get("resultados") as string | null;
+        const laudoFinalizadoStr = formData.get("laudoFinalizado") as string | null;
         const newFiles = formData.getAll("files") as File[];
 
         if (!nome || !tipo) {
             return NextResponse.json({ error: "Os campos 'nome' e 'tipo' são obrigatórios." }, { status: 400 });
         }
-
+        
+        const laudoFinalizado = laudoFinalizadoStr === 'true';
         const resultados: {nome: string, valor: string, unidade?: string, referencia?: string}[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
         const updatedExame = await prisma.$transaction(async (tx) => {
             const updateData: Prisma.ExameUpdateInput = {
                 nome: safeEncrypt(nome),
                 tipo: safeEncrypt(tipo),
+                laudoFinalizado: laudoFinalizado,
                 anotacao: anotacao ? safeEncrypt(anotacao) : null,
                 dataExame: dataExameStr ? new Date(dataExameStr) : undefined,
                 unidades: unidadesId && unidadesId !== 'null' ? { connect: { id: unidadesId } } : { disconnect: true },

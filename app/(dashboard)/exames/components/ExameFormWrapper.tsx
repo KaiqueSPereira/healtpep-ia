@@ -8,6 +8,7 @@ import { Button } from "../../../_components/ui/button";
 import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
 import { Textarea } from "../../../_components/ui/textarea";
+import { Switch } from "../../../_components/ui/switch";
 import { toast } from "../../../_hooks/use-toast";
 import {
   Consulta,
@@ -18,7 +19,6 @@ import {
 } from "@/app/_components/types"; 
 import { ExamDetailsForm } from "./ExamDetailForm";
 import { UnidadeDeSaude } from "@prisma/client";
-
 
 type Anexo = {
   id: string;
@@ -33,6 +33,7 @@ type ExameComRelacoes = Exame & {
   consulta?: Consulta | null; 
   condicaoSaude?: CondicaoSaude | null;
   anexos?: Anexo[];
+  laudoFinalizado?: boolean;
 };
 
 type ApiExameResult = {
@@ -66,24 +67,21 @@ export function ExameFormWrapper({
   const [dataExame, setDataExame] = useState<string>("");
   const [horaExame, setHoraExame] = useState<string>("");
   const [anotacao, setAnotacao] = useState<string>("");
+  const [laudoFinalizado, setLaudoFinalizado] = useState<boolean>(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
-
   const [exameResultados, setExameResultados] = useState<Partial<ResultadoExame>[]>([]);
-
   const [selectorsKey, setSelectorsKey] = useState(0);
 
   const router = useRouter();
   const { session } = useAuthStore();
   const userId = session?.user?.id;
 
-  // Função simplificada para apenas definir a consulta selecionada
   const handleConsultaSelect = (consulta: Consulta | null) => {
     setSelectedConsulta(consulta);
   };
 
-  // Carrega todos os dados necessários para os menus
   useEffect(() => {
     if (!userId) return;
     const fetchData = async () => {
@@ -107,22 +105,15 @@ export function ExameFormWrapper({
     fetchData();
   }, [userId]);
 
-  // **USE EFFECT PARA ATUALIZAR CAMPOS COM BASE NA CONSULTA SELECIONADA**
   useEffect(() => {
-    // Se uma consulta for selecionada, atualiza os campos dependentes.
     if (selectedConsulta) {
       setSelectedUnidade(selectedConsulta.unidade || null);
       setSelectedProfissional(selectedConsulta.profissional || null);
       setSelectedCondicao(selectedConsulta.condicaoSaude || null);
-    } else {
-      // Se a consulta for removida, não limpamos os outros campos
-      // para permitir a seleção manual.
-    }
-    // Força a recriação dos menus para refletir o estado mais recente
+    } 
     setSelectorsKey(prev => prev + 1);
   }, [selectedConsulta]);
 
-  // Carrega os dados de um exame existente para edição
   useEffect(() => {
     if (existingExamData) {
       setTipo(existingExamData.tipo || "");
@@ -141,9 +132,8 @@ export function ExameFormWrapper({
       }
       setAnotacao(existingExamData.anotacao || "");
       setExameResultados(existingExamData.resultados || []);
+      setLaudoFinalizado(existingExamData.laudoFinalizado || false);
       
-      // Define a consulta, o que vai acionar o useEffect acima para preencher o resto.
-      // Se não houver consulta, define os outros campos individualmente.
       if (existingExamData.consulta) {
         setSelectedConsulta(existingExamData.consulta);
       } else {
@@ -152,7 +142,6 @@ export function ExameFormWrapper({
         setSelectedCondicao(existingExamData.condicaoSaude || null);
         setSelectorsKey(prev => prev + 1);
       }
-      // Define o profissional executante se ele existir
       if(existingExamData.profissionalExecutante) {
           setSelectedProfissionalExecutante(existingExamData.profissionalExecutante);
       }
@@ -190,14 +179,7 @@ export function ExameFormWrapper({
   };
 
   const handleAnalyzeFile = async () => {
-    if (selectedFiles.length === 0) {
-      toast({ title: "Por favor, selecione um ou mais arquivos.", variant: "destructive" });
-      return;
-    }
-    if (!tipo) {
-      toast({ title: "Por favor, selecione o tipo de exame primeiro.", variant: "destructive" });
-      return;
-    }
+    if (selectedFiles.length === 0 || !tipo) return;
 
     setLoadingAnalysis(true);
     let analysisSuccessCount = 0;
@@ -211,11 +193,7 @@ export function ExameFormWrapper({
         const res = await fetch("/api/exames/analise", { method: "POST", body: formData });
         if (!res.ok) {
           const errorData = await res.json();
-          toast({
-            title: `Erro ao analisar o arquivo ${file.name}`,
-            description: errorData.error,
-            variant: "destructive",
-          });
+          toast({ title: `Erro ao analisar ${file.name}`, description: errorData.error, variant: "destructive" });
           continue; 
         }
 
@@ -236,16 +214,11 @@ export function ExameFormWrapper({
         }
         analysisSuccessCount++;
       } catch (error) {
-        toast({
-          title: `Erro ao processar o arquivo ${file.name}`,
-          description: "Verifique sua conexão ou o formato do arquivo.",
-          variant: "destructive",
-        });
+        toast({ title: `Erro ao processar ${file.name}`, description: "Verifique a conexão.", variant: "destructive" });
       }
     }
     
     if (analysisSuccessCount > 0) {
-        // A LINHA PROBLEMÁTICA FOI REMOVIDA DAQUI
         toast({ title: `Análise concluída para ${analysisSuccessCount} de ${selectedFiles.length} arquivo(s).` });
     }
 
@@ -254,11 +227,7 @@ export function ExameFormWrapper({
 
  const handleSubmit = async () => {
     if (!tipo) {
-      toast({
-        title: "O tipo de exame é obrigatório.",
-        description: "Por favor, selecione um tipo antes de salvar.",
-        variant: "destructive",
-      });
+      toast({ title: "O tipo de exame é obrigatório.", variant: "destructive" });
       return;
     }
 
@@ -273,9 +242,7 @@ export function ExameFormWrapper({
         }
     }
 
-    const endpoint = existingExamData
-      ? `/api/exames/${existingExamData.id}`
-      : "/api/exames";
+    const endpoint = existingExamData ? `/api/exames/${existingExamData.id}` : "/api/exames";
     const method = existingExamData ? "PUT" : "POST";
 
     if (userId) body.append("userId", userId);
@@ -283,6 +250,7 @@ export function ExameFormWrapper({
     body.append("nome", tipo);
     body.append("tipo", tipo);
     body.append("anotacao", anotacao);
+    body.append("laudoFinalizado", String(laudoFinalizado));
 
     body.append("profissionalId", selectedProfissional?.id || "");
     body.append("profissionalExecutanteId", selectedProfissionalExecutante?.id || "");
@@ -294,42 +262,27 @@ export function ExameFormWrapper({
       body.append("resultados", JSON.stringify(exameResultados));
     }
 
-    if (selectedFiles.length > 0) {
-      selectedFiles.forEach((file) => {
-        body.append(`files`, file);
-      });
-    }
+    selectedFiles.forEach(file => body.append(`files`, file));
 
     try {
       const res = await fetch(endpoint, { method, body });
       if (res.ok) {
-        toast({
-          title: `Exame ${existingExamData ? "atualizado" : "cadastrado"} com sucesso!`,
-        });
+        toast({ title: `Exame ${existingExamData ? "atualizado" : "cadastrado"}!` });
         router.push("/exames");
         router.refresh();
       } else {
         const errorData = await res.json();
-        toast({
-          title: "Erro ao salvar o exame",
-          description: errorData.error || "Não foi possível salvar, verifique os dados.",
-          variant: "destructive",
-        });
+        toast({ title: "Erro ao salvar", description: errorData.error, variant: "destructive" });
       }
     } catch (e) {
-      toast({
-        title: "Ocorreu um erro de rede.",
-        description: "Verifique sua conexão e tente novamente.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro de rede", variant: "destructive" });
     } finally {
       setLoadingSubmit(false);
     }
   };
 
   return (
-    <>
-      <main className="container mx-auto space-y-8 py-8">
+    <div className="space-y-8">
         <h1 className="text-3xl font-bold">
           {existingExamData ? "Editar Exame" : "Cadastrar Exame"}
         </h1>
@@ -360,10 +313,20 @@ export function ExameFormWrapper({
             onTipoChange={setTipo}
             selectorsKey={selectorsKey}
           />
-          <div>
-            <Label>Anotação</Label>
+          <div className="space-y-2">
+            <Label>Anotação / Laudo</Label>
             <Textarea value={anotacao} onChange={(e) => setAnotacao(e.target.value)} />
           </div>
+          
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="laudo-finalizado"
+              checked={laudoFinalizado}
+              onCheckedChange={setLaudoFinalizado}
+            />
+            <Label htmlFor="laudo-finalizado">Marcar Laudo como Finalizado</Label>
+          </div>
+
           <div>
             <Label>Anexar Arquivo (PDF ou imagem)</Label>
             <div className="flex items-center space-x-2">
@@ -405,7 +368,6 @@ export function ExameFormWrapper({
             {loadingSubmit ? (existingExamData ? "Atualizando..." : "Enviando...") : (existingExamData ? "Atualizar Exame" : "Cadastrar Exame")}
           </Button>
         </form>
-      </main>
-    </>
+    </div>
   );
 }
