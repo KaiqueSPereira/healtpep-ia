@@ -68,7 +68,7 @@ const MenuCondicoes: React.FC<MenuCondicoesProps> = ({
                       }}
                     >
                       <Check
-                        className={`mr-2 h-4 w-4 ${
+                        className={`mr-2 h-4 w-4 ${ 
                           selectedCondicao?.id === condicao.id
                             ? "opacity-100"
                             : "opacity-0"

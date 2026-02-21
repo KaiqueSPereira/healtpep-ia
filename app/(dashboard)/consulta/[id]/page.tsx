@@ -8,19 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/c
 import { ChevronLeftIcon, Edit, PlusCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
 import AnexoPreviewModal from '../components/AnexoPreviewModal';
-import { Anexo, Consulta, TimelineItem } from '@/app/_components/types'; 
+import { Anexo, Consulta, TimelineItem, Anotacao } from '@/app/_components/types'; 
 import { HistoricoTratamentoItem, ExameComRelacoes } from '../types';
 import AnexosList from '../components/AnexosList';
 import AnexoUploader from '../components/AnexoUploader';
 import HistoricoTratamentoCard from '../components/HistoricoTratamentoCard';
 import ConsultaPageSkeleton from '../components/ConsultaPageSkeleton';
 import AnotacoesCard from '../components/AnotacoesCard';
-
-// Definindo o tipo Anotacao localmente para garantir que esteja sempre disponível.
-interface Anotacao {
-  id: string;
-  anotacao: string;
-}
 
 const ConsultaPage = () => {
     const router = useRouter();
@@ -136,11 +130,11 @@ const ConsultaPage = () => {
 
             setConsulta(prev => {
                 if (!prev) return null;
-                const existingAnotacoes = (prev as any).Anotacao || [];
+                const existingAnotacoes = prev.Anotacao || [];
                 return {
                     ...prev,
                     Anotacao: [...existingAnotacoes, novaAnotacao],
-                } as Consulta;
+                };
             });
 
             setNovaAnotacaoContent("");
@@ -213,7 +207,7 @@ const ConsultaPage = () => {
                             </TabsContent>
                             <TabsContent value="anotacoes" className="pt-4">
                                 <AnotacoesCard 
-                                    anotacoes={(consulta as any).Anotacao || []} 
+                                    anotacoes={consulta.Anotacao || []} 
                                     novaAnotacaoContent={novaAnotacaoContent} 
                                     setNovaAnotacaoContent={setNovaAnotacaoContent} 
                                     handleAdicionarAnotacao={handleAdicionarAnotacao} 

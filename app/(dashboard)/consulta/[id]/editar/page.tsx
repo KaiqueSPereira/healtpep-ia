@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useParams } from "next/navigation";
 import Updateconsulta from "./_components/updateconsulta";
@@ -11,7 +11,7 @@ const Page = () => {
   }
 
   return (
-    <div>
+    <div className="h-full">
       <Updateconsulta params={{ id: Array.isArray(params.id) ? params.id[0] : params.id }} />
     </div>
   );

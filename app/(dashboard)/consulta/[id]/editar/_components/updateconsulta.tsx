@@ -41,9 +41,6 @@ interface ConsultaPageProps {
   params: { id: string };
 }
 
-// A definição local de TimelineItem foi removida.
-
-
 // Selector de Tipo de Consulta
 const TipoConsultaSelector = ({ selectedTipo, onSelect }: { selectedTipo: string; onSelect: (tipo: Consultatype) => void }) => {
     const [open, setOpen] = useState(false);
@@ -108,7 +105,7 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
             fetch("/api/unidadesaude"),
             fetch("/api/consultas?get=all"),
             fetch("/api/exames?forMenu=true"),
-            fetch("/api/condicoessaude"),
+            fetch("/api/condicoes"),
         ]);
 
         for (const response of responses) {
@@ -169,12 +166,11 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
   const timelineUnificada: TimelineItem[] = useMemo(() => {
     if (!consulta) return [];
     
-    // Garante que o histórico exista e o mapeia
     const consultas: TimelineItem[] = (consulta.historicoTratamento || [])
-        .filter(item => !!item.data) // Filtra itens sem data
+        .filter(item => !!item.data)
         .map((item: HistoricoTratamentoItem) => ({
             id: item.id,
-            data: item.data, // Já é string ou Date
+            data: item.data, 
             tipo: item.tipo,
             motivo: item.motivo,
             profissional: item.profissional,
@@ -186,12 +182,11 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
     const isRetorno = !!consulta.consultaOrigem;
     const examesDoContexto = isRetorno ? consulta.consultaOrigem?.Exame || [] : consulta.Exame || [];
 
-    // Filtra exames que não têm data e depois mapeia
     const exames: TimelineItem[] = examesDoContexto
-        .filter((exame: ExameComRelacoes) => !!exame.dataExame) // CORREÇÃO: Filtra exames sem data
+        .filter((exame: ExameComRelacoes) => !!exame.dataExame)
         .map((exame: ExameComRelacoes) => ({
             id: exame.id,
-            data: exame.dataExame!, // A exclamação indica que sabemos que não é nulo aqui
+            data: exame.dataExame!,
             tipo: exame.tipo || 'Exame',
             motivo: 'Solicitação de Exame',
             anotacao: exame.anotacao,
@@ -202,7 +197,6 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
         }));
 
     const todosOsItens = [...consultas, ...exames];
-    // A ordenação agora é segura, pois `data` não pode ser nula
     todosOsItens.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     
     return todosOsItens;
@@ -216,9 +210,6 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
     handleUpdateField('tipo', newTipo);
     if (newTipo !== Consultatype.Retorno) {
         setSelectedConsultaOrigem(null);
-    }
-    if (newTipo !== Consultatype.Tratamento) {
-        setSelectedCondicao(null);
     }
   };
 
@@ -275,7 +266,7 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
         consultaOrigemId: selectedConsultaOrigem?.id || null,
       };
 
-      if (formData.tipo === Consultatype.Tratamento && selectedCondicao) {
+      if (selectedCondicao) {
         payload.condicoes = { set: [{ id: selectedCondicao.id }] };
       } else {
         payload.condicoes = { set: [] };
@@ -349,16 +340,14 @@ const UpdateConsulta = ({ params }: ConsultaPageProps) => {
                                 />
                             </div>
                           )}
-                           {formData.tipo === Consultatype.Tratamento && (
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Condição de Saúde</label>
-                                <MenuCondicoes
-                                    condicoes={allCondicoes}
-                                    selectedCondicao={selectedCondicao}
-                                    onCondicaoSelect={setSelectedCondicao}
-                                />
-                            </div>
-                          )}
+                           <div>
+                              <label className="block text-sm font-medium mb-1">Condição de Saúde</label>
+                              <MenuCondicoes
+                                  condicoes={allCondicoes}
+                                  selectedCondicao={selectedCondicao}
+                                  onCondicaoSelect={setSelectedCondicao}
+                              />
+                          </div>
                           <div>
                               <label className="block text-sm font-medium mb-1">Data e Hora</label>
                               <div className="flex items-center gap-2">

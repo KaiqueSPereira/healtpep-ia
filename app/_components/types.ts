@@ -8,7 +8,8 @@ import {
     ResultadoExame as PrismaResultadoExame,
     Endereco as PrismaEndereco,
     User as PrismaUsuario,
-    AnexoConsulta as PrismaAnexo
+    AnexoConsulta as PrismaAnexo,
+    Anotacoes as PrismaAnotacao
 } from '@prisma/client';
 
 // --- Base Entity Types ---
@@ -16,6 +17,7 @@ import {
 export type Endereco = PrismaEndereco;
 export type Usuario = PrismaUsuario;
 export type Anexo = PrismaAnexo;
+export type Anotacao = PrismaAnotacao;
 
 export type Unidade = PrismaUnidade & {
     endereco?: Endereco;
@@ -38,6 +40,7 @@ export type Consulta = Omit<PrismaConsulta, 'data'> & {
   unidade?: Unidade | null;
   condicaoSaude?: CondicaoSaude | null;
   anexos?: Anexo[];
+  Anotacao?: Anotacao[];
   historicoTratamento?: Consulta[];
   consultaOrigem?: Consulta | null;
   Exame?: Exame[]; 
