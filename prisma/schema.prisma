@@ -42,8 +42,8 @@ model PermissionOnRole {
 model ResourceLimit {
   id       String @id @default(cuid())
   roleId   String
-  resource String 
-  limit    Int    
+  resource String
+  limit    Int
 
   role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
@@ -224,19 +224,20 @@ model Endereco {
 }
 
 model Profissional {
-  id             String           @id @default(uuid())
-  nome           String
-  especialidade  String
-  NumClasse      String           @unique
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  userId         String?
-  condicoesSaude CondicaoSaude[]  @relation("ProfissionalCondicoes")
-  consultas      Consultas[]
-  exames         Exame[]
-  medicamentos   Medicamento[]
-  usuario        User?            @relation(fields: [userId], references: [id])
-  unidades       UnidadeDeSaude[] @relation("ProfissionalUnidades")
+  id               String           @id @default(uuid())
+  nome             String
+  especialidade    String
+  NumClasse        String           @unique
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  userId           String?
+  condicoesSaude   CondicaoSaude[]  @relation("ProfissionalCondicoes")
+  consultas        Consultas[]
+  exames           Exame[]          @relation("ExameSolicitante")
+  examesExecutados Exame[]          @relation("ExameExecutante")
+  medicamentos     Medicamento[]
+  usuario          User?            @relation(fields: [userId], references: [id])
+  unidades         UnidadeDeSaude[] @relation("ProfissionalUnidades")
 
   @@index([userId])
 }
@@ -283,32 +284,35 @@ model UnidadeDeSaude {
 }
 
 model Exame {
-  id              String           @id @default(uuid())
-  nome            String
-  dataExame       DateTime?
-  anotacao        String?
-  userId          String
-  profissionalId  String?
-  consultaId      String?
-  unidadesId      String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  tipo            String?
-  analiseIA       String?
-  condicaoSaudeId String?
-  condicaoSaude   CondicaoSaude?   @relation(fields: [condicaoSaudeId], references: [id])
-  consulta        Consultas?       @relation(fields: [consultaId], references: [id])
-  profissional    Profissional?    @relation(fields: [profissionalId], references: [id])
-  unidades        UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
-  usuario         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  resultados      ResultadoExame[]
-  anexos          AnexoExame[]
+  id                       String           @id @default(uuid())
+  nome                     String
+  dataExame                DateTime?
+  anotacao                 String?
+  userId                   String
+  profissionalId           String?
+  consultaId               String?
+  unidadesId               String?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  tipo                     String?
+  analiseIA                String?
+  condicaoSaudeId          String?
+  profissionalExecutanteId String?
+  condicaoSaude            CondicaoSaude?   @relation(fields: [condicaoSaudeId], references: [id])
+  consulta                 Consultas?       @relation(fields: [consultaId], references: [id])
+  profissional             Profissional?    @relation("ExameSolicitante", fields: [profissionalId], references: [id])
+  profissionalExecutante   Profissional?    @relation("ExameExecutante", fields: [profissionalExecutanteId], references: [id])
+  unidades                 UnidadeDeSaude?  @relation(fields: [unidadesId], references: [id])
+  usuario                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resultados               ResultadoExame[]
+  anexos                   AnexoExame[]
 
   @@index([userId])
   @@index([profissionalId])
   @@index([consultaId])
   @@index([unidadesId])
   @@index([condicaoSaudeId])
+  @@index([profissionalExecutanteId])
 }
 
 model ResultadoExame {
@@ -411,7 +415,7 @@ model ErrorLog {
   message   String
   stack     String?
   url       String?
-  level     String? 
+  level     String?
   component String?
   timestamp DateTime @default(now())
 }

@@ -2,18 +2,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } from "@/app/_lib/crypto";
-import { Prisma, AnexoExame } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
 
-interface ResultadoInput {
-    nome: string;
-    valor: string;
-    unidade?: string | null;
-    referencia?: string | null;
-}
+// Objeto que define a query para incluir todas as relações
+const exameWithDetailsArgs = {
+    include: {
+        resultados: true,
+        unidades: { include: { endereco: true } },
+        profissional: true,
+        profissionalExecutante: true,
+        consulta: { include: { profissional: true, unidade: true } },
+        anexos: true,
+        _count: { select: { anexos: true } },
+    },
+};
 
-// GET /api/exames/[id] - Busca e descriptografa os detalhes de um exame, com opção de incluir anexos.
+// Tipo gerado automaticamente pelo Prisma que corresponde exatamente aos dados da query
+type ExameWithDetails = Prisma.ExameGetPayload<typeof exameWithDetailsArgs>;
+
+// GET /api/exames/[id] - Busca e descriptografa os detalhes de um exame.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API GET /api/exames/[id]";
     const id = params.id;
@@ -25,61 +34,63 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 
     try {
-        const includeOptions: Prisma.ExameInclude = {
-            resultados: true,
-            unidades: { include: { endereco: true } },
-            profissional: true,
-            consulta: { include: { profissional: true, unidade: true } },
-        };
-
-        if (includeAnexos) {
-            includeOptions.anexos = true;
-        } else {
-            includeOptions._count = { select: { anexos: true } };
-        }
-
         const exameFromDb = await prisma.exame.findUnique({
             where: { id },
-            include: includeOptions,
+            include: {
+                resultados: true,
+                unidades: { include: { endereco: true } },
+                profissional: true,
+                profissionalExecutante: true,
+                consulta: { include: { profissional: true, unidade: true } },
+                anexos: includeAnexos,
+                _count: includeAnexos ? undefined : { select: { anexos: true } },
+            },
         });
 
         if (!exameFromDb) {
             return NextResponse.json({ error: "Exame não encontrado." }, { status: 404 });
         }
-        
-        const decryptedExame = {
-            ...exameFromDb,
-            nome: exameFromDb.nome ? safeDecrypt(exameFromDb.nome) : "Exame",
-            anotacao: exameFromDb.anotacao ? safeDecrypt(exameFromDb.anotacao) : null,
-            analiseIA: exameFromDb.analiseIA ? safeDecrypt(exameFromDb.analiseIA) : null,
-            resultados: exameFromDb.resultados.map(r => ({
+
+        const exame = exameFromDb as ExameWithDetails;
+
+        const decryptedConsulta = exame.consulta ? {
+            ...exame.consulta,
+            motivo: exame.consulta.motivo ? safeDecrypt(exame.consulta.motivo) : null,
+            profissional: exame.consulta.profissional && exame.consulta.profissional.nome
+                ? { ...exame.consulta.profissional, nome: safeDecrypt(exame.consulta.profissional.nome) }
+                : exame.consulta.profissional,
+            unidade: exame.consulta.unidade && exame.consulta.unidade.nome
+                ? { ...exame.consulta.unidade, nome: safeDecrypt(exame.consulta.unidade.nome) }
+                : exame.consulta.unidade,
+        } : null;
+
+        const finalExameObject = {
+            ...exame,
+            nome: exame.nome ? safeDecrypt(exame.nome) : "Exame",
+            tipo: exame.tipo ? safeDecrypt(exame.tipo) : null,
+            anotacao: exame.anotacao ? safeDecrypt(exame.anotacao) : null,
+            analiseIA: exame.analiseIA ? safeDecrypt(exame.analiseIA) : null,
+            profissional: exame.profissional && exame.profissional.nome ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) } : exame.profissional,
+            profissionalExecutante: exame.profissionalExecutante && exame.profissionalExecutante.nome ? { ...exame.profissionalExecutante, nome: safeDecrypt(exame.profissionalExecutante.nome) } : exame.profissionalExecutante,
+            unidades: exame.unidades && exame.unidades.nome ? { ...exame.unidades, nome: safeDecrypt(exame.unidades.nome) } : exame.unidades,
+            resultados: exame.resultados.map(r => ({
                 ...r,
                 nome: r.nome ? safeDecrypt(r.nome) : null,
                 valor: r.valor ? safeDecrypt(r.valor) : null,
                 unidade: r.unidade ? safeDecrypt(r.unidade) : null,
                 referencia: r.referencia ? safeDecrypt(r.referencia) : null,
             })),
-            consulta: exameFromDb.consulta ? {
-                ...exameFromDb.consulta,
-                motivo: exameFromDb.consulta.motivo ? safeDecrypt(exameFromDb.consulta.motivo) : null
-            } : null
+            consulta: decryptedConsulta,
+            anexos: includeAnexos && exame.anexos ? exame.anexos.map(anexo => ({ ...anexo, nomeArquivo: safeDecrypt(anexo.nomeArquivo) })) : [],
         };
 
-        if (includeAnexos && 'anexos' in decryptedExame && Array.isArray(decryptedExame.anexos)) {
-            decryptedExame.anexos = decryptedExame.anexos.map((anexo: AnexoExame) => ({
-                ...anexo,
-                nomeArquivo: safeDecrypt(anexo.nomeArquivo),
-            }));
-        }
-
-        return NextResponse.json({ exame: decryptedExame });
+        return NextResponse.json({ exame: finalExameObject });
 
     } catch (error) {
         await logErrorToDb(`Erro ao buscar detalhes do exame ${id}`, error instanceof Error ? error.stack || error.message : String(error), componentName);
         return NextResponse.json({ error: "Não foi possível carregar os detalhes do exame. Tente novamente mais tarde." }, { status: 500 });
     }
 }
-
 
 // PUT /api/exames/[id] - Atualiza um exame existente usando FormData.
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
@@ -91,13 +102,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     try {
         const formData = await request.formData();
-
         const nome = formData.get("nome") as string | null;
         const tipo = formData.get("tipo") as string | null;
         const anotacao = formData.get("anotacao") as string | null;
         const dataExameStr = formData.get("dataExame") as string | null;
         const unidadesId = formData.get("unidadesId") as string | null;
         const profissionalId = formData.get("profissionalId") as string | null;
+        const profissionalExecutanteId = formData.get("profissionalExecutanteId") as string | null;
         const condicaoSaudeId = formData.get("condicaoSaudeId") as string | null;
         const consultaId = formData.get("consultaId") as string | null;
         const resultadosStr = formData.get("resultados") as string | null;
@@ -107,7 +118,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             return NextResponse.json({ error: "Os campos 'nome' e 'tipo' são obrigatórios." }, { status: 400 });
         }
 
-        const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
+        const resultados: {nome: string, valor: string, unidade?: string, referencia?: string}[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
         const updatedExame = await prisma.$transaction(async (tx) => {
             const updateData: Prisma.ExameUpdateInput = {
@@ -117,6 +128,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 dataExame: dataExameStr ? new Date(dataExameStr) : undefined,
                 unidades: unidadesId && unidadesId !== 'null' ? { connect: { id: unidadesId } } : { disconnect: true },
                 profissional: profissionalId && profissionalId !== 'null' ? { connect: { id: profissionalId } } : { disconnect: true },
+                profissionalExecutante: profissionalExecutanteId && profissionalExecutanteId !== 'null' ? { connect: { id: profissionalExecutanteId } } : { disconnect: true },
                 condicaoSaude: condicaoSaudeId && condicaoSaudeId !== 'null' ? { connect: { id: condicaoSaudeId } } : { disconnect: true },
                 consulta: consultaId && consultaId !== 'null' ? { connect: { id: consultaId } } : { disconnect: true },
             };
@@ -126,7 +138,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             await tx.resultadoExame.deleteMany({ where: { exameId: id } });
             if (resultados && resultados.length > 0) {
                 await tx.resultadoExame.createMany({
-                    data: resultados.map((r: ResultadoInput) => ({
+                    data: resultados.map((r) => ({
                         exameId: id,
                         nome: safeEncrypt(r.nome),
                         valor: safeEncrypt(r.valor),
@@ -176,7 +188,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         const body = await request.json();
         const { consultaId } = body;
 
-        // Validar se consultaId é uma string ou null
         if (consultaId !== null && typeof consultaId !== 'string') {
             return NextResponse.json({ error: "O campo 'consultaId' deve ser uma string ou nulo." }, { status: 400 });
         }

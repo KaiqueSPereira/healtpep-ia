@@ -28,6 +28,7 @@ type Anexo = {
 type ExameComRelacoes = Exame & {
   resultados?: ResultadoExame[];
   profissional?: Profissional | null;
+  profissionalExecutante?: Profissional | null;
   unidades?: UnidadeDeSaude | null;
   consulta?: Consulta | null; 
   condicaoSaude?: CondicaoSaude | null;
@@ -57,6 +58,7 @@ export function ExameFormWrapper({
   const [selectedUnidade, setSelectedUnidade] = useState<UnidadeDeSaude | null>(null);
   const [profissionais, setProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
+  const [selectedProfissionalExecutante, setSelectedProfissionalExecutante] = useState<Profissional | null>(null);
   const [condicoesSaude, setCondicoesSaude] = useState<CondicaoSaude[]>([]);
   const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
 
@@ -149,6 +151,10 @@ export function ExameFormWrapper({
         setSelectedProfissional(existingExamData.profissional || null); 
         setSelectedCondicao(existingExamData.condicaoSaude || null);
         setSelectorsKey(prev => prev + 1);
+      }
+      // Define o profissional executante se ele existir
+      if(existingExamData.profissionalExecutante) {
+          setSelectedProfissionalExecutante(existingExamData.profissionalExecutante);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -279,6 +285,7 @@ export function ExameFormWrapper({
     body.append("anotacao", anotacao);
 
     body.append("profissionalId", selectedProfissional?.id || "");
+    body.append("profissionalExecutanteId", selectedProfissionalExecutante?.id || "");
     body.append("unidadesId", selectedUnidade?.id || "");
     body.append("consultaId", selectedConsulta?.id || "");
     body.append("condicaoSaudeId", selectedCondicao?.id || "");
@@ -340,6 +347,8 @@ export function ExameFormWrapper({
             profissionais={profissionais}
             selectedProfissional={selectedProfissional}
             onProfissionalSelect={setSelectedProfissional}
+            selectedProfissionalExecutante={selectedProfissionalExecutante}
+            onProfissionalExecutanteSelect={setSelectedProfissionalExecutante}
             condicoesSaude={condicoesSaude}
             selectedCondicao={selectedCondicao}
             onCondicaoChange={setSelectedCondicao}

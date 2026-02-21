@@ -23,6 +23,8 @@ interface ExamDetailsFormProps {
     profissionais: Profissional[];
     selectedProfissional: Profissional | null;
     onProfissionalSelect: (profissional: Profissional | null) => void;
+    selectedProfissionalExecutante: Profissional | null;
+    onProfissionalExecutanteSelect: (profissional: Profissional | null) => void;
 
     condicoesSaude: CondicaoSaude[];
     selectedCondicao: CondicaoSaude | null;
@@ -46,6 +48,7 @@ export function ExamDetailsForm({
     unidades,
     selectedUnidade, onUnidadeSelect,
     profissionais, selectedProfissional, onProfissionalSelect,
+    selectedProfissionalExecutante, onProfissionalExecutanteSelect,
     condicoesSaude, selectedCondicao, onCondicaoChange,
     dataExame, onDataExameChange,
     horaExame, onHoraExameChange,
@@ -91,6 +94,17 @@ export function ExamDetailsForm({
                 profissionais={profissionais}
                 selectedProfissional={selectedProfissional}
                 onProfissionalSelect={onProfissionalSelect}
+                unidadeId={selectedUnidade?.id}
+              />
+            </div>
+
+            <div>
+              <Label>Profissional Executante</Label>
+              <MenuProfissionais
+                key={`profissional-executante-selector-${selectorsKey}`}
+                profissionais={profissionais}
+                selectedProfissional={selectedProfissionalExecutante}
+                onProfissionalSelect={onProfissionalExecutanteSelect}
                 unidadeId={selectedUnidade?.id}
               />
             </div>

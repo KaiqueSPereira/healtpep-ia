@@ -1,6 +1,5 @@
 'use client';
 import { useRouter, useSearchParams } from "next/navigation";
-import Header from "@/app/_components/header";
 import {
   Form,
   FormControl,
@@ -148,7 +147,6 @@ export function ProfissionalFormWrapper() {
 
   return (
     <div>
-      <Header />
       <div className="flex items-center justify-between p-5">
         <Button
           size="icon"

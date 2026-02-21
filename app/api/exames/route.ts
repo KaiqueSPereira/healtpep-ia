@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
     const componentName = "API GET /api/exames";
     const searchParams = request.nextUrl.searchParams;
 
-    // Nova rota para buscar todos os exames para o menu de seleção
     if (searchParams.get('forMenu') === 'true') {
         const session = await getServerSession(authOptions);
         if (!session?.user?.id) {
@@ -32,6 +31,7 @@ export async function GET(request: NextRequest) {
                 where: { userId: session.user.id },
                 include: {
                     profissional: true,
+                    profissionalExecutante: true,
                     unidades: true,
                 },
                 orderBy: { dataExame: 'desc' },
@@ -43,6 +43,9 @@ export async function GET(request: NextRequest) {
                 profissional: exame.profissional && exame.profissional.nome
                     ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) }
                     : exame.profissional,
+                 profissionalExecutante: exame.profissionalExecutante && exame.profissionalExecutante.nome
+                    ? { ...exame.profissionalExecutante, nome: safeDecrypt(exame.profissionalExecutante.nome) }
+                    : exame.profissionalExecutante,
                 unidades: exame.unidades && exame.unidades.nome
                     ? { ...exame.unidades, nome: safeDecrypt(exame.unidades.nome) }
                     : exame.unidades,
@@ -60,7 +63,6 @@ export async function GET(request: NextRequest) {
         }
     }
 
-    // Lógica original de listagem paginada de exames
     const userId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -77,6 +79,7 @@ export async function GET(request: NextRequest) {
                 where: { userId: userId },
                 include: {
                     profissional: true,
+                    profissionalExecutante: true,
                     unidades: true,
                     resultados: true,
                     _count: { select: { anexos: true } },
@@ -92,6 +95,10 @@ export async function GET(request: NextRequest) {
             const decryptedProfissional = exame.profissional && exame.profissional.nome
                 ? { ...exame.profissional, nome: safeDecrypt(exame.profissional.nome) }
                 : exame.profissional;
+
+             const decryptedProfissionalExecutante = exame.profissionalExecutante && exame.profissionalExecutante.nome
+                ? { ...exame.profissionalExecutante, nome: safeDecrypt(exame.profissionalExecutante.nome) }
+                : exame.profissionalExecutante;
 
             const decryptedUnidade = exame.unidades && exame.unidades.nome
                 ? { ...exame.unidades, nome: safeDecrypt(exame.unidades.nome) }
@@ -118,6 +125,7 @@ export async function GET(request: NextRequest) {
                 anotacao: decryptedAnotacao, 
                 analiseIA: decryptedAnaliseIA,
                 profissional: decryptedProfissional,
+                profissionalExecutante: decryptedProfissionalExecutante,
                 unidades: decryptedUnidade,
                 resultados: decryptedResultados,
             };
@@ -159,6 +167,7 @@ export async function POST(request: Request) {
     const dataExameStr = formData.get("dataExame") as string | null;
     const unidadesId = formData.get("unidadesId") as string | null;
     const profissionalId = formData.get("profissionalId") as string | null;
+    const profissionalExecutanteId = formData.get("profissionalExecutanteId") as string | null;
     const condicaoSaudeId = formData.get("condicaoSaudeId") as string | null;
     const consultaId = formData.get("consultaId") as string | null;
     const resultadosStr = formData.get("resultados") as string | null;
@@ -182,6 +191,7 @@ export async function POST(request: Request) {
       if (dataExameStr) createData.dataExame = new Date(dataExameStr);
       if (unidadesId && unidadesId !== 'null') createData.unidades = { connect: { id: unidadesId } };
       if (profissionalId && profissionalId !== 'null') createData.profissional = { connect: { id: profissionalId } };
+      if (profissionalExecutanteId && profissionalExecutanteId !== 'null') createData.profissionalExecutante = { connect: { id: profissionalExecutanteId } };
       if (condicaoSaudeId && condicaoSaudeId !== 'null') createData.condicaoSaude = { connect: { id: condicaoSaudeId } };
       if (consultaId && consultaId !== 'null') createData.consulta = { connect: { id: consultaId } };
 
