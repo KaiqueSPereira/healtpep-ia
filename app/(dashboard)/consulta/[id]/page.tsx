@@ -6,6 +6,7 @@ import { toast } from '@/app/_hooks/use-toast';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { ChevronLeftIcon, Edit, PlusCircle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
 import AnexoPreviewModal from '../components/AnexoPreviewModal';
 import { Anexo, Consulta, TimelineItem } from '@/app/_components/types'; 
 import { HistoricoTratamentoItem, ExameComRelacoes } from '../types';
@@ -13,6 +14,13 @@ import AnexosList from '../components/AnexosList';
 import AnexoUploader from '../components/AnexoUploader';
 import HistoricoTratamentoCard from '../components/HistoricoTratamentoCard';
 import ConsultaPageSkeleton from '../components/ConsultaPageSkeleton';
+import AnotacoesCard from '../components/AnotacoesCard';
+
+// Definindo o tipo Anotacao localmente para garantir que esteja sempre disponível.
+interface Anotacao {
+  id: string;
+  anotacao: string;
+}
 
 const ConsultaPage = () => {
     const router = useRouter();
@@ -21,6 +29,7 @@ const ConsultaPage = () => {
     const [loading, setLoading] = useState(true);
     const [showAddAnexo, setShowAddAnexo] = useState(false);
     const [selectedAnexo, setSelectedAnexo] = useState<Anexo | null>(null);
+    const [novaAnotacaoContent, setNovaAnotacaoContent] = useState("");
 
     useEffect(() => {
         const fetchConsulta = async () => {
@@ -105,6 +114,43 @@ const ConsultaPage = () => {
         }
     };
 
+    const handleAdicionarAnotacao = async () => {
+        if (!consulta || !novaAnotacaoContent.trim()) {
+            toast({ title: "Anotação vazia", description: "Por favor, escreva algo antes de adicionar.", variant: "destructive" });
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/consultas/${consulta.id}/anotacoes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ anotacao: novaAnotacaoContent }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha ao adicionar anotação');
+            }
+
+            const novaAnotacao: Anotacao = await response.json();
+
+            setConsulta(prev => {
+                if (!prev) return null;
+                const existingAnotacoes = (prev as any).Anotacao || [];
+                return {
+                    ...prev,
+                    Anotacao: [...existingAnotacoes, novaAnotacao],
+                } as Consulta;
+            });
+
+            setNovaAnotacaoContent("");
+            toast({ title: "Anotação adicionada com sucesso!" });
+
+        } catch (error) {
+            toast({ title: "Erro ao adicionar anotação", description: (error as Error).message, variant: "destructive" });
+        }
+    };
+
     if (loading) return <ConsultaPageSkeleton />;
     if (!consulta) return <div className="container mx-auto p-6"><h1>Consulta não encontrada</h1></div>;
 
@@ -128,41 +174,52 @@ const ConsultaPage = () => {
             <main className="flex-1 overflow-y-auto p-6">
                 <div className="container mx-auto flex flex-col lg:flex-row gap-6">
                     <div className="w-full lg:w-2/3 space-y-6">
-                        <Card>
-                            <CardHeader><CardTitle>Informações da Consulta</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <p><strong>Tipo:</strong> {consulta.tipo}</p>
-                                {consulta.consultaOrigem && (
-                                    <p><strong>Retorno de:</strong> <a href={`/consulta/${consulta.consultaOrigem.id}`} className="text-blue-500 hover:underline">
-                                        Consulta de {new Date(consulta.consultaOrigem.data).toLocaleDateString()}
-                                    </a></p>
-                                )}
-                                {consulta.condicaoSaude && (
-                                    <p><strong>Condição de Saúde:</strong> {consulta.condicaoSaude.nome}</p>
-                                )}
-                                <p><strong>Data:</strong> {new Date(consulta.data).toLocaleString()}</p>
-                                <p><strong>Profissional:</strong> {consulta.profissional?.nome || 'Não especificado'}</p>
-                                <p><strong>Unidade:</strong> {consulta.unidade?.nome || 'Não especificada'}</p>
-                                <p><strong>Motivo:</strong> {consulta.motivo}</p>
-                            </CardContent>
-                        </Card>
+                        <Tabs defaultValue="geral" className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="geral">Geral</TabsTrigger>
+                                <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="geral" className="space-y-6 pt-4">
+                                <Card>
+                                    <CardHeader><CardTitle>Informações da Consulta</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <p><strong>Tipo:</strong> {consulta.tipo}</p>
+                                        {consulta.condicaoSaude && (
+                                            <p><strong>Condição de Saúde:</strong> {consulta.condicaoSaude.nome}</p>
+                                        )}
+                                        <p><strong>Data:</strong> {new Date(consulta.data).toLocaleString()}</p>
+                                        <p><strong>Profissional:</strong> {consulta.profissional?.nome || 'Não especificado'}</p>
+                                        <p><strong>Unidade:</strong> {consulta.unidade?.nome || 'Não especificada'}</p>
+                                        <p><strong>Motivo:</strong> {consulta.motivo}</p>
+                                    </CardContent>
+                                </Card>
 
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle>Anexos</CardTitle>
-                                <Button onClick={() => setShowAddAnexo(true)} size="sm">
-                                    <PlusCircle className="h-4 w-4 mr-2" />
-                                    Adicionar Anexo
-                                </Button>
-                            </CardHeader>
-                            <CardContent>
-                                <AnexosList
-                                    anexos={consulta.anexos || []}
-                                    onAnexoClick={setSelectedAnexo}
-                                    onDeleteAnexo={handleDeleteAnexo}
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between">
+                                        <CardTitle>Anexos</CardTitle>
+                                        <Button onClick={() => setShowAddAnexo(true)} size="sm">
+                                            <PlusCircle className="h-4 w-4 mr-2" />
+                                            Adicionar Anexo
+                                        </Button>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <AnexosList
+                                            anexos={consulta.anexos || []}
+                                            onAnexoClick={setSelectedAnexo}
+                                            onDeleteAnexo={handleDeleteAnexo}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+                            <TabsContent value="anotacoes" className="pt-4">
+                                <AnotacoesCard 
+                                    anotacoes={(consulta as any).Anotacao || []} 
+                                    novaAnotacaoContent={novaAnotacaoContent} 
+                                    setNovaAnotacaoContent={setNovaAnotacaoContent} 
+                                    handleAdicionarAnotacao={handleAdicionarAnotacao} 
                                 />
-                            </CardContent>
-                        </Card>
+                            </TabsContent>
+                        </Tabs>
                     </div>
 
                     <div className="w-full lg:w-1/3 space-y-6">
@@ -171,9 +228,8 @@ const ConsultaPage = () => {
                 </div>
             </main>
             
-            {selectedAnexo && <AnexoPreviewModal anexo={selectedAnexo} onClose={() => setSelectedAnexo(null)} />}
-            {/* --- NOME DA PROP E DO HANDLER CORRIGIDOS -- */}
-            {showAddAnexo && <AnexoUploader consultaId={consulta.id} onAnexoAdicionado={handleAnexoAdicionado} onClose={() => setShowAddAnexo(false)} />}
+            {selectedAnexo && <AnexoPreviewModal anexo={selectedAnexo} onClose={() => setSelectedAnexo(null)} />} 
+            {showAddAnexo && <AnexoUploader consultaId={consulta.id} onAnexoAdicionado={handleAnexoAdicionado} onClose={() => setShowAddAnexo(false)} />} 
         </div>
     );
 };
