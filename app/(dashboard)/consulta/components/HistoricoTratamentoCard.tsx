@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { Badge } from "@/app/_components/ui/badge";
-import { ArrowRightIcon } from "lucide-react";
-// Correção: Remover importações não utilizadas de Profissional e Unidade
+import { Badge, BadgeProps } from "@/app/_components/ui/badge";
+import { Stethoscope, FlaskConical } from "lucide-react";
+import Link from 'next/link';
 import { TimelineItem } from "@/app/_components/types";
 
 interface HistoricoTratamentoCardProps {
@@ -9,14 +9,43 @@ interface HistoricoTratamentoCardProps {
     consultaAtualId: string;
 }
 
+// Helper para cortar o texto
+const truncateText = (text: string | null, maxLength: number) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+};
+
+const TimelineIcon = ({ entryType }: { entryType: 'consulta' | 'exame' | string }) => {
+    switch (entryType) {
+        case 'consulta':
+            return <Stethoscope size={16} />;
+        case 'exame':
+            return <FlaskConical size={16} />;
+        default:
+            return null;
+    }
+};
+
+// Retorna a variante da badge com base no tipo
+const getBadgeVariant = (tipo: string): BadgeProps["variant"] => {
+    switch (tipo.toLowerCase()) {
+        case 'retorno':
+        case 'rotina':
+            return 'destructive';
+        case 'outros':
+            return 'secondary';
+        default:
+            return 'default';
+    }
+};
+
 const HistoricoTratamentoCard = ({ items, consultaAtualId }: HistoricoTratamentoCardProps) => {
     if (items.length === 0) {
         return (
             <Card>
                 <CardHeader><CardTitle>Linha do Tempo</CardTitle></CardHeader>
-                <CardContent>
-                    <p>Nenhum evento registrado.</p>
-                </CardContent>
+                <CardContent><p>Nenhum evento registrado.</p></CardContent>
             </Card>
         );
     }
@@ -25,29 +54,51 @@ const HistoricoTratamentoCard = ({ items, consultaAtualId }: HistoricoTratamento
         <Card>
             <CardHeader><CardTitle>Linha do Tempo</CardTitle></CardHeader>
             <CardContent>
-                <div className="space-y-6">
-                    {items.map((item, index) => (
-                        <div key={`${item.id}-${index}`} className="flex items-start">
-                            <div className="flex flex-col items-center mr-4">
-                                <div className={`w-3 h-3 rounded-full ${item.id === consultaAtualId ? 'bg-blue-500 ring-4 ring-blue-200' : 'bg-gray-300'}`}></div>
-                                {index < items.length - 1 && <div className="w-px h-full bg-gray-300 mt-1"></div>}
-                            </div>
-                            <div className="flex-1 pb-6">
-                                <div className="flex items-center justify-between">
-                                    <p className="font-semibold">{new Date(item.data).toLocaleDateString('pt-BR')}</p>
-                                    <Badge variant={item.entryType === 'consulta' ? "default" : "secondary"}>{item.tipo}</Badge>
+                <div className="relative space-y-4">
+                    {/* Linha vertical contínua com cor do tema */}
+                    <div className="absolute left-4 top-2 h-full w-px bg-border -translate-x-px"></div>
+
+                    {items.map((item) => {
+                        const isCurrent = item.id === consultaAtualId;
+                        const description = item.entryType === 'exame' && item.anotacao 
+                            ? truncateText(item.anotacao, 80) 
+                            : item.motivo;
+
+                        const timelineContent = (
+                            <div className="relative flex items-start space-x-4">
+                                {/* Icone posicionado sobre a linha */}
+                                <div className="z-10 flex h-8 w-8 items-center justify-center rounded-full bg-card">
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-background ${isCurrent ? 'bg-primary text-primary-foreground' : 'bg-secondary text-secondary-foreground'}`}>
+                                        <TimelineIcon entryType={item.entryType} />
+                                    </div>
                                 </div>
-                                <p className="text-sm text-gray-600 mt-1">{item.motivo}</p>
-                                {item.profissional && <p className="text-xs text-gray-500">{item.profissional.nome}</p>}
-                                {item.unidade && <p className="text-xs text-gray-500">{item.unidade.nome}</p>}
-                                {item.id !== consultaAtualId && (
-                                    <a href={item.href} className="text-sm text-blue-500 hover:underline mt-2 inline-flex items-center">
-                                        Ver Detalhes <ArrowRightIcon className="ml-1 h-4 w-4" />
-                                    </a>
-                                )}
+
+                                <div className="flex-1 pt-1">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                        <p className="font-semibold text-foreground">{new Date(item.data).toLocaleDateString('pt-BR')}</p>
+                                        <Badge variant={getBadgeVariant(item.tipo)}>{item.tipo}</Badge>
+                                    </div>
+                                    <p className={`text-sm text-muted-foreground ${!isCurrent ? 'group-hover:underline' : ''}`}>{description}</p>
+                                    {item.profissional && <p className="text-xs text-muted-foreground mt-1">{item.profissional.nome}</p>}
+                                    {item.unidade && <p className="text-xs text-muted-foreground">{item.unidade.nome}</p>}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+
+                        if (isCurrent) {
+                            return <div key={item.id}>{timelineContent}</div>;
+                        }
+
+                        return (
+                            <Link
+                                key={item.id}
+                                href={item.href}
+                                className="group no-underline text-inherit block cursor-pointer"
+                            >
+                                {timelineContent}
+                            </Link>
+                        );
+                    })}
                 </div>
             </CardContent>
         </Card>

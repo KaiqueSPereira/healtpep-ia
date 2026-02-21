@@ -111,7 +111,7 @@ const ConsultaPage = () => {
     return (
         <div className="h-full flex flex-col">
             <header className="relative w-full px-5 py-6 flex items-center justify-between">
-                <Button variant="ghost" onClick={() => router.push('/consultas')} className="absolute left-5 top-1/2 -translate-y-1/2">
+                <Button variant="ghost" onClick={() => router.push('/consulta')} className="absolute left-5 top-1/2 -translate-y-1/2">
                     <ChevronLeftIcon className="h-6 w-6" />
                     <span className="ml-2">Voltar</span>
                 </Button>
