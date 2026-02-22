@@ -17,12 +17,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="grid h-screen grid-rows-[auto_1fr_auto] bg-background">
+    <div className="grid h-screen grid-rows-[auto_1fr_auto]">
       <Header />
       {/* O <main> atua como um contêiner de dimensionamento do grid, com posicionamento relativo. */}
       <main className="relative min-h-0">
         {/* A <div> interna, absolutamente posicionada, lida com a rolagem e o padding. */}
-        <div className="absolute inset-0 overflow-y-auto px-4 py-8 md:px-10 lg:px-20">
+        <div className="absolute inset-0 overflow-y-auto px-4 py-8 md:px-6 lg:px-8">
           {children}
         </div>
       </main>

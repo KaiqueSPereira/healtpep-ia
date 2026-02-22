@@ -94,13 +94,13 @@ export default function TabelaExames({
   return (
     <div className="overflow-x-auto rounded-lg border shadow-sm">
       <table className="w-full table-fixed text-sm">
-        <thead className="bg-muted">
+        <thead className="bg-muted/50">
           <tr>
-            <th className="border p-2 text-left">Nome</th>
-            <th className="border p-2 text-left">Valor</th>
-            <th className="border p-2 text-left">Unidade</th>
-            <th className="border p-2 text-left">Valor de Referência</th>
-            <th className="border p-2 text-center">Ações</th>
+            <th className="border p-2 text-left font-medium w-2/5">Nome</th>
+            <th className="border p-2 text-left font-medium">Valor</th>
+            <th className="border p-2 text-left font-medium">Unidade</th>
+            <th className="border p-2 text-left font-medium">Valor de Referência</th>
+            <th className="border p-2 text-center font-medium w-[100px]">Ações</th>
           </tr>
         </thead>
         <tbody>
@@ -180,14 +180,16 @@ export default function TabelaExames({
         </tbody>
       </table>
 
-      <Button
-        type="button"
-        onClick={onAddExame}
-        variant="secondary"
-        className="mt-4 flex items-center gap-2"
-      >
-        <Plus size={18} /> Adicionar exame
-      </Button>
+      <div className="p-4">
+        <Button
+          type="button"
+          onClick={onAddExame}
+          variant="secondary"
+          className="flex items-center gap-2"
+        >
+          <Plus size={18} /> Adicionar exame
+        </Button>
+      </div>
     </div>
   );
 }

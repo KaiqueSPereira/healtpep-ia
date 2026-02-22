@@ -9,6 +9,7 @@ import { Input } from "../../../_components/ui/input";
 import { Label } from "../../../_components/ui/label";
 import { Textarea } from "../../../_components/ui/textarea";
 import { Switch } from "../../../_components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/app/_components/ui/card";
 import { toast } from "../../../_hooks/use-toast";
 import {
   Consulta,
@@ -17,8 +18,12 @@ import {
   ResultadoExame,
   Exame
 } from "@/app/_components/types"; 
-import { ExamDetailsForm } from "./ExamDetailForm";
 import { UnidadeDeSaude } from "@prisma/client";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../../../_components/ui/select";
+import MenuUnidades from "../../unidades/_components/menuunidades";
+import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
+import MenuConsultas from "@/app/(dashboard)/consulta/components/menuconsultas";
+import MenuCondicoes from "@/app/(dashboard)/condicoes/_Components/MenuCondicoes";
 
 type Anexo = {
   id: string;
@@ -282,91 +287,190 @@ export function ExameFormWrapper({
   };
 
   return (
-    <div>
-        <h1 className="text-3xl font-bold">
+    <div className="bg-background">
+        <h1 className="text-3xl font-bold mb-8">
           {existingExamData ? "Editar Exame" : "Cadastrar Exame"}
         </h1>
         <form
-          className="space-y-6"
+          className="grid grid-cols-1 lg:grid-cols-3 gap-8"
           onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
         >
-          <ExamDetailsForm
-            consultas={consultas}
-            selectedConsulta={selectedConsulta}
-            onConsultaSelect={handleConsultaSelect}
-            unidades={unidades}
-            selectedUnidade={selectedUnidade}
-            onUnidadeSelect={setSelectedUnidade}
-            profissionais={profissionais}
-            selectedProfissional={selectedProfissional}
-            onProfissionalSelect={setSelectedProfissional}
-            selectedProfissionalExecutante={selectedProfissionalExecutante}
-            onProfissionalExecutanteSelect={setSelectedProfissionalExecutante}
-            condicoesSaude={condicoesSaude}
-            selectedCondicao={selectedCondicao}
-            onCondicaoChange={setSelectedCondicao}
-            dataExame={dataExame}
-            onDataExameChange={setDataExame}
-            horaExame={horaExame}
-            onHoraExameChange={setHoraExame}
-            tipo={tipo}
-            onTipoChange={setTipo}
-            selectorsKey={selectorsKey}
-          />
-          <div className="space-y-2">
-            <Label>Anotação / Laudo</Label>
-            <Textarea value={anotacao} onChange={(e) => setAnotacao(e.target.value)} />
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="laudo-finalizado"
-              checked={laudoFinalizado}
-              onCheckedChange={setLaudoFinalizado}
-            />
-            <Label htmlFor="laudo-finalizado">Marcar Laudo como Finalizado</Label>
-          </div>
+            <div className="lg:col-span-2 space-y-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Detalhes do Exame</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                            <Label>Consulta Associada</Label>
+                            <MenuConsultas
+                                key={`consulta-selector-${selectorsKey}`}
+                                consultas={consultas}
+                                selectedConsulta={selectedConsulta}
+                                onConsultaSelect={handleConsultaSelect}
+                            />
+                        </div>
 
-          <div>
-            <Label>Anexar Arquivo (PDF ou imagem)</Label>
-            <div className="flex items-center space-x-2">
-              <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} multiple />
-              <Button onClick={handleAnalyzeFile} disabled={selectedFiles.length === 0 || loadingAnalysis} type="button">
-                {loadingAnalysis ? "Analisando..." : "Analisar Arquivo(s)"}
-              </Button>
+                        <div>
+                          <Label>Condição de Saúde</Label>
+                          <MenuCondicoes
+                             key={`condicao-selector-${selectorsKey}`}
+                            condicoes={condicoesSaude}
+                            selectedCondicao={selectedCondicao}
+                            onCondicaoSelect={setSelectedCondicao}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Unidade de Saúde</Label>
+                          <MenuUnidades
+                            key={`unidade-selector-${selectorsKey}`}
+                            unidades={unidades}
+                            selectedUnidade={selectedUnidade}
+                            onUnidadeSelect={setSelectedUnidade}
+                          />
+                        </div>
+                        <div>
+                          <Label>Profissional Solicitante</Label>
+                          <MenuProfissionais
+                            key={`profissional-selector-${selectorsKey}`}
+                            profissionais={profissionais}
+                            selectedProfissional={selectedProfissional}
+                            onProfissionalSelect={setSelectedProfissional}
+                            unidadeId={selectedUnidade?.id}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Profissional Executante</Label>
+                          <MenuProfissionais
+                            key={`profissional-executante-selector-${selectorsKey}`}
+                            profissionais={profissionais}
+                            selectedProfissional={selectedProfissionalExecutante}
+                            onProfissionalSelect={setSelectedProfissionalExecutante}
+                            unidadeId={selectedUnidade?.id}
+                          />
+                        </div>
+
+                        <div>
+                          <Label>Data e Hora do Exame</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="date"
+                              value={dataExame}
+                              onChange={(e) => setDataExame(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="time"
+                              value={horaExame}
+                              onChange={(e) => setHoraExame(e.target.value)}
+                              className="w-auto"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <Label>Tipo de Exame *</Label>
+                          <Select value={tipo} onValueChange={setTipo} required>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione o tipo de exame" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Sangue">Sangue</SelectItem>
+                              <SelectItem value="Urina">Urina</SelectItem>
+                              <SelectItem value="USG">USG</SelectItem>
+                              <SelectItem value="Raio-X">Raio-X</SelectItem>
+                              <SelectItem value="Tomografia">Tomografia</SelectItem>
+                              <SelectItem value="Ressonancia">Ressonância Magnética</SelectItem>
+                              <SelectItem value="Outros">Outros</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Anotação / Laudo</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <Textarea value={anotacao} onChange={(e) => setAnotacao(e.target.value)} />
+                    </CardContent>
+                </Card>
+                 {["Sangue", "Urina"].includes(tipo) && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Resultados</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <TabelaExames exames={exameResultados} onAddExame={handleAddExame} onRemoveExame={handleRemoveExame} onExameChange={handleExameChange} />
+                        </CardContent>
+                    </Card>
+                )}
             </div>
-             {selectedFiles.length > 0 && (
-              <div className="mt-2 text-sm">
-                <p className="font-medium text-muted-foreground">Novos arquivos a serem enviados:</p>
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  {selectedFiles.map((file, index) => (
-                    <li key={index} className="text-muted-foreground">{file.name}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {existingExamData?.anexos && existingExamData.anexos.length > 0 && selectedFiles.length === 0 && (
-              <div className="mt-2 text-sm">
-                <p className="font-medium text-muted-foreground">Arquivos atuais:</p>
-                <ul className="list-disc pl-5 mt-1 space-y-1">
-                  {existingExamData.anexos.map((anexo) => (
-                    <li key={anexo.id} className="text-muted-foreground">{anexo.nomeArquivo}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          {["Sangue", "Urina"].includes(tipo) && (
-            <TabelaExames exames={exameResultados} onAddExame={handleAddExame} onRemoveExame={handleRemoveExame} onExameChange={handleExameChange} />
-          )}
-          
-          <Button
-            type="submit"
-            disabled={loadingSubmit}
-            className="w-full"
-          >
-            {loadingSubmit ? (existingExamData ? "Atualizando..." : "Enviando...") : (existingExamData ? "Atualizar Exame" : "Cadastrar Exame")}
-          </Button>
+
+            <div className="lg:col-span-1 space-y-8">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Anexos</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <Label>Anexar Arquivo (PDF ou imagem)</Label>
+                            <div className="flex items-center space-x-2">
+                                <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} multiple />
+                                <Button onClick={handleAnalyzeFile} disabled={selectedFiles.length === 0 || loadingAnalysis} type="button" size="sm">
+                                    {loadingAnalysis ? "Analisando..." : "Analisar"}
+                                </Button>
+                            </div>
+                        </div>
+                        {selectedFiles.length > 0 && (
+                            <div className="text-sm">
+                                <p className="font-medium text-muted-foreground">Novos arquivos:</p>
+                                <ul className="list-disc pl-5 mt-1 space-y-1">
+                                    {selectedFiles.map((file, index) => (
+                                        <li key={index} className="text-muted-foreground">{file.name}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {existingExamData?.anexos && existingExamData.anexos.length > 0 && (
+                            <div className="text-sm">
+                                <p className="font-medium text-muted-foreground">Arquivos atuais:</p>
+                                <ul className="list-disc pl-5 mt-1 space-y-1">
+                                    {existingExamData.anexos.map((anexo) => (
+                                        <li key={anexo.id} className="text-muted-foreground">{anexo.nomeArquivo}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Finalização</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex items-center space-x-2">
+                            <Switch
+                            id="laudo-finalizado"
+                            checked={laudoFinalizado}
+                            onCheckedChange={setLaudoFinalizado}
+                            />
+                            <Label htmlFor="laudo-finalizado">Marcar Laudo como Finalizado</Label>
+                        </div>
+                    </CardContent>
+                    <CardFooter>
+                        <Button
+                            type="submit"
+                            disabled={loadingSubmit}
+                            className="w-full"
+                        >
+                            {loadingSubmit ? (existingExamData ? "Atualizando..." : "Enviando...") : (existingExamData ? "Atualizar Exame" : "Cadastrar Exame")}
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </div>
         </form>
     </div>
   );
