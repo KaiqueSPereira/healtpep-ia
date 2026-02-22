@@ -3,8 +3,10 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ExameFormWrapper } from '../../components/ExameFormWrapper';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { toast } from '@/app/_hooks/use-toast';
+import Image from 'next/image';
+import { Button } from '@/app/_components/ui/button';
 import { Exame, Profissional, UnidadeDeSaude, ResultadoExame } from '@prisma/client';
 
 type ExameComRelacoes = Exame & {
@@ -15,6 +17,7 @@ type ExameComRelacoes = Exame & {
 
 export default function EditExamePage() {
   const params = useParams();
+  const router = useRouter();
   const examId = params.id as string;
   const [existingExamData, setExistingExamData] = useState<ExameComRelacoes | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,7 +26,7 @@ export default function EditExamePage() {
   useEffect(() => {
     if (!examId) {
       setLoading(false);
-      setError('ID do exame não fornecido.');
+      setError('ID do exame não fornecido para edição.');
       toast({
         title: 'Erro',
         description: 'ID do exame não fornecido para edição.',
@@ -36,26 +39,29 @@ export default function EditExamePage() {
     const fetchExame = async () => {
       try {
         setLoading(true);
+        setError(null);
         const res = await fetch(`/api/exames/${examId}`);
         const data = await res.json();
 
         if (res.ok) {
           setExistingExamData(data.exame);
         } else {
-          setError(data.error || 'Erro ao carregar dados do exame.');
+          const errorMessage = data.error || 'Erro ao carregar dados do exame.';
+          setError(errorMessage);
           toast({
-            title: 'Erro',
-            description: data.error || 'Erro ao carregar dados do exame.',
+            title: 'Erro ao Carregar',
+            description: errorMessage,
             variant: 'destructive',
             duration: 5000,
           });
         }
       } catch (err) {
         console.error('Erro ao buscar exame:', err);
-        setError('Erro ao carregar dados do exame.');
+        const errorMessage = 'Falha na comunicação com o servidor.';
+        setError(errorMessage);
         toast({
-          title: 'Erro',
-          description: 'Erro ao carregar dados do exame.',
+          title: 'Erro de Conexão',
+          description: errorMessage,
           variant: 'destructive',
           duration: 5000,
         });
@@ -69,30 +75,51 @@ export default function EditExamePage() {
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-gray-600" />
+      <div className="flex items-center justify-center p-8 min-h-[50vh]">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
       </div>
     );
   }
 
   if (error) {
+    const isUnauthorized = error.toLowerCase().includes('não autorizado') || error.toLowerCase().includes('acesso negado');
     return (
-      <div className="flex h-full items-center justify-center text-red-500">
-        {error}
+      <div className="flex flex-col items-center justify-center text-center p-12 min-h-[50vh]">
+        <Image
+          src={isUnauthorized ? "/unauthorized-no-bg.png" : "/Exam-notfound.png"}
+          alt={isUnauthorized ? "Acesso não autorizado" : "Erro ao carregar exame"}
+          width={250}
+          height={250}
+          className="mb-4"
+        />
+        <h2 className="text-2xl font-bold">{isUnauthorized ? "Acesso Negado" : "Ocorreu um Erro"}</h2>
+        <p className="text-muted-foreground mt-2">{error}</p>
+        <Button variant="outline" onClick={() => router.back()} className="mt-6">Voltar</Button>
       </div>
     );
   }
 
   if (!existingExamData) {
-    return (
-      <div className="flex h-full items-center justify-center text-gray-500">
-        Nenhum dado de exame encontrado para o ID fornecido.
+     return (
+       <div className="flex flex-col items-center justify-center text-center p-12 min-h-[50vh]">
+        <Image
+          src="/Exam-notfound.png"
+          alt="Nenhum exame encontrado"
+          width={250}
+          height={250}
+          className="mb-4"
+        />
+        <h2 className="text-2xl font-bold">Exame Não Encontrado</h2>
+        <p className="text-muted-foreground mt-2">
+          Não foi possível encontrar dados de exame para o ID fornecido.
+        </p>
+         <Button variant="outline" onClick={() => router.back()} className="mt-6">Voltar</Button>
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-y-auto bg-muted/20 px-4 py-8 md:px-10 lg:px-20">
+    <div className="w-full bg-muted/20">
       <Suspense fallback={<Loader2 className="h-10 w-10 animate-spin text-gray-600" />}>
         <ExameFormWrapper existingExamData={existingExamData} />
       </Suspense>

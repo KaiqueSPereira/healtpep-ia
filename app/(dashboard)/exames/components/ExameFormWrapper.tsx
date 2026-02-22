@@ -282,7 +282,7 @@ export function ExameFormWrapper({
   };
 
   return (
-    <div className="space-y-8">
+    <div>
         <h1 className="text-3xl font-bold">
           {existingExamData ? "Editar Exame" : "Cadastrar Exame"}
         </h1>

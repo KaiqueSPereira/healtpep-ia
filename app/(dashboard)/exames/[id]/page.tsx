@@ -5,8 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude, Consultas, Endereco, AnexoExame } from "@prisma/client";
 import { Button } from "@/app/_components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { Pencil, BrainCircuit, RefreshCw, Paperclip, Info, Calendar, Stethoscope, FlaskConical, Link as LinkIcon, Building, FileText } from "lucide-react";
+import { Pencil, BrainCircuit, RefreshCw, Paperclip, Info, Calendar, Stethoscope, FlaskConical, Link as LinkIcon, Building, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import useAuthStore from "@/app/_stores/authStore";
 import AnexosDialog from "../components/AnexosDialog";
 
@@ -28,17 +29,21 @@ type ExameComDetalhes = Exame & {
   _count?: { anexos: number };
 };
 
+// Lógica de status corrigida e mais robusta
 const getStatus = (resultados: ResultadoExame[], laudoFinalizado: boolean | null | undefined, anotacao: string | null | undefined) => {
   if (resultados && resultados.length > 0) {
     const hasAbnormal = resultados.some(item => {
       if (item.valor && typeof item.valor === 'string' && item.referencia && typeof item.referencia === 'string') {
         try {
-          const valorNum = parseFloat(item.valor.replace('.', '').replace(',', '.'));
-          const partesRef = item.referencia.split('-').map(v => parseFloat(v.trim().replace('.', '').replace(',', '.')));
+          const valorNum = parseFloat(item.valor.replace(',', '.'));
+          const partesRef = item.referencia.split('-').map(v => parseFloat(v.trim().replace(',', '.')));
           if (partesRef.length === 2 && !isNaN(valorNum) && !isNaN(partesRef[0]) && !isNaN(partesRef[1])) {
             return valorNum < partesRef[0] || valorNum > partesRef[1];
           }
-        } catch (e) { return false; }
+        } catch (e) { 
+          console.error("Erro ao analisar valor do exame para status:", e);
+          return false; 
+        }
       }
       return false;
     });
@@ -106,6 +111,7 @@ export default function ExameDetalhePage() {
   useEffect(() => {
     if (!id) {
       setLoading(false);
+      setError("ID do exame não fornecido.");
       return;
     }
     const fetchExameDetails = async () => {
@@ -120,7 +126,7 @@ export default function ExameDetalhePage() {
         const dataExame = await resExame.json();
         const examData: ExameComDetalhes = dataExame?.exame;
         setExame(examData);
-        if (examData && !examData.analiseIA && (examData.resultados.length > 0 || examData.laudoFinalizado)) {
+        if (examData && !examData.analiseIA && (examData.resultados?.length > 0 || examData.laudoFinalizado)) {
           triggerAnalysis();
         }
       } catch (err: unknown) {
@@ -140,16 +146,57 @@ export default function ExameDetalhePage() {
     }
   };
 
-  if (loading && !exame) return <div className="p-4 text-center">Carregando exame...</div>;
-  if (error) return <div className="p-4 text-center text-red-500">Erro: {error}</div>;
-  if (!exame) return <div className="p-4 text-center">Exame não encontrado.</div>;
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    const isUnauthorized = error.toLowerCase().includes('não autorizado') || error.toLowerCase().includes('acesso negado');
+    return (
+      <div className="flex flex-col items-center justify-center text-center h-[80vh] p-12">
+        <Image
+          src={isUnauthorized ? "/unauthorized-no-bg.png" : "/Exam-notfound.png"}
+          alt={isUnauthorized ? "Acesso não autorizado" : "Erro ao carregar exame"}
+          width={250}
+          height={250}
+          className="mb-4"
+        />
+        <h2 className="text-2xl font-bold">{isUnauthorized ? "Acesso Negado" : "Ocorreu um Erro"}</h2>
+        <p className="text-muted-foreground mt-2">{error}</p>
+        <Button variant="outline" onClick={() => router.back()} className="mt-6">Voltar</Button>
+      </div>
+    );
+  }
+
+  if (!exame) {
+    return (
+       <div className="flex flex-col items-center justify-center text-center h-[80vh] p-12">
+        <Image
+          src="/Exam-notfound.png"
+          alt="Nenhum exame encontrado"
+          width={250}
+          height={250}
+          className="mb-4"
+        />
+        <h2 className="text-2xl font-bold">Exame Não Encontrado</h2>
+        <p className="text-muted-foreground mt-2">
+          Não foi possível encontrar um exame com o ID fornecido.
+        </p>
+         <Button variant="outline" onClick={() => router.back()} className="mt-6">Voltar</Button>
+      </div>
+    );
+  }
 
   const formatarData = (data?: Date | string | null) => data ? new Date(data).toLocaleDateString("pt-BR") : "N/A";
   const formatarDataComHora = (data?: Date | string | null) => data ? `${new Date(data).toLocaleDateString("pt-BR")} - ${new Date(data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}` : "N/A";
   
   const hasAnexos = exame._count ? exame._count.anexos > 0 : false;
   const status = getStatus(exame.resultados, exame.laudoFinalizado, exame.anotacao);
-  const isReportBased = exame.resultados.length === 0 && exame.laudoFinalizado && exame.anotacao;
+  const isReportBased = !exame.resultados || exame.resultados.length === 0 && exame.laudoFinalizado && exame.anotacao;
 
   return (
     <div className="h-full w-full overflow-y-auto bg-muted/20">
@@ -166,7 +213,7 @@ export default function ExameDetalhePage() {
               <CardContent><span className={`px-3 py-1 text-sm font-semibold rounded-full ${status.color} ${status.textColor}`}>{status.text}</span></CardContent>
             </Card>
 
-            {isReportBased && (
+            {isReportBased && exame.anotacao && (
               <Card>
                  <CardHeader><CardTitle className="flex items-center"><FileText className="mr-2 h-5 w-5 text-primary" /> Laudo do Exame</CardTitle></CardHeader>
                  <CardContent className="text-sm"><p className="whitespace-pre-wrap text-foreground/90">{exame.anotacao}</p></CardContent>
@@ -201,12 +248,15 @@ export default function ExameDetalhePage() {
                         let foraDoIntervalo = false;
                         if (item.valor && typeof item.valor === 'string' && item.referencia && typeof item.referencia === 'string') {
                            try {
-                            const valorNum = parseFloat(item.valor.replace('.', '').replace(',', '.'));
-                            const partesRef = item.referencia.split('-').map(v => parseFloat(v.trim().replace('.', '').replace(',', '.')));
+                            const valorNum = parseFloat(item.valor.replace(',', '.'));
+                            const partesRef = item.referencia.split('-').map(v => parseFloat(v.trim().replace(',', '.')));
                             if (partesRef.length === 2 && !isNaN(valorNum) && !isNaN(partesRef[0]) && !isNaN(partesRef[1])) {
                                 foraDoIntervalo = valorNum < partesRef[0] || valorNum > partesRef[1];
                             }
-                           } catch(e) { foraDoIntervalo = false; }
+                           } catch(e) { 
+                                console.error("Erro ao analisar valor do exame na tabela:", e);
+                                foraDoIntervalo = false; 
+                           }
                         }
                         return (
                           <tr key={item.id} className="hover:bg-muted/30">

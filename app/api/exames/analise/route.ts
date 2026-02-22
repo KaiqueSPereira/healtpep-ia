@@ -12,11 +12,11 @@ const unidadesMedida = [
     "g/dL", "mg/dL", "mg/L", "mg/mL", "mg/g", "mg/kg", "μg/dL", "µg/dL", "μg/mL", "µg/mL", "μg/L", "µg/L",
     "ng/mL", "ng/dL", "pg/mL", "pg/dL", "pg", "mmol/L", "μmol/L", "µmol/L", "mcmol/L", "mcmol/mol",
     "nmol/L", "pmol/L","mEq/L", "Eq/L","U/L", "IU/L", "UI/L", "KU/L", "μIU/mL", "µIU/mL", "uUI/mL", "µUI/mL", "mUI/mL","%", "milhões/mm³", "mil/mm³",
-    "mm³", "mm/h","células/μL", "celulas/μL", "células/uL", "celulas/uL", "10³/μL", "10³/uL","10⁶/μL", "10⁶/uL", "x10⁶/uL","fL", "pL","g/L", "g/mL",
+    "mm³", "mm/h","células/μL", "células/uL", "10³/μL", "10³/uL","10⁶/μL", "10⁶/uL", "x10⁶/uL","fL", "pL","g/L", "g/mL",
     "mL/min", "L/min","uL", "μL", "µL","mL", "L","mL/kg/min","g/24h", "mg/24h", "μg/24h", "µg/24h",
-    "cópias/mL", "Cópias/ML", "UI/mL", "IU/mL","log", "log10", "log copies/mL","ratio", "Índice", "Index",
+    "cópias/mL", "UI/mL", "IU/mL","log", "log10", "log cópias/mL","ratio", "Índice", "Index",
     "segundos", "s","bpm","mmHg","°C","mOsm/kg", "mOsm/L","U/mL","RFU","S/CO","AU/mL","--","Outro",
-];
+  ];
 
 interface ExameResultado {
   nome: string;

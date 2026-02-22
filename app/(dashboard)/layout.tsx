@@ -17,10 +17,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="grid h-screen grid-rows-[auto_1fr_auto] bg-background">
       <Header />
-      <main className="flex-1 overflow-hidden">
-        {children}
+      {/* O <main> atua como um contêiner de dimensionamento do grid, com posicionamento relativo. */}
+      <main className="relative min-h-0">
+        {/* A <div> interna, absolutamente posicionada, lida com a rolagem e o padding. */}
+        <div className="absolute inset-0 overflow-y-auto px-4 py-8 md:px-10 lg:px-20">
+          {children}
+        </div>
       </main>
       <Footer />
     </div>
