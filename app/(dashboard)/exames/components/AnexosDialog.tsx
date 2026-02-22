@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/app/_components/ui/dialog';
 import { Button } from '@/app/_components/ui/button';
 import { toast } from '@/app/_hooks/use-toast';
-import { Loader2, X, Download, ArrowLeft, File, FileImage, FileText, Eye } from 'lucide-react';
+import { Loader2, Download, ArrowLeft, File, FileImage, FileText, Eye } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 

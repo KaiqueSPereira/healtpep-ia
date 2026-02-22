@@ -1,3 +1,4 @@
+/// <reference types="node" />
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
@@ -5,7 +6,6 @@ import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } fro
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
-import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
 
 interface ResultadoInput {
@@ -14,6 +14,12 @@ interface ResultadoInput {
     unidade?: string | null;
     referencia?: string | null;
     valorReferencia?: string | null; 
+}
+
+interface ProcessedAnexo {
+    nomeArquivo: string;
+    mimetype: string;
+    arquivo: Buffer;
 }
 
 // GET /api/exames
@@ -177,6 +183,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Por favor, preencha todos os campos obrigatórios (tipo e nome do exame)." }, { status: 400 });
     }
 
+    const processedAnexos: ProcessedAnexo[] = [];
+    if (files && files.length > 0) {
+        for (const file of files) {
+            if (file.size === 0) continue;
+            const fileBuffer = await file.arrayBuffer();
+            const originalBuffer = Buffer.from(fileBuffer);
+            const encryptedPayload = encryptBuffer(originalBuffer);
+
+            processedAnexos.push({
+                nomeArquivo: encryptString(file.name),
+                mimetype: file.type,
+                arquivo: encryptedPayload,
+            });
+        }
+    }
+
     const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
     const novoExameCompleto = await prisma.$transaction(async (tx) => {
@@ -209,21 +231,13 @@ export async function POST(request: Request) {
         });
       }
 
-      if (files && files.length > 0) {
-        for (const file of files) {
-          const nomeArquivo = file.name;
-          const fileBuffer = await file.arrayBuffer();
-          const originalBuffer = Buffer.from(fileBuffer);
-
-          await tx.anexoExame.create({
-            data: {
+      if (processedAnexos.length > 0) {
+        await tx.anexoExame.createMany({
+          data: processedAnexos.map(anexo => ({
+              ...anexo,
               exameId: novoExame.id,
-              nomeArquivo: encryptString(nomeArquivo),
-              mimetype: file.type,
-              arquivo: new Uint8Array(encryptBuffer(originalBuffer)),
-            }
-          });
-        }
+          })) as Prisma.AnexoExameCreateManyInput[],
+        });
       }
       
       const exameComRelacoes = await tx.exame.findUnique({
@@ -235,7 +249,7 @@ export async function POST(request: Request) {
       });
 
       return exameComRelacoes;
-    });
+    }, { timeout: 15000 });
 
     return NextResponse.json({ message: "Exame criado com sucesso!", exame: novoExameCompleto }, { status: 201 });
 

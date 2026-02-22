@@ -268,7 +268,7 @@ export default function ExamesPage() {
     };
 
     return (
-        <div className="flex h-full">
+        <div className="flex flex-1">
             <ExameSidebar
                 isCollapsed={isSidebarCollapsed}
                 setIsCollapsed={setIsSidebarCollapsed}
