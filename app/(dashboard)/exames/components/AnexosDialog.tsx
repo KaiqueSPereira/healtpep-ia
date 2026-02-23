@@ -7,6 +7,8 @@ import { toast } from '@/app/_hooks/use-toast';
 import { Loader2, Download, ArrowLeft, File, FileImage, FileText, Eye } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Card, CardContent } from "@/app/_components/ui/card";
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from "@/app/_components/ui/carousel";
 
 interface Anexo {
   id: string;
@@ -21,9 +23,8 @@ interface AnexosDialogProps {
   examId: string | null;
 }
 
-// Helper para obter ícone com base no mimetype
-const getFileIcon = (mimetype: string | null) => { // CORRIGIDO: Aceita mimetype nulo
-  if (mimetype?.startsWith('image/')) { // CORRIGIDO: Optional chaining
+const getFileIcon = (mimetype: string | null) => {
+  if (mimetype?.startsWith('image/')) {
     return <FileImage className="h-6 w-6 text-blue-500 flex-shrink-0" />;
   }
   if (mimetype === 'application/pdf') {
@@ -36,6 +37,10 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
   const [anexos, setAnexos] = useState<Anexo[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedAnexoUrl, setSelectedAnexoUrl] = useState<string | null>(null);
+  const [carouselApi, setCarouselApi] = useState<CarouselApi | undefined>();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [slideCount, setSlideCount] = useState(0);
+
 
   useEffect(() => {
     if (open && examId) {
@@ -46,12 +51,7 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
           const response = await fetch(`/api/exames/${examId}?includeAnexos=true`);
           if (!response.ok) throw new Error("Falha ao carregar anexos.");
           const data = await response.json();
-          const fetchedAnexos = data.exame?.anexos || [];
-          setAnexos(fetchedAnexos);
-
-          if (fetchedAnexos.length === 1) {
-            setSelectedAnexoUrl(`/api/exames/arquivo?anexoId=${fetchedAnexos[0].id}`);
-          }
+          setAnexos(data.exame?.anexos || []);
         } catch (error) {
           console.error("Erro ao buscar anexos:", error);
           toast({ title: "Erro", description: "Não foi possível carregar os anexos.", variant: "destructive" });
@@ -66,14 +66,48 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
     }
   }, [open, examId]);
 
+  useEffect(() => {
+    if (!carouselApi) {
+      return;
+    }
+
+    setSlideCount(carouselApi.scrollSnapList().length);
+    setCurrentSlide(carouselApi.selectedScrollSnap() + 1);
+
+    const onSelect = () => {
+      setCurrentSlide(carouselApi.selectedScrollSnap() + 1);
+    };
+
+    carouselApi.on("select", onSelect);
+
+    return () => {
+      carouselApi.off("select", onSelect);
+    };
+  }, [carouselApi]);
+
   const selectedAnexo = useMemo(() => {
     if (!selectedAnexoUrl) return null;
     const anexoId = new URLSearchParams(selectedAnexoUrl.split('?')[1]).get('anexoId');
     return anexos.find(a => a.id === anexoId) || null;
   }, [selectedAnexoUrl, anexos]);
 
+  const { imageAnexos, otherAnexos } = useMemo((): { imageAnexos: Anexo[]; otherAnexos: Anexo[] } => {
+    const images: Anexo[] = [];
+    const others: Anexo[] = [];
+    anexos.forEach((anexo: Anexo) => {
+      if (anexo.mimetype?.startsWith('image/')) {
+        images.push(anexo);
+      } else {
+        others.push(anexo);
+      }
+    });
+    return { imageAnexos: images, otherAnexos: others };
+  }, [anexos]);
+
   const handleClose = () => onOpenChange(false);
-  const shouldShowList = anexos.length > 1 && !selectedAnexoUrl;
+  const shouldShowOverview = !selectedAnexoUrl;
+  const shouldShowCarousel = imageAnexos.length > 1 && shouldShowOverview;
+  const listItems: Anexo[] = shouldShowCarousel ? otherAnexos : anexos;
 
   const renderAnexoContent = () => {
     if (loading) {
@@ -87,7 +121,7 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
 
     if (selectedAnexoUrl && selectedAnexo) {
       const { mimetype } = selectedAnexo;
-      const isImage = mimetype?.startsWith('image/'); // CORRIGIDO: Optional chaining
+      const isImage = mimetype?.startsWith('image/');
       const isPdf = mimetype === 'application/pdf';
 
       let viewer;
@@ -120,27 +154,72 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
       );
     }
 
-    if (shouldShowList) {
-      return (
-        <div className="flex flex-col space-y-3">
-          {anexos.map(anexo => (
-            <div key={anexo.id} className="flex items-center justify-between rounded-md border p-3 pr-4 hover:bg-muted/50 transition-colors">
-              <div className="flex items-center gap-4">
-                {getFileIcon(anexo.mimetype)}
-                <div>
-                  <p className="font-semibold text-sm">{anexo.nomeArquivo}</p>
-                  <p className="text-xs text-muted-foreground">Adicionado em: {new Date(anexo.createdAt).toLocaleDateString('pt-BR')}</p>
-                </div>
-              </div>
-              <Button variant="secondary" size="sm" onClick={() => setSelectedAnexoUrl(`/api/exames/arquivo?anexoId=${anexo.id}`)}><Eye className="mr-2 h-4 w-4" />Visualizar</Button>
-            </div>
-          ))}
-        </div>
-      );
-    }
+    if (shouldShowOverview) {
+        if (anexos.length === 0) {
+            return <p className="text-center text-muted-foreground py-10">Nenhum anexo encontrado para este exame.</p>;
+        }
 
-    if (!loading && anexos.length === 0) {
-      return <p className="text-center text-muted-foreground py-10">Nenhum anexo encontrado para este exame.</p>;
+        return (
+            <div className="flex flex-col space-y-4">
+              {shouldShowCarousel && (
+                <div className="w-full">
+                  <h3 className="text-lg font-semibold mb-3 px-1">Imagens</h3>
+                  <Carousel setApi={setCarouselApi} className="w-full max-w-3xl mx-auto">
+                    <CarouselContent>
+                      {imageAnexos.map((anexo: Anexo) => (
+                        <CarouselItem key={anexo.id} className="basis-1/2 md:basis-1/3">
+                          <div className="p-1">
+                            <Card className='overflow-hidden'>
+                              <CardContent 
+                                className="relative aspect-square flex items-center justify-center p-0 cursor-pointer group"
+                                onClick={() => setSelectedAnexoUrl(`/api/exames/arquivo?anexoId=${anexo.id}`)}
+                              >
+                                <Image
+                                  src={`/api/exames/arquivo?anexoId=${anexo.id}`}
+                                  alt={anexo.nomeArquivo}
+                                  fill
+                                  className="object-cover transition-transform duration-300 group-hover:scale-110"
+                                  sizes="(max-width: 768px) 50vw, (max-width: 1280px) 33vw, 300px"
+                                />
+                                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Eye className="h-8 w-8 text-white" />
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        </CarouselItem>
+                      ))}
+                    </CarouselContent>
+                    <CarouselPrevious className="-left-8" />
+                    <CarouselNext className="-right-8" />
+                  </Carousel>
+                   <div className="py-2 text-center text-sm text-muted-foreground">
+                    {currentSlide} de {slideCount}
+                  </div>
+                </div>
+              )}
+    
+              {listItems.length > 0 && (
+                 <div className="w-full">
+                    {shouldShowCarousel && <h3 className="text-lg font-semibold mb-3 mt-4 px-1">Outros Arquivos</h3>}
+                     <div className="flex flex-col space-y-3">
+                        {listItems.map((anexo: Anexo) => (
+                            <div key={anexo.id} className="flex items-center justify-between rounded-md border p-3 pr-4 hover:bg-muted/50 transition-colors">
+                                <div className="flex items-center gap-4 overflow-hidden">
+                                    {getFileIcon(anexo.mimetype)}
+                                    <div className="truncate">
+                                    <p className="font-semibold text-sm truncate" title={anexo.nomeArquivo}>{anexo.nomeArquivo}</p>
+                                    <p className="text-xs text-muted-foreground">Adicionado em: {new Date(anexo.createdAt).toLocaleDateString('pt-BR')}</p>
+                                    </div>
+                                </div>
+                                <Button variant="secondary" size="sm" onClick={() => setSelectedAnexoUrl(`/api/exames/arquivo?anexoId=${anexo.id}`)} className="flex-shrink-0 ml-4"><Eye className="mr-2 h-4 w-4" />Visualizar</Button>
+                            </div>
+                        ))}
+                     </div>
+                 </div>
+              )}
+            </div>
+          );
     }
 
     return null;
@@ -153,18 +232,20 @@ export default function AnexosDialog({ open, onOpenChange, examId }: AnexosDialo
           <DialogTitle>
             {selectedAnexo ? `Visualizando: ${selectedAnexo.nomeArquivo}` : 'Anexos do Exame'}
           </DialogTitle>
-          {shouldShowList && <DialogDescription>Este exame possui {anexos.length} anexos. Selecione um para visualizar.</DialogDescription>}
+          {shouldShowOverview && anexos.length > 0 && <DialogDescription>Este exame possui {anexos.length} anexo(s). {imageAnexos.length > 1 ? "Navegue pelas imagens no carrossel ou selecione um item para visualizar." : "Selecione um item para visualizar."}</DialogDescription>}
         </DialogHeader>
         
-        <div className="py-2">{renderAnexoContent()}</div>
+        <div className="py-2 min-h-[200px]">{renderAnexoContent()}</div>
 
-        <DialogFooter className='mt-4'>
-          {selectedAnexo && anexos.length > 1 && (
-            <Button variant="secondary" onClick={() => setSelectedAnexoUrl(null)}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Voltar para a lista
-            </Button>
-          )}
+        <DialogFooter className='mt-4 sm:justify-between'>
+          <div className="flex-1 flex justify-start">
+            {selectedAnexo && anexos.length > 1 && (
+                <Button variant="secondary" onClick={() => setSelectedAnexoUrl(null)}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Voltar
+                </Button>
+            )}
+          </div>
           <Button variant="outline" onClick={handleClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>

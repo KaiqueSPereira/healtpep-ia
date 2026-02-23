@@ -6,7 +6,6 @@ import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
 
-// Objeto que define a query para incluir todas as relações
 const exameWithDetailsArgs = {
     include: {
         resultados: true,
@@ -19,10 +18,8 @@ const exameWithDetailsArgs = {
     },
 };
 
-// Tipo gerado automaticamente pelo Prisma que corresponde exatamente aos dados da query
 type ExameWithDetails = Prisma.ExameGetPayload<typeof exameWithDetailsArgs>;
 
-// GET /api/exames/[id] - Busca e descriptografa os detalhes de um exame.
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API GET /api/exames/[id]";
     const id = params.id;
@@ -99,7 +96,6 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-// PUT /api/exames/[id] - Atualiza um exame existente usando FormData.
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API PUT /api/exames/[id]";
     const id = params.id;
@@ -185,7 +181,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 }
 
-// PATCH /api/exames/[id] - Atualiza parcialmente um exame, ideal para vincular/desvincular consultas.
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API PATCH /api/exames/[id]";
     const id = params.id;
@@ -196,18 +191,28 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     try {
         const body = await request.json();
-        const { consultaId } = body;
-
-        if (consultaId !== null && typeof consultaId !== 'string') {
-            return NextResponse.json({ error: "O campo 'consultaId' deve ser uma string ou nulo." }, { status: 400 });
-        }
+        const { consultaId, condicaoSaudeId } = body;
 
         const updateData: Prisma.ExameUpdateInput = {};
 
-        if (consultaId) {
-            updateData.consulta = { connect: { id: consultaId } };
-        } else {
-            updateData.consulta = { disconnect: true };
+        if (consultaId !== undefined) {
+            if (consultaId) {
+                updateData.consulta = { connect: { id: consultaId } };
+            } else {
+                updateData.consulta = { disconnect: true };
+            }
+        }
+
+        if (condicaoSaudeId !== undefined) {
+            if (condicaoSaudeId) {
+                updateData.condicaoSaude = { connect: { id: condicaoSaudeId } };
+            } else {
+                updateData.condicaoSaude = { disconnect: true };
+            }
+        }
+        
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json({ error: "Nenhum dado válido para atualização foi fornecido." }, { status: 400 });
         }
 
         const updatedExame = await prisma.exame.update({
@@ -223,8 +228,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 }
 
-
-// DELETE /api/exames/[id] - Deleta um exame.
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     const componentName = "API DELETE /api/exames/[id]";
     const id = params.id;

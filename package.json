@@ -51,7 +51,7 @@
     "cmdk": "^1.0.0",
     "crypto-js": "^4.2.0",
     "date-fns": "^3.6.0",
-    "embla-carousel-react": "^8.5.2",
+    "embla-carousel-react": "^8.6.0",
     "formidable": "^3.5.3",
     "healtpep-ia": "file:",
     "jsonwebtoken": "^9.0.2",

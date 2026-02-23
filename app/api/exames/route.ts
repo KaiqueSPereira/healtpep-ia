@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
                     profissional: true,
                     profissionalExecutante: true,
                     unidades: true,
+                    condicaoSaude: true, 
                 },
                 orderBy: { dataExame: 'desc' },
             });
@@ -88,6 +89,7 @@ export async function GET(request: NextRequest) {
                     profissionalExecutante: true,
                     unidades: true,
                     resultados: true,
+                    condicaoSaude: true,
                     _count: { select: { anexos: true } },
                 },
                 orderBy: { dataExame: 'desc' },
@@ -249,7 +251,7 @@ export async function POST(request: Request) {
       });
 
       return exameComRelacoes;
-    }, { timeout: 15000 });
+    }, { timeout: 20000 });
 
     return NextResponse.json({ message: "Exame criado com sucesso!", exame: novoExameCompleto }, { status: 201 });
 
