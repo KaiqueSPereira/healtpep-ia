@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
 import { logErrorToDb } from "@/app/_lib/logger";
+import { standardizeBiomarkerName } from "@/app/_lib/biomarkerUtils";
 
 interface ResultadoInput {
     nome: string;
@@ -203,6 +204,8 @@ export async function POST(request: Request) {
 
     const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
+    const standardizedResultados = resultados.map(r => ({ ...r, nome: standardizeBiomarkerName(r.nome) }));
+
     const novoExameCompleto = await prisma.$transaction(async (tx) => {
 
       const createData: Prisma.ExameCreateInput = {
@@ -221,9 +224,9 @@ export async function POST(request: Request) {
 
       const novoExame = await tx.exame.create({ data: createData });
 
-      if (resultados && resultados.length > 0) {
+      if (standardizedResultados.length > 0) {
         await tx.resultadoExame.createMany({
-          data: resultados.map((r: ResultadoInput) => ({
+          data: standardizedResultados.map((r: ResultadoInput) => ({
             exameId: novoExame.id,
             nome: safeEncrypt(r.nome),
             valor: safeEncrypt(r.valor),

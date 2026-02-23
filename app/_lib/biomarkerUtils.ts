@@ -1,17 +1,17 @@
-// app/_lib/biomarkerUtils.ts
 
 // Mapeamento de nomes brutos para nomes de exibição padronizados
 export const biomarkerDisplayNames: { [key: string]: string } = {
   // Fígado
-  'TGO': 'TGO',
-  'TRANSAMINASE OXALACETICA': 'TGO',
-  'AST': 'AST',
-  'TGP': 'TGP',
-  'TRANSAMINASE PIRUVICA': 'TGP',
-  'ALT': 'ALT',
+  'TGO': 'TGO (AST)',
+  'TRANSAMINASE OXALACETICA': 'TGO (AST)',
+  'AST': 'TGO (AST)',
+  'TGP': 'TGP (ALT)',
+  'TRANSAMINASE PIRUVICA': 'TGP (ALT)',
+  'ALT': 'TGP (ALT)',
   'FOSFATASE ALCALINA': 'Fosfatase Alcalina',
   'GAMA GLUTAMIL TRANSFERASE': 'Gama-GT',
-  'GGT': 'GGT',
+  'GGT': 'Gama-GT',
+  'GAMA GT': 'Gama-GT',
   'BILIRRUBINA TOTAL': 'Bilirrubina Total',
   'BILIRRUBINA DIRETA': 'Bilirrubina Direta',
   'BILIRRUBINA INDIRETA': 'Bilirrubina Indireta',
@@ -21,22 +21,40 @@ export const biomarkerDisplayNames: { [key: string]: string } = {
   'UREIA': 'Ureia',
   'CREATININA': 'Creatinina',
   'TAXA DE FILTRACAO GLOMERULAR': 'TFG',
+  'TFG': 'TFG',
   'SODIO': 'Sódio',
   'POTASSIO': 'Potássio',
   'CLORO': 'Cloro',
 
   // Coração / Lipídios
   'COLESTEROL TOTAL': 'Colesterol Total',
-  'COLESTEROL HDL': 'Colesterol-HDL',
-  'COLESTEROL LDL': 'Colesterol-LDL',
-  'COLESTEROL VLDL': 'Colesterol-VLDL',
+  'COLESTEROL HDL': 'Colesterol - HDL',
+  'HDL': 'Colesterol - HDL',
+  'COLESTEROL LDL': 'Colesterol - LDL',
+  'LDL': 'Colesterol - LDL',
+  'COLESTEROL VLDL': 'Colesterol - VLDL',
+  'VLDL': 'Colesterol - VLDL',
+  'TRIGLICERIDEOS': 'Triglicerídeos',
   'TRIGLICERIDES': 'Triglicerídeos',
   'LIPIDIOS TOTAIS': 'Lipídios Totais',
+  'CK TOTAL': 'CK Total',
+  'CREATINOQUINASE': 'CK Total',
   'CK-MB': 'CK-MB',
   'TROPONINA': 'Troponina',
+  'HOMOCISTEINA': 'Homocisteína',
+
+  // Pâncreas
+  'AMILASE': 'Amilase',
+  'LIPASE': 'Lipase',
+
+  // Tireoide
+  'TSH': 'TSH',
+  'T4 LIVRE': 'T4 Livre',
+  'T3': 'T3 Total',
+  'T3 TOTAL': 'T3 Total',
+  'T3 LIVRE': 'T3 Livre',
 
   // Hemograma
-  'HEMACIAS': 'Hemácias',
   'HEMOGLOBINA': 'Hemoglobina',
   'HEMATOCRITO': 'Hematócrito',
   'VCM': 'VCM',
@@ -45,105 +63,69 @@ export const biomarkerDisplayNames: { [key: string]: string } = {
   'RDW': 'RDW',
   'LEUCOCITOS': 'Leucócitos',
   'NEUTROFILOS': 'Neutrófilos',
-  'BASTONETES': 'Bastonetes',
-  'SEGMENTADOS': 'Segmentados',
   'LINFOCITOS': 'Linfócitos',
   'MONOCITOS': 'Monócitos',
   'EOSINOFILOS': 'Eosinófilos',
   'BASOFILOS': 'Basófilos',
   'PLAQUETAS': 'Plaquetas',
 
-  // Diabetes / Glicemia
-  'GLICOSE': 'Glicose',
-  'GLICEMIA': 'Glicemia',
-  'HEMOGLOBINA GLICADA': 'Hb Glicada (A1c)',
-  'HBA1C': 'Hb Glicada (A1c)',
+  // Glicemia e Diabetes
+  'GLICEMIA DE JEJUM': 'Glicemia de Jejum',
+  'GLICOSE': 'Glicemia de Jejum',
+  'HEMOGLOBINA GLICADA': 'Hemoglobina Glicada',
+  'HBA1C': 'Hemoglobina Glicada',
+  'INSULINA': 'Insulina',
 
-  // Tireoide
-  'TSH': 'TSH',
-  'T4 LIVRE': 'T4 Livre',
-  'T3 TOTAL': 'T3 Total',
-};
+  // Marcadores de Infecção/Inflamação e HIV
+  'CD4': 'Linfócitos T-CD4+',
+  'CONTAGEM DE LINFOCITOS T CD4+': 'Linfócitos T-CD4+',
+  'CD8': 'Linfócitos T-CD8+',
+  'CONTAGEM DE LINFOCITOS T CD8+': 'Linfócitos T-CD8+',
+  'RELACAO CD4/CD8': 'Relação CD4/CD8',
+  'CD4/CD8': 'Relação CD4/CD8',
+  'CARGA VIRAL': 'Carga Viral (HIV)',
+  'CARGA VIRAL (PCR)': 'Carga Viral (HIV)',
+  'CARGA VIRAL LOG': 'Carga Viral (Log)',
+  'LOG CARGA VIRAL': 'Carga Viral (Log)',
+  'PCR': 'Proteína C-Reativa (PCR)',
+  'PROTEINA C REATIVA': 'Proteína C-Reativa (PCR)',
+  'VHS': 'VHS',
 
-// Mapeamento de nomes de exibição para categorias
-export const biomarkerCategories: { [key: string]: string } = {
-  // Fígado
-  'TGO': 'Fígado',
-  'AST': 'Fígado',
-  'TGP': 'Fígado',
-  'ALT': 'Fígado',
-  'Fosfatase Alcalina': 'Fígado',
-  'Gama-GT': 'Fígado',
-  'GGT': 'Fígado',
-  'Bilirrubina Total': 'Fígado',
-  'Bilirrubina Direta': 'Fígado',
-  'Bilirrubina Indireta': 'Fígado',
-  'Albumina': 'Fígado',
-
-  // Rins
-  'Ureia': 'Rins',
-  'Creatinina': 'Rins',
-  'TFG': 'Rins',
-  'Sódio': 'Rins',
-  'Potássio': 'Rins',
-  'Cloro': 'Rins',
-
-  // Coração / Lipídios
-  'Colesterol Total': 'Coração',
-  'Colesterol-HDL': 'Coração',
-  'Colesterol-LDL': 'Coração',
-  'Colesterol-VLDL': 'Coração',
-  'Triglicerídeos': 'Coração',
-  'Lipídios Totais': 'Coração',
-  'CK-MB': 'Coração',
-  'Troponina': 'Coração',
-
-  // Hemograma
-  'Hemácias': 'Hemograma',
-  'Hemoglobina': 'Hemograma',
-  'Hematócrito': 'Hemograma',
-  'VCM': 'Hemograma',
-  'HCM': 'Hemograma',
-  'CHCM': 'Hemograma',
-  'RDW': 'Hemograma',
-  'Leucócitos': 'Hemograma',
-  'Neutrófilos': 'Hemograma',
-  'Bastonetes': 'Hemograma',
-  'Segmentados': 'Hemograma',
-  'Linfócitos': 'Hemograma',
-  'Monócitos': 'Hemograma',
-  'Eosinófilos': 'Hemograma',
-  'Basófilos': 'Hemograma',
-  'Plaquetas': 'Hemograma',
-
-  // Diabetes / Glicemia
-  'Glicose': 'Diabetes',
-  'Glicemia': 'Diabetes',
-  'Hb Glicada (A1c)': 'Diabetes',
-
-  // Tireoide
-  'TSH': 'Tireoide',
-  'T4 Livre': 'Tireoide',
-  'T3 Total': 'Tireoide',
+  // Outros
+  'FERRO SERICO': 'Ferro Sérico',
+  'FERRITINA': 'Ferritina',
+  'VITAMINA D': 'Vitamina D',
+  'VITAMINA B12': 'Vitamina B12',
+  'ACIDO URICO': 'Ácido Úrico',
 };
 
 /**
- * Normaliza o nome de um biomarcador para um formato de exibição padrão.
+ * Padroniza o nome de um biomarcador.
+ * @param rawName O nome bruto do biomarcador (ex: "TRANSAMINASE PIRUVICA").
+ * @returns O nome padronizado (ex: "TGP") ou o nome original em Title Case se não houver um padrão.
  */
-export const getDisplayName = (rawName: string): string => {
-  if (!rawName) return 'Desconhecido';
-  const normalizedName = rawName.toUpperCase().trim();
-  for (const key in biomarkerDisplayNames) {
-    if (normalizedName.includes(key)) {
-      return biomarkerDisplayNames[key];
-    }
+export const standardizeBiomarkerName = (rawName: string): string => {
+  if (!rawName) return '';
+
+  // 1. Normaliza o nome bruto para a busca: remove acentos, pontuação e converte para maiúsculas.
+  const normalizedRawName = rawName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9\s/]/g, '') // Mantém a barra para CD4/CD8
+    .trim()
+    .toUpperCase();
+
+  // 2. Procura no mapa de padronização.
+  const standardName = biomarkerDisplayNames[normalizedRawName];
+
+  // 3. Se encontrou, retorna o nome padronizado.
+  if (standardName) {
+    return standardName;
   }
-  return rawName; // Retorna o nome original se não encontrar mapeamento
-};
 
-/**
- * Retorna a categoria de um biomarcador com base em seu nome de exibição.
- */
-export const getCategory = (displayName: string): string => {
-  return biomarkerCategories[displayName] || 'Outros';
+  // 4. Se não encontrou, retorna o nome original com um tratamento básico (Title Case).
+  return rawName
+    .trim()
+    .toLowerCase()
+    .replace(/\b(\w)/g, char => char.toUpperCase());
 };

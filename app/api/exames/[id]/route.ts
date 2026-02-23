@@ -5,6 +5,7 @@ import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } fro
 import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
+import { standardizeBiomarkerName } from "@/app/_lib/biomarkerUtils";
 
 const exameWithDetailsArgs = {
     include: {
@@ -39,6 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 profissional: true,
                 profissionalExecutante: true,
                 consulta: { include: { profissional: true, unidade: true } },
+                condicaoSaude: true, 
                 anexos: includeAnexos ? {
                     select: {
                         id: true,
@@ -124,6 +126,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         
         const laudoFinalizado = laudoFinalizadoStr === 'true';
         const resultados: {nome: string, valor: string, unidade?: string, referencia?: string}[] = resultadosStr ? JSON.parse(resultadosStr) : [];
+        
+        const standardizedResultados = resultados.map(r => ({ ...r, nome: standardizeBiomarkerName(r.nome) }));
 
         const updatedExame = await prisma.$transaction(async (tx) => {
             const updateData: Prisma.ExameUpdateInput = {
@@ -139,12 +143,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 consulta: consultaId && consultaId !== 'null' ? { connect: { id: consultaId } } : { disconnect: true },
             };
 
-            const exameAtualizado = await tx.exame.update({ where: { id }, data: updateData });
+            await tx.exame.update({ where: { id }, data: updateData });
 
             await tx.resultadoExame.deleteMany({ where: { exameId: id } });
-            if (resultados && resultados.length > 0) {
+
+            if (standardizedResultados.length > 0) {
                 await tx.resultadoExame.createMany({
-                    data: resultados.map((r) => ({
+                    data: standardizedResultados.map((r) => ({
                         exameId: id,
                         nome: safeEncrypt(r.nome),
                         valor: safeEncrypt(r.valor),
@@ -170,8 +175,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
                 }
             }
             
+            const exameAtualizado = await tx.exame.findUnique({ where: { id } });
             return exameAtualizado;
-        });
+
+        }, { timeout: 15000 });
 
         return NextResponse.json({ message: "Exame atualizado com sucesso!", exame: updatedExame });
 
