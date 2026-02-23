@@ -7,6 +7,7 @@ import { ExameTypeFilter } from "./ExameTypeFilter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/_components/ui/tooltip";
 import { List, LineChart, Plus, ChevronsLeft, Calendar, Beaker, ClipboardList } from "lucide-react";
 import { cn } from '@/app/_lib/utils';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem } from "@/app/_components/ui/dropdown-menu";
 
 interface ExameSidebarProps {
   currentView: 'list' | 'charts';
@@ -20,6 +21,9 @@ interface ExameSidebarProps {
   onListTypeChange: (types: string[]) => void;
   selectedChartType: 'Sangue' | 'Urina';
   onChartTypeChange: (type: 'Sangue' | 'Urina') => void;
+  chartCategoryOptions: string[];
+  selectedChartCategory: string;
+  onChartCategoryChange: (category: string) => void;
   chartComponentOptions: string[];
   selectedChartComponents: string[];
   onChartComponentChange: (components: string[]) => void;
@@ -41,6 +45,9 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
   onListTypeChange,
   selectedChartType,
   onChartTypeChange,
+  chartCategoryOptions,
+  selectedChartCategory,
+  onChartCategoryChange,
   chartComponentOptions,
   selectedChartComponents,
   onChartComponentChange,
@@ -152,7 +159,7 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                   <div>
                       <h3 className="text-md font-semibold mb-3">Filtros Avançados</h3>
                       {currentView === 'list' && listFilterOptions.length > 0 && (
-                            <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={onListTypeChange} />
+                            <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={onListTypeChange} title="Filtrar por Exame" />
                       )}
                       {currentView === 'charts' && (
                           <div className="space-y-4">
@@ -163,10 +170,33 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                                       <Button variant={selectedChartType === 'Urina' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Urina')} className="flex-1">Urina</Button>
                                   </div>
                               </div>
+
+                              {chartCategoryOptions.length > 1 && (
+                                  <div>
+                                      <h4 className="text-sm font-medium mb-2">Categoria de Componente</h4>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button variant="outline" className="w-full justify-start">
+                                            {selectedChartCategory}
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent>
+                                          <DropdownMenuRadioGroup value={selectedChartCategory} onValueChange={onChartCategoryChange}>
+                                            {chartCategoryOptions.map(category => (
+                                              <DropdownMenuRadioItem key={category} value={category}>
+                                                {category}
+                                              </DropdownMenuRadioItem>
+                                            ))}
+                                          </DropdownMenuRadioGroup>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                  </div>
+                              )}
+
                               {chartComponentOptions.length > 0 && (
                                   <div>
                                       <h4 className="text-sm font-medium mb-2">Componentes</h4>
-                                      <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} />
+                                      <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} title="Filtrar Componentes"/>
                                   </div>
                               )}
                           </div>

@@ -1,7 +1,6 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/app/_components/ui/card";
 import { getUsersAndRoles } from "./actions";
 import { UserTable } from "./components/user-table";
-import Header from "@/app/_components/header"; // 1. Importando o Header
 
 export default async function ManageUsersPage() {
 
@@ -9,9 +8,7 @@ export default async function ManageUsersPage() {
     const { users, roles } = await getUsersAndRoles();
   
     return (
-      // 2. Adicionando o layout padrão (Header + Container)
       <>
-        <Header />
         <div className="container mx-auto p-4 md:p-8">
           <Card>
             <CardHeader>
@@ -34,7 +31,6 @@ export default async function ManageUsersPage() {
 
     return (
       <>
-        <Header />
         <div className="container mx-auto p-4 md:p-8">
           <Card>
             <CardHeader>

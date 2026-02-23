@@ -15,9 +15,10 @@ interface ExameTypeFilterProps {
     allTypes: string[];
     selectedTypes: string[];
     onTypeChange: (types: string[]) => void;
+    title?: string;
 }
 
-export function ExameTypeFilter({ allTypes, selectedTypes, onTypeChange }: ExameTypeFilterProps) {
+export function ExameTypeFilter({ allTypes, selectedTypes, onTypeChange, title = "Filtrar Tipos" }: ExameTypeFilterProps) {
 
     const handleSelectAll = () => {
         if (selectedTypes.length === allTypes.length) {
@@ -40,17 +41,18 @@ export function ExameTypeFilter({ allTypes, selectedTypes, onTypeChange }: Exame
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-10 gap-1">
+                <Button variant="outline" size="sm" className="h-10 w-full justify-start text-left font-normal gap-1">
                     <ListFilter className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Filtrar Tipos</span>
+                    <span className="sm:whitespace-nowrap">{title}</span>
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-96 overflow-y-auto">
-                <DropdownMenuLabel>Filtrar por tipo</DropdownMenuLabel>
+                <DropdownMenuLabel>{title}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuCheckboxItem
                     checked={allTypes.length > 0 && selectedTypes.length === allTypes.length}
                     onCheckedChange={handleSelectAll}
+                    disabled={allTypes.length === 0}
                 >
                     Selecionar Todos
                 </DropdownMenuCheckboxItem>

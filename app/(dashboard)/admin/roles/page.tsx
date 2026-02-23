@@ -1,4 +1,3 @@
-import Header from "@/app/_components/header";
 import { prisma } from "@/app/_lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/app/_components/ui/card";
 import { RolesTable, type RoleWithDetails } from "@/app/(dashboard)/admin/_components/roles-table";
@@ -36,7 +35,6 @@ export default async function AdminRolesPage() {
 
   return (
     <div>
-      <Header />
       <div className="p-6">
         <Card>
           <CardHeader>

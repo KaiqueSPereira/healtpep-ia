@@ -24,6 +24,8 @@ import MenuUnidades from "../../unidades/_components/menuunidades";
 import MenuProfissionais from "../../profissionais/_components/menuprofissionais";
 import MenuConsultas from "@/app/(dashboard)/consulta/components/menuconsultas";
 import MenuCondicoes from "@/app/(dashboard)/condicoes/_Components/MenuCondicoes";
+import { Progress } from "@/app/_components/ui/progress";
+import { defaultExamTypes } from "@/app/_lib/examTypes";
 
 type Anexo = {
   id: string;
@@ -51,6 +53,16 @@ type ApiExameResult = {
 type AnaliseApiResponse = {
   resultados: ApiExameResult[];
   anotacao: string | null;
+  error?: string;
+};
+
+const normalizeString = (str: string) => {
+  if (!str) return '';
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 };
 
 export function ExameFormWrapper({
@@ -69,6 +81,7 @@ export function ExameFormWrapper({
   const [selectedCondicao, setSelectedCondicao] = useState<CondicaoSaude | null>(null);
 
   const [tipo, setTipo] = useState<string>("");
+  const [otherTypeName, setOtherTypeName] = useState("");
   const [dataExame, setDataExame] = useState<string>("");
   const [horaExame, setHoraExame] = useState<string>("");
   const [anotacao, setAnotacao] = useState<string>("");
@@ -76,6 +89,8 @@ export function ExameFormWrapper({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [exameResultados, setExameResultados] = useState<Partial<ResultadoExame>[]>([]);
   const [selectorsKey, setSelectorsKey] = useState(0);
 
@@ -121,7 +136,16 @@ export function ExameFormWrapper({
 
   useEffect(() => {
     if (existingExamData) {
-      setTipo(existingExamData.tipo || "");
+      const currentType = existingExamData.tipo || "";
+      
+      if (defaultExamTypes.includes(currentType)) {
+        setTipo(currentType);
+        setOtherTypeName("");
+      } else if (currentType) {
+        setTipo("Outros");
+        setOtherTypeName(currentType);
+      }
+
       if (existingExamData.dataExame) {
         const dataUtc = new Date(existingExamData.dataExame);
         if (!isNaN(dataUtc.getTime())) {
@@ -184,54 +208,110 @@ export function ExameFormWrapper({
   };
 
   const handleAnalyzeFile = async () => {
-    if (selectedFiles.length === 0 || !tipo) return;
+    const examTypeToAnalyze = tipo === 'Outros' ? otherTypeName : tipo;
+    if (selectedFiles.length === 0 || !examTypeToAnalyze) {
+      toast({
+        title: "Atenção",
+        description: "Por favor, selecione um tipo de exame e ao menos um arquivo para analisar.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoadingAnalysis(true);
-    let analysisSuccessCount = 0;
+    setAnalysisProgress(0);
+    setCurrentFileIndex(0);
 
-    for (const file of selectedFiles) {
+    let existingNormalizedNames: Set<string>;
+
+    try {
+      const biomarkersRes = await fetch('/api/exames/biomarkers');
+      if (!biomarkersRes.ok) {
+        throw new Error("Não foi possível verificar os biomarcadores existentes.");
+      }
+      const allDbNormalizedNames: string[] = await biomarkersRes.json();
+      existingNormalizedNames = new Set([
+        ...allDbNormalizedNames,
+        ...exameResultados.map(r => normalizeString(r.nome || ''))
+      ]);
+    } catch (error) {
+      toast({
+        title: "Erro na Preparação da Análise",
+        description: error instanceof Error ? error.message : "Ocorreu um erro ao buscar dados para verificação de duplicatas.",
+        variant: "destructive",
+      });
+      setLoadingAnalysis(false);
+      return;
+    }
+
+    let currentResultados = [...exameResultados];
+    const allAnnotations = existingExamData?.anotacao ? [existingExamData.anotacao] : [];
+    const totalFiles = selectedFiles.length;
+
+    for (let i = 0; i < totalFiles; i++) {
+      const file = selectedFiles[i];
+      setCurrentFileIndex(i);
+
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("tipo", tipo);
+      formData.append("files", file);
 
       try {
-        const res = await fetch("/api/exames/analise", { method: "POST", body: formData });
-        if (!res.ok) {
-          const errorData = await res.json();
-          toast({ title: `Erro ao analisar ${file.name}`, description: errorData.error, variant: "destructive" });
-          continue; 
+        const response = await fetch("/api/exames/analise", {
+          method: "POST",
+          body: formData,
+        });
+
+        const data: AnaliseApiResponse = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || `Falha ao analisar o arquivo: ${file.name}`);
         }
 
-        const data: AnaliseApiResponse = await res.json();
-        
         if (data.resultados) {
-          setExameResultados(prev => [
-            ...prev,
-            ...data.resultados.map((res) => ({ ...res, id: crypto.randomUUID(), referencia: res.valorReferencia }))
-          ]);
+          const newResults = data.resultados.filter(res => {
+            const normalizedNewName = normalizeString(res.nome);
+            if (existingNormalizedNames.has(normalizedNewName)) {
+              return false;
+            }
+            existingNormalizedNames.add(normalizedNewName);
+            return true;
+          });
+
+          if (newResults.length > 0) {
+            currentResultados = [
+              ...currentResultados,
+              ...newResults.map(res => ({ ...res, id: crypto.randomUUID(), referencia: res.valorReferencia }))
+            ];
+          }
         }
+
         if (data.anotacao) {
-          setAnotacao(prev => 
-            prev 
-            ? `${prev}\n\n--- ANÁLISE DE ${file.name} ---\n${data.anotacao}` 
-            : `--- ANÁLISE DE ${file.name} ---\n${data.anotacao}`
-          );
+          allAnnotations.push(data.anotacao);
         }
-        analysisSuccessCount++;
+
+        setAnalysisProgress(((i + 1) / totalFiles) * 100);
+
       } catch (error) {
-        toast({ title: `Erro ao processar ${file.name}`, description: "Verifique a conexão.", variant: "destructive" });
+        toast({
+          title: "Erro na Análise",
+          description: error instanceof Error ? error.message : `Ocorreu um erro ao processar o arquivo ${file.name}.`,
+          variant: "destructive",
+        });
+        setLoadingAnalysis(false);
+        return;
       }
     }
-    
-    if (analysisSuccessCount > 0) {
-        toast({ title: `Análise concluída para ${analysisSuccessCount} de ${selectedFiles.length} arquivo(s).` });
-    }
 
+    setExameResultados(currentResultados);
+    setAnotacao(allAnnotations.filter(Boolean).join('\n---\n'));
+    toast({ title: "Análise concluída!", description: `${totalFiles} arquivo(s) foram analisados com sucesso.` });
+    setSelectedFiles([]);
     setLoadingAnalysis(false);
   };
 
- const handleSubmit = async () => {
-    if (!tipo) {
+  const handleSubmit = async () => {
+    const examTypeToSend = tipo === 'Outros' ? otherTypeName : tipo;
+    if (!examTypeToSend) {
       toast({ title: "O tipo de exame é obrigatório.", variant: "destructive" });
       return;
     }
@@ -241,10 +321,10 @@ export function ExameFormWrapper({
     const body = new FormData();
 
     if (dataExame) {
-        const fullDate = new Date(dataExame + (horaExame ? 'T' + horaExame : 'T00:00:00'));
-        if (!isNaN(fullDate.getTime())) {
-            body.append("dataExame", fullDate.toISOString());
-        }
+      const fullDate = new Date(dataExame + (horaExame ? 'T' + horaExame : 'T00:00:00'));
+      if (!isNaN(fullDate.getTime())) {
+        body.append("dataExame", fullDate.toISOString());
+      }
     }
 
     const endpoint = existingExamData ? `/api/exames/${existingExamData.id}` : "/api/exames";
@@ -252,8 +332,8 @@ export function ExameFormWrapper({
 
     if (userId) body.append("userId", userId);
 
-    body.append("nome", tipo);
-    body.append("tipo", tipo);
+    body.append("nome", examTypeToSend);
+    body.append("tipo", examTypeToSend);
     body.append("anotacao", anotacao);
     body.append("laudoFinalizado", String(laudoFinalizado));
 
@@ -372,21 +452,41 @@ export function ExameFormWrapper({
 
                         <div>
                           <Label>Tipo de Exame *</Label>
-                          <Select value={tipo} onValueChange={setTipo} required>
+                          <Select 
+                            value={tipo} 
+                            onValueChange={(value) => {
+                              setTipo(value);
+                              if (value !== 'Outros') {
+                                setOtherTypeName("");
+                              }
+                            }}
+                            required
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Selecione o tipo de exame" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="Sangue">Sangue</SelectItem>
-                              <SelectItem value="Urina">Urina</SelectItem>
-                              <SelectItem value="USG">USG</SelectItem>
-                              <SelectItem value="Raio-X">Raio-X</SelectItem>
-                              <SelectItem value="Tomografia">Tomografia</SelectItem>
-                              <SelectItem value="Ressonancia">Ressonância Magnética</SelectItem>
-                              <SelectItem value="Outros">Outros</SelectItem>
+                                {defaultExamTypes.map(examType => (
+                                    <SelectItem key={examType} value={examType}>{examType}</SelectItem>
+                                ))}
+                                <SelectItem value="Outros">Outros</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
+
+                        {tipo === 'Outros' && (
+                          <div>
+                            <Label htmlFor="other-exam-type">Especifique o Tipo</Label>
+                            <Input 
+                              id="other-exam-type"
+                              value={otherTypeName}
+                              onChange={(e) => setOtherTypeName(e.target.value)}
+                              placeholder="Ex: Endoscopia"
+                              required
+                            />
+                          </div>
+                        )}
+
                     </CardContent>
                 </Card>
                 <Card>
@@ -418,15 +518,23 @@ export function ExameFormWrapper({
                         <div>
                             <Label>Anexar Arquivo (PDF ou imagem)</Label>
                             <div className="flex items-center space-x-2">
-                                <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} multiple />
+                                <Input type="file" accept="image/*,.pdf" onChange={handleFileChange} multiple disabled={loadingAnalysis} />
                                 <Button onClick={handleAnalyzeFile} disabled={selectedFiles.length === 0 || loadingAnalysis} type="button" size="sm">
-                                    {loadingAnalysis ? "Analisando..." : "Analisar"}
+                                    {loadingAnalysis ? `Analisando...` : "Analisar"}
                                 </Button>
                             </div>
                         </div>
-                        {selectedFiles.length > 0 && (
+                        {loadingAnalysis && (
+                            <div className="mt-2 space-y-1">
+                                <Progress value={analysisProgress} />
+                                <p className="text-sm text-muted-foreground text-center">
+                                  {`Analisando ${currentFileIndex + 1} de ${selectedFiles.length}`}
+                                </p>
+                            </div>
+                        )}
+                        {selectedFiles.length > 0 && !loadingAnalysis && (
                             <div className="text-sm">
-                                <p className="font-medium text-muted-foreground">Novos arquivos:</p>
+                                <p className="font-medium text-muted-foreground">Arquivos a serem analisados:</p>
                                 <ul className="list-disc pl-5 mt-1 space-y-1">
                                     {selectedFiles.map((file, index) => (
                                         <li key={index} className="text-muted-foreground">{file.name}</li>
@@ -463,7 +571,7 @@ export function ExameFormWrapper({
                     <CardFooter>
                         <Button
                             type="submit"
-                            disabled={loadingSubmit}
+                            disabled={loadingSubmit || loadingAnalysis}
                             className="w-full"
                         >
                             {loadingSubmit ? (existingExamData ? "Atualizando..." : "Enviando...") : (existingExamData ? "Atualizar Exame" : "Cadastrar Exame")}

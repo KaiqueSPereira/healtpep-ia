@@ -33,7 +33,7 @@ interface AnaliseResult extends AnaliseSucesso {
 }
 
 function extractJsonFromText(text: string): object | null {
-    const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+    const jsonRegex = /```json\\s*([\\s\\S]*?)\\s*```/;
     const match = text.match(jsonRegex);
     const potentialJson = match ? match[1] : text;
     try {
@@ -42,7 +42,7 @@ function extractJsonFromText(text: string): object | null {
         if (firstBrace === -1 || lastBrace === -1 || lastBrace < firstBrace) return null;
 
         const jsonString = potentialJson.substring(firstBrace, lastBrace + 1);
-        const correctedJson = jsonString.replace(/,\s*]/g, "]").replace(/,\s*}/g, "}");
+        const correctedJson = jsonString.replace(/,\\s*]/g, "]").replace(/,\\s*}/g, "}");
         return JSON.parse(correctedJson);
     } catch (e) {
         return null;
@@ -57,73 +57,83 @@ function parseIaResponse(iaObject: unknown): AnaliseSucesso {
 
     const resultadosFinais: ExameResultado[] = [];
     for (const item of iaRecord.resultados) {
-        if (typeof item === 'object' && item !== null && 'nome' in item && 'valor' in item) {
-            const nome = String(item.nome || '').trim();
-            const valor = String(item.valor || '').trim();
-            if (nome && valor) {
-                const valorReferencia = String(item.valorReferencia || item.referencia || '--').trim();
-                const unidade = String(item.unidade || determinarUnidade(valor, valorReferencia));
-                resultadosFinais.push({ nome, valor, unidade, valorReferencia });
-            }
+        if (
+            typeof item === 'object' && item !== null &&
+            'nome' in item && typeof item.nome === 'string' && item.nome.trim() &&
+            'valor' in item && (typeof item.valor === 'string' || typeof item.valor === 'number') && String(item.valor).trim() &&
+            'unidade' in item && typeof item.unidade === 'string' &&
+            'valorReferencia' in item && typeof item.valorReferencia === 'string'
+        ) {
+            resultadosFinais.push({
+                nome: item.nome.trim(),
+                valor: String(item.valor).trim(),
+                unidade: item.unidade.trim(),
+                valorReferencia: item.valorReferencia.trim(),
+            });
         }
     }
     return { resultados: resultadosFinais, anotacao };
-}
-
-function determinarUnidade(valor: string, referencia: string): string {
-    if (/[a-zA-Z]/.test(valor) && !/^[0-9.,<> ]*[a-zA-Z/³μLmgdL%-]+$/.test(valor)) return "--";
-    const textoBusca = (referencia + ' ' + valor).toLowerCase();
-    for (const unidade of unidadesMedida) {
-        if (unidade !== '--' && unidade !== 'Outro') {
-            const regex = new RegExp(`\\b${unidade.toLowerCase().replace(/[/³]/g, '\\$&')}\\b`);
-            if (regex.test(textoBusca)) return unidade;
-        }
-    }
-    if (/[0-9]/.test(valor)) return "Outro";
-    return "--";
 }
 
 async function analisarTextoDeExameComIA(texto: string): Promise<AnaliseResult> {
     const componentName = "analisarTextoDeExameComIA_Gemini";
     const unidadesMedidaString = unidadesMedida.join(', ');
     
-    const prompt = `Analise o texto de um exame laboratorial e extraia os dados estruturados. Sua resposta DEVE ser APENAS um objeto JSON válido.
-O objeto JSON precisa ter duas chaves:
-1. "resultados": um array de objetos, onde cada objeto representa um biomarcador e contém as chaves:
-    - "nome"
-    - "valor"
-    - "unidade": Use estritamente uma das seguintes opções: [${unidadesMedidaString}].
-    - "valorReferencia": O intervalo de referência (ex: "4.2 - 5.4"). NÃO inclua a unidade de medida aqui.
-2. "anotacao": uma string com um resumo conciso do exame. IMPORTANTE: A anotação não deve incluir nenhum título, nome de arquivo ou qualquer informação que não seja a análise direta dos resultados.
+    const prompt = `
+    **TAREFA:** Analise o texto de um exame laboratorial e retorne um objeto JSON.
 
----
-**EXEMPLO DE SAÍDA JSON:**
-\`\`\`json
-{
-  "resultados": [
-    { "nome": "Eritrócitos", "valor": "4.5", "unidade": "milhões/mm³", "valorReferencia": "4.2 - 5.4" },
-    { "nome": "Hemoglobina", "valor": "14.1", "unidade": "g/dL", "valorReferencia": "12.0 - 16.0" }
-  ],
-  "anotacao": "O hemograma está dentro dos valores de referência."
-}
-\`\`\`
----
-**AGORA, ANALISE O TEXTO REAL ABAIXO E GERE O JSON CORRESPONDENTE:**
-**ENTRADA:** ${texto}
-**SAÍDA JSON:** `;
+    **REGRAS DO JSON DE SAÍDA:**
+    1.  **Estrutura:** O JSON deve conter duas chaves: \`resultados\` (um array de objetos) e \`anotacao\` (uma string).
+    2.  **Formato Limpo:** Sua resposta final deve ser **APENAS** o objeto JSON, sem nenhum outro texto, markdown ou caracteres especiais como \`\`\`json.
+
+    **REGRAS PARA A CHAVE "resultados":**
+    -   Cada objeto no array representa um biomarcador.
+
+    1.  **CHAVE "nome":**
+        -   **Padronização:** Use a grafia médica padrão e corrija erros ortográficos (Ex: "creatininia" -> "Creatinina", "hdl colesterol" -> "Colesterol - HDL").
+        -   **Consolidação:** Evite marcadores duplicados.
+
+    2.  **CHAVE "valor":**
+        -   **Padronização Numérica:**
+            -   "superior a 10", "maior que 10" -> "> 10"
+            -   "inferior a 5", "menor que 5" -> "< 5"
+
+    3.  **CHAVE "unidade":**
+        -   **Seleção Obrigatória:** Use estritamente uma das unidades da lista: [${unidadesMedidaString}].
+        -   **Padrão:** Se a unidade não for encontrada, use "--".
+
+    4.  **CHAVE "valorReferencia":**
+        -   **Formato de Intervalo:** Padronize intervalos para o formato "X - Y" (Ex: "10 a 20" -> "10 - 20").
+        -   **Sem Unidade:** Não inclua a unidade de medida neste campo.
+
+    **REGRAS PARA A CHAVE "anotacao":**
+    -   **Descrição:** Crie um resumo descritivo dos itens medidos no exame (Ex: 'Hemograma, Creatinina e Colesterol - HDL.'). NÃO faça uma análise ou interpretação dos resultados.
+    -   **Sem Metadados:** Não inclua nomes de arquivos.
+
+    **EXEMPLO DE SAÍDA JSON:**
+    {
+      "resultados": [
+        { "nome": "Creatinina", "valor": "1.2", "unidade": "mg/dL", "valorReferencia": "0.7 - 1.3" }
+      ],
+      "anotacao": "Hemograma e Creatinina."
+    }
+
+    **ANALISE O TEXTO ABAIXO E GERE O JSON:**
+
+    **ENTRADA:**
+    ${texto}
+    `;
 
     try {
-        // REVERTENDO PARA A CHAMADA ORIGINAL E FUNCIONAL DA API
         const result = await genAI.models.generateContent({
             model: "gemini-2.5-flash",
             contents: [{ role: "user", parts: [{ text: prompt }] }]
         });
         const generatedText = result.text?.trim() ?? "";
-
         const jsonResponse = extractJsonFromText(generatedText);
 
         if (!jsonResponse) {
-            const errorMessage = "Não foi possível interpretar o resultado da análise. A resposta da IA não estava em um formato esperado.";
+            const errorMessage = "A resposta da IA não estava no formato esperado.";
             await logErrorToDb("A IA (Gemini) não retornou um JSON válido", { rawText: generatedText }, componentName);
             return { resultados: [], anotacao: "", error: errorMessage };
         }
@@ -132,7 +142,7 @@ O objeto JSON precisa ter duas chaves:
         return { ...parsedResponse };
 
     } catch (error: unknown) {
-        let errorMessage = "O serviço de análise de IA está temporariamente indisponível. Tente novamente mais tarde.";
+        let errorMessage = "O serviço de análise de IA está temporariamente indisponível.";
         if (error instanceof Error && (error.message.includes('API key not valid') || error.message.includes('API key expired'))) {
             errorMessage = "O serviço de análise não está configurado corretamente.";
         }
@@ -154,40 +164,41 @@ export async function POST(req: NextRequest) {
   const componentName = "API /api/exames/analise";
   try {
     const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    const file = formData.get("files") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: "Nenhum arquivo foi enviado. Por favor, selecione um para continuar." }, { status: 400 });
+      return NextResponse.json({ error: "Nenhum arquivo foi enviado." }, { status: 400 });
     }
 
     if (!process.env.GOOGLE_API_KEY) {
-        const errorMessage = "O serviço de análise não está configurado corretamente.";
-        await logErrorToDb("Chave da API do Google não configurada", "A variável de ambiente GOOGLE_API_KEY não foi encontrada.", componentName);
+        const errorMessage = "O serviço de análise não está configurado.";
+        await logErrorToDb("Chave da API do Google não configurada", "A variável GOOGLE_API_KEY não foi encontrada.", componentName);
         return NextResponse.json({ error: errorMessage }, { status: 500 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const fileBuffer = Buffer.from(arrayBuffer);
-    let textoExtraido = "";
+    const worker = await createWorker("por");
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    let texto = "";
 
     if (file.type === "application/pdf") {
-        textoExtraido = await extrairTextoDePdf(fileBuffer);
+        texto = await extrairTextoDePdf(fileBuffer);
     } else if (file.type.startsWith("image/")) {
-        const worker = await createWorker("por");
         const { data: { text } } = await worker.recognize(fileBuffer);
-        await worker.terminate();
-        textoExtraido = text;
+        texto = text;
     } else {
-        return NextResponse.json({ error: "Tipo de arquivo não suportado. Por favor, envie um PDF ou uma imagem (PNG, JPG)." }, { status: 415 });
+        await worker.terminate();
+        return NextResponse.json({ error: `Tipo de arquivo '${file.type}' não suportado.` }, { status: 415 });
     }
+    
+    await worker.terminate();
 
-    if (!textoExtraido.trim()) {
-        const errorMessage = "Não foi possível ler o conteúdo do arquivo. Verifique se a imagem está nítida ou se o PDF não está protegido ou em branco.";
-        await logErrorToDb("Nenhum texto extraído do arquivo", { fileName: file.name, fileType: file.type }, componentName);
+    if (!texto.trim()) {
+        const errorMessage = "Não foi possível ler o conteúdo do arquivo. Verifique a qualidade do documento.";
+        await logErrorToDb("Nenhum texto extraído do arquivo", { fileName: file.name }, componentName);
         return NextResponse.json({ error: errorMessage }, { status: 422 });
     }
 
-    const analiseIA = await analisarTextoDeExameComIA(textoExtraido);
+    const analiseIA = await analisarTextoDeExameComIA(texto);
 
     if (analiseIA.error) {
         return NextResponse.json({ error: analiseIA.error, resultados: [], anotacao: '' }, { status: 500 });

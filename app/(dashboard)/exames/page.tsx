@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ExameSidebar } from "./components/ExameSidebar";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { useToast } from "../../_hooks/use-toast";
+import { getDisplayName, getCategory } from "@/app/_lib/biomarkerUtils";
 
 export type ExameCompleto = Exame & {
     profissional: Profissional | null;
@@ -70,6 +71,7 @@ export default function ExamesPage() {
     const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
     const [listStatusFilter, setListStatusFilter] = useState<'todos' | 'agendados' | 'realizados' | 'pendentes'>('todos');
     const [selectedChartType, setSelectedChartType] = useState<ChartKeyword>('Sangue');
+    const [selectedChartCategory, setSelectedChartCategory] = useState<string>('Todos');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
     const [chartData, setChartData] = useState<ChartData | null>(null);
     const [examToDelete, setExamToDelete] = useState<string | null>(null);
@@ -138,19 +140,45 @@ export default function ExamesPage() {
     }, [currentView, session?.user?.id, fetchExames, toast]);
 
     const listFilterOptions = useMemo(() => Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), [examesListaData]);
+
+    const chartCategoryOptions = useMemo(() => {
+        if (currentView !== 'charts') return [];
+        const categories = new Set<string>();
+        examesGraficosData
+            .filter(exame => exame.tipo && exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase()))
+            .flatMap(exame => exame.resultados?.map(res => getCategory(getDisplayName(res.nome))) || [])
+            .forEach(category => categories.add(category));
+        
+        const sortedCategories = Array.from(categories).sort();
+        return ['Todos', ...sortedCategories];
+    }, [examesGraficosData, currentView, selectedChartType]);
+
     const chartComponentOptions = useMemo(() => {
-        if (currentView !== 'charts' || !selectedChartType) return [];
+        if (currentView !== 'charts') return [];
         const componentNames = examesGraficosData
             .filter(exame => exame.tipo && exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase()))
-            .flatMap(exame => exame.resultados?.map(res => res.nome) || []);
-        return Array.from(new Set(componentNames.filter(Boolean))).sort();
-    }, [examesGraficosData, currentView, selectedChartType]);
+            .flatMap(exame => exame.resultados?.map(res => getDisplayName(res.nome)) || [])
+            .filter((name): name is string => !!name && name !== 'Desconhecido');
+
+        if (selectedChartCategory === 'Todos') {
+            return Array.from(new Set(componentNames)).sort();
+        }
+
+        const filteredByCat = componentNames.filter(name => getCategory(name) === selectedChartCategory);
+        return Array.from(new Set(filteredByCat)).sort();
+    }, [examesGraficosData, currentView, selectedChartType, selectedChartCategory]);
 
     useEffect(() => {
         if (currentView === 'charts') {
-            setSelectedChartComponents(chartComponentOptions);
+            const newSelectedComponents = chartComponentOptions.filter(comp => selectedChartComponents.includes(comp));
+            if(newSelectedComponents.length === 0 && chartComponentOptions.length > 0) {
+                 setSelectedChartComponents(chartComponentOptions);
+            } else {
+                 setSelectedChartComponents(newSelectedComponents);
+            }
         }
-    }, [chartComponentOptions, currentView]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chartComponentOptions, currentView, selectedChartCategory]);
 
     const { examesAgendados, examesRealizados, examesPendentes } = useMemo(() => {
         const today = new Date();
@@ -210,16 +238,18 @@ export default function ExamesPage() {
         });
 
         const componentData = new Map<string, Map<string, number>>();
+
         relevantExams.forEach(exame => {
             const dateStr = new Date(exame.dataExame).toISOString().split('T')[0];
             exame.resultados?.forEach(resultado => {
-                if (resultado.nome && selectedChartComponents.includes(resultado.nome)) {
+                const displayName = getDisplayName(resultado.nome);
+                if (displayName !== 'Desconhecido' && selectedChartComponents.includes(displayName)) {
                     const numericValue = parseExameValue(resultado.valor);
                     if (numericValue !== null) {
-                        if (!componentData.has(resultado.nome)) {
-                            componentData.set(resultado.nome, new Map());
+                        if (!componentData.has(displayName)) {
+                            componentData.set(displayName, new Map());
                         }
-                        componentData.get(resultado.nome)!.set(dateStr, numericValue);
+                        componentData.get(displayName)!.set(dateStr, numericValue);
                     }
                 }
             });
@@ -267,6 +297,13 @@ export default function ExamesPage() {
         }
     };
 
+    const handleChartCategoryChange = (category: string) => {
+        setSelectedChartCategory(category);
+        // When category changes, we should also update the selected components.
+        // We will let the useEffect hook for chartComponentOptions handle this.
+    };
+
+
     return (
         <div className="flex flex-1">
             <ExameSidebar
@@ -285,6 +322,9 @@ export default function ExamesPage() {
                 onListStatusFilterChange={setListStatusFilter}
                 selectedChartType={selectedChartType}
                 onChartTypeChange={setSelectedChartType}
+                chartCategoryOptions={chartCategoryOptions}
+                selectedChartCategory={selectedChartCategory}
+                onChartCategoryChange={handleChartCategoryChange}
                 chartComponentOptions={chartComponentOptions}
                 selectedChartComponents={selectedChartComponents}
                 onChartComponentChange={setSelectedChartComponents}

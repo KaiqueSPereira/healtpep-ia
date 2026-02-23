@@ -1,5 +1,4 @@
 import { prisma } from '@/app/_lib/prisma';
-import Header from '@/app/_components/header';
 import {
   Card,
   CardContent,
@@ -34,7 +33,6 @@ const AdminLogsPage = async ({ searchParams }: { searchParams: { page?: string }
 
   return (
     <div>
-      <Header />
       <div className="p-4">
         <Card>
           <CardHeader>
