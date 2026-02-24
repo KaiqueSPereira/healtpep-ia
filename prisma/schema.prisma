@@ -438,6 +438,16 @@ model AbastecimentoMedicamento {
   @@index([unidadeDeSaudeId])
 }
 
+model BiomarkerRule {
+  id                String @id @default(cuid())
+  normalizedRawName String @unique
+  standardizedName  String
+  category          String
+
+  @@index([standardizedName])
+  @@index([category])
+}
+
 enum TipoAnexo {
   Encaminhamento
   Atestado_Declaracao

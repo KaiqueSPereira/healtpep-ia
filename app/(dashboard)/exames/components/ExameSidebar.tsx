@@ -16,9 +16,9 @@ interface ExameSidebarProps {
   onStartDateChange: (date: string) => void;
   endDate: string;
   onEndDateChange: (date: string) => void;
-  listFilterOptions: string[];
-  selectedListTypes: string[];
-  onListTypeChange: (types: string[]) => void;
+  examTypeOptions: string[];
+  selectedExamTypes: string[];
+  onExamTypeChange: (types: string[]) => void;
   chartCategoryOptions: string[];
   selectedChartCategory: string;
   onChartCategoryChange: (category: string) => void;
@@ -38,9 +38,9 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
   onStartDateChange,
   endDate,
   onEndDateChange,
-  listFilterOptions,
-  selectedListTypes,
-  onListTypeChange,
+  examTypeOptions,
+  selectedExamTypes,
+  onExamTypeChange,
   chartCategoryOptions,
   selectedChartCategory,
   onChartCategoryChange,
@@ -102,11 +102,7 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                                   {!isCollapsed && "Lista"}
                               </Button>
                           </TooltipTrigger>
-                          {isCollapsed && (
-                              <TooltipContent side="right">
-                                  <p>Lista</p>
-                              </TooltipContent>
-                          )}
+                          {isCollapsed && (<TooltipContent side="right"><p>Lista</p></TooltipContent>)}
                       </Tooltip>
                       <Tooltip>
                           <TooltipTrigger asChild>
@@ -115,20 +111,34 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                                   {!isCollapsed && "Gráficos"}
                               </Button>
                           </TooltipTrigger>
-                          {isCollapsed && (
-                              <TooltipContent side="right">
-                                  <p>Gráficos</p>
-                              </TooltipContent>
-                          )}
+                          {isCollapsed && (<TooltipContent side="right"><p>Gráficos</p></TooltipContent>)}
                       </Tooltip>
                   </div>
               </div>
 
               {!isCollapsed && (
                 <div className="flex flex-col gap-8 mt-8 w-full flex-1 overflow-y-auto pr-2">
+                  
+                  <div>
+                      <h3 className="text-md font-semibold mb-3">Filtros Gerais</h3>
+                      <div className="space-y-3">
+                          <div>
+                              <h4 className="text-sm font-medium mb-2">Período</h4>
+                              <Input type="date" id="startDate" value={startDate} onChange={e => onStartDateChange(e.target.value)} aria-label="Data Inicial"/>
+                              <Input type="date" id="endDate" className='mt-2' value={endDate} onChange={e => onEndDateChange(e.target.value)} aria-label="Data Final"/>
+                          </div>
+                          {examTypeOptions.length > 0 && (
+                            <div>
+                                <h4 className="text-sm font-medium mb-2 mt-4">Tipo de Exame</h4>
+                                <ExameTypeFilter allTypes={examTypeOptions} selectedTypes={selectedExamTypes} onTypeChange={onExamTypeChange} title="Filtrar por Tipo" />
+                            </div>
+                          )}
+                      </div>
+                  </div>
+
                   {currentView === 'list' && (
                     <div>
-                      <h3 className="text-md font-semibold mb-3">Estado</h3>
+                      <h3 className="text-md font-semibold mb-3">Filtros de Lista</h3>
                       <div className="space-y-2">
                         {statusFilters.map(({ key, label, icon: Icon }) => (
                           <Button 
@@ -144,24 +154,13 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                     </div>
                   )}
 
-                  <div>
-                      <h3 className="text-md font-semibold mb-3">Período</h3>
-                      <div className="space-y-3">
-                          <Input type="date" id="startDate" value={startDate} onChange={e => onStartDateChange(e.target.value)} aria-label="Data Inicial"/>
-                          <Input type="date" id="endDate" value={endDate} onChange={e => onEndDateChange(e.target.value)} aria-label="Data Final"/>
-                      </div>
-                  </div>
-
-                  <div>
-                      <h3 className="text-md font-semibold mb-3">Filtros Avançados</h3>
-                      {currentView === 'list' && listFilterOptions.length > 0 && (
-                            <ExameTypeFilter allTypes={listFilterOptions} selectedTypes={selectedListTypes} onTypeChange={onListTypeChange} title="Filtrar por Exame" />
-                      )}
-                      {currentView === 'charts' && (
+                  {currentView === 'charts' && (
+                      <div>
+                          <h3 className="text-md font-semibold mb-3">Filtros de Gráfico</h3>
                           <div className="space-y-4">
                               {chartCategoryOptions.length > 1 && (
                                   <div>
-                                      <h4 className="text-sm font-medium mb-2">Categoria</h4>
+                                      <h4 className="text-sm font-medium mb-2">Categoria do Biomarcador</h4>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                           <Button variant="outline" className="w-full justify-start">
@@ -183,13 +182,13 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
 
                               {chartComponentOptions.length > 0 && (
                                   <div>
-                                      <h4 className="text-sm font-medium mb-2">Componentes</h4>
-                                      <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} title="Filtrar Componentes"/>
+                                      <h4 className="text-sm font-medium mb-2">Biomarcadores</h4>
+                                      <ExameTypeFilter allTypes={chartComponentOptions} selectedTypes={selectedChartComponents} onTypeChange={onChartComponentChange} title="Filtrar Biomarcadores"/>
                                   </div>
                               )}
                           </div>
-                      )}
-                  </div>
+                      </div>
+                  )}
                 </div>
               )}
           </div>

@@ -9,7 +9,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ExameSidebar } from "./components/ExameSidebar";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { useToast } from "../../_hooks/use-toast";
-import { standardizeBiomarkerName, getCategory } from "@/app/_lib/biomarkerUtils";
 
 export type ExameCompleto = Exame & {
     profissional: Profissional | null;
@@ -22,7 +21,7 @@ type ExameGraficos = {
     id: string;
     dataExame: Date;
     tipo: string;
-    resultados: { id: string; nome: string; valor: string; }[];
+    resultados: { id: string; nome: string; valor: string; categoria: string; }[];
 };
 
 type ChartData = {
@@ -34,6 +33,10 @@ type ChartData = {
         backgroundColor: string;
         tension: number;
         spanGaps: boolean;
+        borderWidth: number;
+        pointRadius: number;
+        pointHoverRadius: number;
+        pointBackgroundColor: string;
     }[];
 };
 
@@ -49,6 +52,12 @@ const parseExameValue = (value: string | number | null): number | null => {
     const numericValue = parseFloat(cleanedValue);
     return isNaN(numericValue) ? null : numericValue;
 };
+
+const CHART_COLORS = [
+    '#4dc9f6', '#f67019', '#f53794', '#537bc4', '#acc236', '#166a8f',
+    '#00a950', '#58595b', '#8549ba', '#0099cc', '#ff6666', '#ffc266',
+    '#66ff66', '#66c2ff', '#c266ff'
+];
 
 const EXAMES_PER_PAGE = 10;
 
@@ -66,7 +75,7 @@ export default function ExamesPage() {
     const [currentView, setCurrentView] = useState<'list' | 'charts'>('list');
     const [startDate, setStartDate] = useState<string>("");
     const [endDate, setEndDate] = useState<string>("");
-    const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
+    const [selectedExamTypes, setSelectedExamTypes] = useState<string[]>([]);
     const [listStatusFilter, setListStatusFilter] = useState<'todos' | 'agendados' | 'realizados' | 'pendentes'>('todos');
     const [selectedChartCategory, setSelectedChartCategory] = useState<string>('Todos');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
@@ -136,14 +145,18 @@ export default function ExamesPage() {
         }
     }, [currentView, session?.user?.id, fetchExames, toast]);
 
-    const listFilterOptions = useMemo(() => Array.from(new Set(examesListaData.map(e => e.tipo).filter((t): t is string => !!t))).sort(), [examesListaData]);
+    const examTypeOptions = useMemo(() => {
+        const listTypes = examesListaData.map(e => e.tipo).filter(Boolean);
+        const chartTypes = examesGraficosData.map(e => e.tipo).filter(Boolean);
+        return Array.from(new Set([...listTypes, ...chartTypes] as string[])).sort();
+    }, [examesListaData, examesGraficosData]);
 
     const chartCategoryOptions = useMemo(() => {
         if (currentView !== 'charts') return [];
         const categories = new Set<string>();
         examesGraficosData
             .filter(exame => exame.tipo === 'Exames Laboratoriais')
-            .flatMap(exame => exame.resultados?.map(res => getCategory(standardizeBiomarkerName(res.nome))) || [])
+            .flatMap(exame => exame.resultados?.map(res => res.categoria) || [])
             .forEach(category => {
                 if (category) categories.add(category);
             });
@@ -156,15 +169,12 @@ export default function ExamesPage() {
         if (currentView !== 'charts') return [];
         const componentNames = examesGraficosData
             .filter(exame => exame.tipo === 'Exames Laboratoriais')
-            .flatMap(exame => exame.resultados?.map(res => standardizeBiomarkerName(res.nome)) || [])
+            .flatMap(exame => exame.resultados || [])
+            .filter(res => selectedChartCategory === 'Todos' || res.categoria === selectedChartCategory)
+            .map(res => res.nome)
             .filter((name): name is string => !!name && name !== 'Desconhecido');
 
-        if (selectedChartCategory === 'Todos') {
-            return Array.from(new Set(componentNames)).sort();
-        }
-
-        const filteredByCat = componentNames.filter(name => getCategory(name) === selectedChartCategory);
-        return Array.from(new Set(filteredByCat)).sort();
+        return Array.from(new Set(componentNames)).sort();
     }, [examesGraficosData, currentView, selectedChartCategory]);
 
     useEffect(() => {
@@ -202,9 +212,9 @@ export default function ExamesPage() {
         return { examesAgendados: agendados, examesRealizados: realizados, examesPendentes: pendentes };
     }, [examesListaData]);
 
-    const filterExamsByDateAndType = useCallback((exames: ExameCompleto[], filterByDate: boolean) => {
+    const filterExams = useCallback((exames: (ExameCompleto | ExameGraficos)[]) => {
         return exames.filter(exame => {
-            if (filterByDate && exame.dataExame) {
+            if (exame.dataExame) {
                 const examDate = new Date(exame.dataExame);
                 if (!isNaN(examDate.getTime())) {
                     const start = startDate ? new Date(startDate).getTime() : -Infinity;
@@ -212,14 +222,14 @@ export default function ExamesPage() {
                     if (examDate.getTime() < start || examDate.getTime() > end) return false;
                 }
             }
-            if (selectedListTypes.length > 0 && (!exame.tipo || !selectedListTypes.includes(exame.tipo))) return false;
+            if (selectedExamTypes.length > 0 && (!exame.tipo || !selectedExamTypes.includes(exame.tipo))) return false;
             return true;
         });
-    }, [startDate, endDate, selectedListTypes]);
+    }, [startDate, endDate, selectedExamTypes]);
     
-    const filteredAgendados = useMemo(() => filterExamsByDateAndType(examesAgendados, true), [examesAgendados, filterExamsByDateAndType]);
-    const filteredRealizados = useMemo(() => filterExamsByDateAndType(examesRealizados, true), [examesRealizados, filterExamsByDateAndType]);
-    const filteredPendentes = useMemo(() => filterExamsByDateAndType(examesPendentes, false), [examesPendentes, filterExamsByDateAndType]);
+    const filteredAgendados = useMemo(() => filterExams(examesAgendados).filter(exame => new Date(exame.dataExame as Date) >= new Date(new Date().setHours(0,0,0,0))), [examesAgendados, filterExams]);
+    const filteredRealizados = useMemo(() => filterExams(examesRealizados).filter(exame => new Date(exame.dataExame as Date) < new Date(new Date().setHours(0,0,0,0))), [examesRealizados, filterExams]);
+    const filteredPendentes = useMemo(() => filterExams(examesPendentes).filter(exame => !exame.dataExame), [examesPendentes, filterExams]);
 
     useEffect(() => {
         if (currentView !== 'charts' || selectedChartComponents.length === 0) {
@@ -227,21 +237,14 @@ export default function ExamesPage() {
             return;
         }
 
-        const relevantExams = examesGraficosData.filter(exame => {
-            if (exame.tipo !== 'Exames Laboratoriais') return false;
-            const examDate = new Date(exame.dataExame);
-            if (isNaN(examDate.getTime())) return false;
-            const start = startDate ? new Date(startDate).getTime() : -Infinity;
-            const end = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : Infinity;
-            return examDate.getTime() >= start && examDate.getTime() <= end;
-        });
+        const relevantExams = filterExams(examesGraficosData).filter(exame => exame.tipo === 'Exames Laboratoriais');
 
         const componentData = new Map<string, Map<string, number>>();
 
         relevantExams.forEach(exame => {
-            const dateStr = new Date(exame.dataExame).toISOString().split('T')[0];
-            exame.resultados?.forEach(resultado => {
-                const displayName = standardizeBiomarkerName(resultado.nome);
+            const dateStr = new Date(exame.dataExame as Date).toISOString().split('T')[0];
+            (exame as ExameGraficos).resultados?.forEach(resultado => {
+                const displayName = resultado.nome;
                 if (displayName !== 'Desconhecido' && selectedChartComponents.includes(displayName)) {
                     const numericValue = parseExameValue(resultado.valor);
                     if (numericValue !== null) {
@@ -261,19 +264,26 @@ export default function ExamesPage() {
         }
 
         const finalChartData: ChartData = {
-            labels: allDates.map(date => new Date(date + 'T00:00:00Z').toLocaleDateString()),
-            datasets: Array.from(componentData.entries()).map(([componentName, dateMap], index) => ({
-                label: componentName,
-                data: allDates.map(date => dateMap.get(date) ?? null),
-                borderColor: `hsl(${index * 60 % 360}, 70%, 50%)`,
-                backgroundColor: `hsla(${index * 60 % 360}, 70%, 50%, 0.2)`,
-                tension: 0.1,
-                spanGaps: true,
-            })),
+            labels: allDates.map(date => new Date(date + 'T00:00:00Z').toLocaleDateString('pt-BR')),
+            datasets: Array.from(componentData.entries()).map(([componentName, dateMap], index) => {
+                const color = CHART_COLORS[index % CHART_COLORS.length];
+                return {
+                    label: componentName,
+                    data: allDates.map(date => dateMap.get(date) ?? null),
+                    borderColor: color,
+                    backgroundColor: `${color}33`,
+                    tension: 0.4,
+                    spanGaps: true,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                };
+            }),
         };
         setChartData(finalChartData);
 
-    }, [currentView, examesGraficosData, selectedChartComponents, startDate, endDate]);
+    }, [currentView, examesGraficosData, selectedChartComponents, filterExams]);
 
     const handleDeleteClick = (examId: string) => {
         setExamToDelete(examId);
@@ -298,8 +308,6 @@ export default function ExamesPage() {
 
     const handleChartCategoryChange = (category: string) => {
         setSelectedChartCategory(category);
-        // When category changes, we should also update the selected components.
-        // We will let the useEffect hook for chartComponentOptions handle this.
     };
 
 
@@ -314,9 +322,9 @@ export default function ExamesPage() {
                 onStartDateChange={setStartDate}
                 endDate={endDate}
                 onEndDateChange={setEndDate}
-                listFilterOptions={listFilterOptions}
-                selectedListTypes={selectedListTypes}
-                onListTypeChange={setSelectedListTypes}
+                examTypeOptions={examTypeOptions}
+                selectedExamTypes={selectedExamTypes}
+                onExamTypeChange={setSelectedExamTypes}
                 listStatusFilter={listStatusFilter}
                 onListStatusFilterChange={setListStatusFilter}
                 chartCategoryOptions={chartCategoryOptions}
@@ -339,19 +347,19 @@ export default function ExamesPage() {
                             const agendadosView = (listStatusFilter === 'todos' || listStatusFilter === 'agendados') && filteredAgendados.length > 0 && (
                                 <div className="mb-8">
                                     <h2 className="text-xl font-semibold mb-4">Exames Agendados</h2>
-                                    <ExamesGrid exames={filteredAgendados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                    <ExamesGrid exames={filteredAgendados as ExameCompleto[]} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                 </div>
                             );
                             const realizadosView = (listStatusFilter === 'todos' || listStatusFilter === 'realizados') && filteredRealizados.length > 0 && (
                                 <div className="mb-8">
                                     <h2 className="text-xl font-semibold mb-4">Exames Realizados</h2>
-                                    <ExamesGrid exames={filteredRealizados} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                    <ExamesGrid exames={filteredRealizados as ExameCompleto[]} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                 </div>
                             );
                             const pendentesView = (listStatusFilter === 'todos' || listStatusFilter === 'pendentes') && filteredPendentes.length > 0 && (
                                 <div className="mb-8">
                                     <h2 className="text-xl font-semibold mb-4">Exames Pendentes</h2>
-                                    <ExamesGrid exames={filteredPendentes} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
+                                    <ExamesGrid exames={filteredPendentes as ExameCompleto[]} onDeleteClick={handleDeleteClick} fetchMoreExames={fetchMoreExames} hasMore={hasMore} isFetchingMore={isFetchingMore} />
                                 </div>
                             );
 

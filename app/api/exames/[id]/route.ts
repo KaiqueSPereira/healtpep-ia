@@ -5,7 +5,7 @@ import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } fro
 import { Prisma } from "@prisma/client";
 import { Buffer } from "buffer";
 import { logErrorToDb } from "@/app/_lib/logger";
-import { standardizeBiomarkerName } from "@/app/_lib/biomarkerUtils";
+import { getBiomarkerRule } from "@/app/_lib/biomarkerUtils";
 
 const exameWithDetailsArgs = {
     include: {
@@ -127,7 +127,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         const laudoFinalizado = laudoFinalizadoStr === 'true';
         const resultados: {nome: string, valor: string, unidade?: string, referencia?: string}[] = resultadosStr ? JSON.parse(resultadosStr) : [];
         
-        const standardizedResultados = resultados.map(r => ({ ...r, nome: standardizeBiomarkerName(r.nome) }));
+        const standardizedResultados = await Promise.all(resultados.map(async (r) => {
+            const rule = await getBiomarkerRule(r.nome);
+            return { 
+                ...r, 
+                nome: rule.standardizedName,
+            };
+        }));
 
         const updatedExame = await prisma.$transaction(async (tx) => {
             const updateData: Prisma.ExameUpdateInput = {

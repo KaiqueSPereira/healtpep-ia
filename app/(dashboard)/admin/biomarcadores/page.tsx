@@ -28,24 +28,22 @@ const BiomarkerManagerPage = () => {
     if (!isRefetch) setLoading(true);
     setError(null);
     try {
-      const [pendingRes, allRes] = await Promise.all([
-        fetch('/api/exames/biomarcadores/pendentes'),
-        fetch('/api/exames/biomarcadores/all'),
-      ]);
+      const res = await fetch('/api/exames/biomarcadores/all');
 
-      if (!pendingRes.ok || !allRes.ok) {
+      if (!res.ok) {
         throw new Error('Falha ao carregar os dados dos biomarcadores.');
       }
 
-      const pendingData = await pendingRes.json();
-      const allData = await allRes.json();
+      const allData = await res.json();
+
+      const pendingData = allData.Pendente || [];
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { Pendente, ...categorizedData } = allData;
 
       setPending(pendingData.sort());
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { Pendente, ...rest } = allData;
-      setCategorized(rest);
+      setCategorized(categorizedData);
 
-      const allNames = [...new Set([...pendingData, ...Object.values(allData).flat()])].sort();
+      const allNames = [...new Set([...pendingData, ...Object.values(categorizedData).flat()])].sort();
       setAllBiomarkerNames(allNames as string[]);
 
     } catch (e) {

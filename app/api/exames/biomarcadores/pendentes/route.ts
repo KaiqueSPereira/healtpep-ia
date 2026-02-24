@@ -1,36 +1,40 @@
-'use server';
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/app/_lib/prisma';
-import { safeDecrypt } from '@/app/_lib/crypto';
+import { logErrorToDb } from '@/app/_lib/logger';
 
 /**
- * Rota da API para buscar nomes únicos de biomarcadores de resultados de exames
- * que estão atualmente marcados com a categoria "Pendente".
- * Os nomes dos biomarcadores são descriptografados antes de serem retornados.
+ * Rota da API para buscar nomes únicos e padronizados de biomarcadores
+ * que estão atualmente marcados com a categoria "Pendente" na tabela de regras.
  * 
  * @returns {Promise<NextResponse>} Uma resposta JSON contendo um array de nomes de biomarcadores
  * ou uma resposta de erro em caso de falha.
  */
 export async function GET() {
+  const componentName = 'API GET /api/exames/biomarcadores/pendentes';
   try {
-    const pendingBiomarkers = await prisma.resultadoExame.findMany({
+    const pendingRules = await prisma.biomarkerRule.findMany({
       where: {
-        categoria: 'Pendente',
+        category: 'Pendente',
       },
       select: {
-        nome: true,
+        standardizedName: true,
       },
-      distinct: ['nome'],
+      distinct: ['standardizedName'],
     });
 
-    // Extrai e descriptografa os nomes para um array de strings
-    const names = pendingBiomarkers.map(b => safeDecrypt(b.nome));
+    // Extrai os nomes padronizados para um array de strings
+    const names = pendingRules.map(rule => rule.standardizedName);
 
     return NextResponse.json(names);
+    
   } catch (error) {
-    console.error('Erro ao buscar biomarcadores pendentes:', error);
-    // Retorna uma resposta de erro genérica para o cliente para não expor detalhes internos
+    const errorMessage = 'Erro ao buscar biomarcadores pendentes.';
+    await logErrorToDb(
+        errorMessage,
+        error instanceof Error ? error.stack || error.message : String(error),
+        componentName
+    );
     return new NextResponse('Erro interno do servidor ao processar a solicitação.', { status: 500 });
   }
 }

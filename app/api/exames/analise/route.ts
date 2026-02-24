@@ -5,6 +5,8 @@ import { PdfReader } from "pdfreader";
 import { Buffer } from "buffer";
 import { GoogleGenAI } from "@google/genai";
 import { logErrorToDb } from "@/app/_lib/logger";
+import { getBiomarkerRule } from "@/app/_lib/biomarkerUtils";
+import { notifyAdmins } from "@/app/_lib/notificationUtils";
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY || "" });
 
@@ -23,6 +25,7 @@ interface ExameResultado {
   valor: string;
   unidade: string;
   valorReferencia: string;
+  categoria?: string; 
 }
 interface AnaliseSucesso {
   resultados: ExameResultado[];
@@ -90,8 +93,7 @@ async function analisarTextoDeExameComIA(texto: string): Promise<AnaliseResult> 
     -   Cada objeto no array representa um biomarcador.
 
     1.  **CHAVE "nome":**
-        -   **Padronização:** Use a grafia médica padrão e corrija erros ortográficos (Ex: "creatininia" -> "Creatinina", "hdl colesterol" -> "Colesterol - HDL").
-        -   **Consolidação:** Evite marcadores duplicados.
+        -   **Extração Fiel:** Extraia o nome do biomarcador EXATAMENTE como ele aparece no texto. NÃO padronize ou corrija (Ex: "creatininia" -> "creatininia", "hdl colesterol" -> "hdl colesterol").
 
     2.  **CHAVE "valor":**
         -   **Padronização Numérica:**
@@ -203,8 +205,35 @@ export async function POST(req: NextRequest) {
     if (analiseIA.error) {
         return NextResponse.json({ error: analiseIA.error, resultados: [], anotacao: '' }, { status: 500 });
     }
+    
+    const resultadosProcessados: ExameResultado[] = [];
+    const notificacoesPendentes = new Set<string>();
 
-    return NextResponse.json({ resultados: analiseIA.resultados, anotacao: analiseIA.anotacao });
+    for (const resultado of analiseIA.resultados) {
+      const rule = await getBiomarkerRule(resultado.nome);
+      
+      if (rule.category === 'Pendente') {
+        notificacoesPendentes.add(resultado.nome);
+      }
+      
+      resultadosProcessados.push({
+        ...resultado,
+        nome: rule.standardizedName,
+        categoria: rule.category,
+      });
+    }
+
+    if (notificacoesPendentes.size > 0) {
+        const biomarcadoresNaoCategorizados = Array.from(notificacoesPendentes).join(', ');
+        await notifyAdmins({
+            title: 'Biomarcador não categorizado',
+            message: `Os seguintes biomarcadores precisam de categorização: ${biomarcadoresNaoCategorizados}.`,
+            url: '/admin/biomarcadores',
+            type: 'BIOMARCADOR_PENDENTE'
+        });
+    }
+
+    return NextResponse.json({ resultados: resultadosProcessados, anotacao: analiseIA.anotacao });
 
   } catch (error: unknown) {
     const errorMessage = "Ocorreu um erro inesperado ao processar o arquivo.";
