@@ -19,8 +19,6 @@ interface ExameSidebarProps {
   listFilterOptions: string[];
   selectedListTypes: string[];
   onListTypeChange: (types: string[]) => void;
-  selectedChartType: 'Sangue' | 'Urina';
-  onChartTypeChange: (type: 'Sangue' | 'Urina') => void;
   chartCategoryOptions: string[];
   selectedChartCategory: string;
   onChartCategoryChange: (category: string) => void;
@@ -43,8 +41,6 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
   listFilterOptions,
   selectedListTypes,
   onListTypeChange,
-  selectedChartType,
-  onChartTypeChange,
   chartCategoryOptions,
   selectedChartCategory,
   onChartCategoryChange,
@@ -163,17 +159,9 @@ export const ExameSidebar: React.FC<ExameSidebarProps> = ({
                       )}
                       {currentView === 'charts' && (
                           <div className="space-y-4">
-                              <div>
-                                  <h4 className="text-sm font-medium mb-2">Tipo de Exame</h4>
-                                  <div className="flex items-center gap-2">
-                                      <Button variant={selectedChartType === 'Sangue' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Sangue')} className="flex-1">Sangue</Button>
-                                      <Button variant={selectedChartType === 'Urina' ? 'secondary' : 'ghost'} onClick={() => onChartTypeChange('Urina')} className="flex-1">Urina</Button>
-                                  </div>
-                              </div>
-
                               {chartCategoryOptions.length > 1 && (
                                   <div>
-                                      <h4 className="text-sm font-medium mb-2">Categoria de Componente</h4>
+                                      <h4 className="text-sm font-medium mb-2">Categoria</h4>
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                           <Button variant="outline" className="w-full justify-start">

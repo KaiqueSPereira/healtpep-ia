@@ -1,4 +1,4 @@
-import { BarChart, Users, FileText, Settings } from "lucide-react";
+import { BarChart, Users, FileText, Settings, ClipboardList } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "../../_components/ui/card";
 
@@ -36,6 +36,20 @@ export default function AdminDashboard() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   Crie e configure os perfis de acesso e suas permissões.
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/admin/biomarcadores" passHref>
+            <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-medium">Curadoria de Biomarcadores</CardTitle>
+                <ClipboardList className="h-6 w-6 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Organize, categorize e refine os biomarcadores extraídos.
                 </p>
               </CardContent>
             </Card>

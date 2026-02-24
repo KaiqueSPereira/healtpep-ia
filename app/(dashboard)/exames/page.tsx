@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ExameSidebar } from "./components/ExameSidebar";
 import type { Exame, ResultadoExame, Profissional, UnidadeDeSaude } from "@prisma/client";
 import { useToast } from "../../_hooks/use-toast";
-import { getDisplayName, getCategory } from "@/app/_lib/biomarkerUtils";
+import { standardizeBiomarkerName, getCategory } from "@/app/_lib/biomarkerUtils";
 
 export type ExameCompleto = Exame & {
     profissional: Profissional | null;
@@ -24,8 +24,6 @@ type ExameGraficos = {
     tipo: string;
     resultados: { id: string; nome: string; valor: string; }[];
 };
-
-type ChartKeyword = 'Sangue' | 'Urina';
 
 type ChartData = {
     labels: string[];
@@ -70,7 +68,6 @@ export default function ExamesPage() {
     const [endDate, setEndDate] = useState<string>("");
     const [selectedListTypes, setSelectedListTypes] = useState<string[]>([]);
     const [listStatusFilter, setListStatusFilter] = useState<'todos' | 'agendados' | 'realizados' | 'pendentes'>('todos');
-    const [selectedChartType, setSelectedChartType] = useState<ChartKeyword>('Sangue');
     const [selectedChartCategory, setSelectedChartCategory] = useState<string>('Todos');
     const [selectedChartComponents, setSelectedChartComponents] = useState<string[]>([]);
     const [chartData, setChartData] = useState<ChartData | null>(null);
@@ -145,19 +142,21 @@ export default function ExamesPage() {
         if (currentView !== 'charts') return [];
         const categories = new Set<string>();
         examesGraficosData
-            .filter(exame => exame.tipo && exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase()))
-            .flatMap(exame => exame.resultados?.map(res => getCategory(getDisplayName(res.nome))) || [])
-            .forEach(category => categories.add(category));
+            .filter(exame => exame.tipo === 'Exames Laboratoriais')
+            .flatMap(exame => exame.resultados?.map(res => getCategory(standardizeBiomarkerName(res.nome))) || [])
+            .forEach(category => {
+                if (category) categories.add(category);
+            });
         
         const sortedCategories = Array.from(categories).sort();
         return ['Todos', ...sortedCategories];
-    }, [examesGraficosData, currentView, selectedChartType]);
+    }, [examesGraficosData, currentView]);
 
     const chartComponentOptions = useMemo(() => {
         if (currentView !== 'charts') return [];
         const componentNames = examesGraficosData
-            .filter(exame => exame.tipo && exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase()))
-            .flatMap(exame => exame.resultados?.map(res => getDisplayName(res.nome)) || [])
+            .filter(exame => exame.tipo === 'Exames Laboratoriais')
+            .flatMap(exame => exame.resultados?.map(res => standardizeBiomarkerName(res.nome)) || [])
             .filter((name): name is string => !!name && name !== 'Desconhecido');
 
         if (selectedChartCategory === 'Todos') {
@@ -166,7 +165,7 @@ export default function ExamesPage() {
 
         const filteredByCat = componentNames.filter(name => getCategory(name) === selectedChartCategory);
         return Array.from(new Set(filteredByCat)).sort();
-    }, [examesGraficosData, currentView, selectedChartType, selectedChartCategory]);
+    }, [examesGraficosData, currentView, selectedChartCategory]);
 
     useEffect(() => {
         if (currentView === 'charts') {
@@ -229,7 +228,7 @@ export default function ExamesPage() {
         }
 
         const relevantExams = examesGraficosData.filter(exame => {
-            if (!exame.tipo || !exame.tipo.toLowerCase().includes(selectedChartType.toLowerCase())) return false;
+            if (exame.tipo !== 'Exames Laboratoriais') return false;
             const examDate = new Date(exame.dataExame);
             if (isNaN(examDate.getTime())) return false;
             const start = startDate ? new Date(startDate).getTime() : -Infinity;
@@ -242,7 +241,7 @@ export default function ExamesPage() {
         relevantExams.forEach(exame => {
             const dateStr = new Date(exame.dataExame).toISOString().split('T')[0];
             exame.resultados?.forEach(resultado => {
-                const displayName = getDisplayName(resultado.nome);
+                const displayName = standardizeBiomarkerName(resultado.nome);
                 if (displayName !== 'Desconhecido' && selectedChartComponents.includes(displayName)) {
                     const numericValue = parseExameValue(resultado.valor);
                     if (numericValue !== null) {
@@ -274,7 +273,7 @@ export default function ExamesPage() {
         };
         setChartData(finalChartData);
 
-    }, [currentView, examesGraficosData, selectedChartType, selectedChartComponents, startDate, endDate]);
+    }, [currentView, examesGraficosData, selectedChartComponents, startDate, endDate]);
 
     const handleDeleteClick = (examId: string) => {
         setExamToDelete(examId);
@@ -320,8 +319,6 @@ export default function ExamesPage() {
                 onListTypeChange={setSelectedListTypes}
                 listStatusFilter={listStatusFilter}
                 onListStatusFilterChange={setListStatusFilter}
-                selectedChartType={selectedChartType}
-                onChartTypeChange={setSelectedChartType}
                 chartCategoryOptions={chartCategoryOptions}
                 selectedChartCategory={selectedChartCategory}
                 onChartCategoryChange={handleChartCategoryChange}
@@ -366,7 +363,7 @@ export default function ExamesPage() {
                         })()}
 
                         {currentView === 'charts' && (chartData && chartData.datasets.length > 0 && chartData.labels.length > 0 ? (
-                            <ExameLineChart data={chartData} title={`Evolução dos Resultados (${selectedChartType})`} />
+                            <ExameLineChart data={chartData} title={`Evolução: ${selectedChartCategory === 'Todos' ? 'Resultados Gerais' : selectedChartCategory}`} />
                         ) : (
                             <p className="text-center text-gray-500 py-10">Nenhum dado encontrado para os filtros selecionados.</p>
                         ))}

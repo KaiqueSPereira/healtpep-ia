@@ -1,8 +1,6 @@
 export const defaultExamTypes = [
   // Análises Clínicas
-  "Sangue",
-  "Urina",
-  "Fezes",
+  "Exames Laboratoriais",
   
   // Imagem
   "Raio-X",

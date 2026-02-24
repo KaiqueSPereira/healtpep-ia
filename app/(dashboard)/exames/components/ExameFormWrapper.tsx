@@ -222,30 +222,12 @@ export function ExameFormWrapper({
     setAnalysisProgress(0);
     setCurrentFileIndex(0);
 
-    let existingNormalizedNames: Set<string>;
-
-    try {
-      const biomarkersRes = await fetch('/api/exames/biomarkers');
-      if (!biomarkersRes.ok) {
-        throw new Error("Não foi possível verificar os biomarcadores existentes.");
-      }
-      const allDbNormalizedNames: string[] = await biomarkersRes.json();
-      existingNormalizedNames = new Set([
-        ...allDbNormalizedNames,
-        ...exameResultados.map(r => normalizeString(r.nome || ''))
-      ]);
-    } catch (error) {
-      toast({
-        title: "Erro na Preparação da Análise",
-        description: error instanceof Error ? error.message : "Ocorreu um erro ao buscar dados para verificação de duplicatas.",
-        variant: "destructive",
-      });
-      setLoadingAnalysis(false);
-      return;
-    }
+    const existingNormalizedNames = new Set(
+      exameResultados.map(r => normalizeString(r.nome || ''))
+    );
 
     let currentResultados = [...exameResultados];
-    const allAnnotations = existingExamData?.anotacao ? [existingExamData.anotacao] : [];
+    const allAnnotations = anotacao ? [anotacao] : [];
     const totalFiles = selectedFiles.length;
 
     for (let i = 0; i < totalFiles; i++) {
@@ -269,6 +251,9 @@ export function ExameFormWrapper({
 
         if (data.resultados) {
           const newResults = data.resultados.filter(res => {
+            if (!res.nome || !res.valor) {
+                return false;
+            }
             const normalizedNewName = normalizeString(res.nome);
             if (existingNormalizedNames.has(normalizedNewName)) {
               return false;
@@ -304,7 +289,12 @@ export function ExameFormWrapper({
 
     setExameResultados(currentResultados);
     setAnotacao(allAnnotations.filter(Boolean).join('\n---\n'));
-    toast({ title: "Análise concluída!", description: `${totalFiles} arquivo(s) foram analisados com sucesso.` });
+    const newResultsCount = currentResultados.length - exameResultados.length;
+    if (newResultsCount > 0) {
+      toast({ title: "Análise concluída!", description: `${newResultsCount} novos resultados foram adicionados.` });
+    } else {
+      toast({ title: "Análise concluída!", description: "Nenhum resultado novo foi adicionado. Os resultados já estavam na lista ou não foram encontrados no arquivo.", variant: "default" });
+    }
     setSelectedFiles([]);
     setLoadingAnalysis(false);
   };
@@ -497,7 +487,7 @@ export function ExameFormWrapper({
                         <Textarea value={anotacao} onChange={(e) => setAnotacao(e.target.value)} />
                     </CardContent>
                 </Card>
-                 {["Sangue", "Urina"].includes(tipo) && (
+                 {tipo === "Exames Laboratoriais" && (
                     <Card>
                         <CardHeader>
                             <CardTitle>Resultados</CardTitle>

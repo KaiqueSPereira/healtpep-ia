@@ -7,7 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma } from "@prisma/client";
 import { logErrorToDb } from "@/app/_lib/logger";
-import { standardizeBiomarkerName } from "@/app/_lib/biomarkerUtils";
+import { standardizeBiomarkerName, getCategory } from "@/app/_lib/biomarkerUtils"; // <--- 1. IMPORTADO
 
 interface ResultadoInput {
     nome: string;
@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
                 valor: safeDecrypt(resultado.valor),
                 unidade: resultado.unidade ? safeDecrypt(resultado.unidade) : null,
                 referencia: resultado.referencia ? safeDecrypt(resultado.referencia) : null,
+                categoria: resultado.categoria ? safeDecrypt(resultado.categoria) : null, // Descriptografa a categoria
             }));
             
             const decryptedNome = exame.nome ? safeDecrypt(exame.nome) : "Exame";
@@ -204,7 +205,16 @@ export async function POST(request: Request) {
 
     const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
-    const standardizedResultados = resultados.map(r => ({ ...r, nome: standardizeBiomarkerName(r.nome) }));
+    // --- 2. ENRIQUECER DADOS ---
+    const processedResultados = resultados.map(r => {
+        const standardName = standardizeBiomarkerName(r.nome);
+        const category = getCategory(standardName);
+        return {
+            ...r,
+            nome: standardName,
+            categoria: category,
+        };
+    });
 
     const novoExameCompleto = await prisma.$transaction(async (tx) => {
 
@@ -224,14 +234,16 @@ export async function POST(request: Request) {
 
       const novoExame = await tx.exame.create({ data: createData });
 
-      if (standardizedResultados.length > 0) {
+      // --- 3. SALVAR CATEGORIA ---
+      if (processedResultados.length > 0) {
         await tx.resultadoExame.createMany({
-          data: standardizedResultados.map((r: ResultadoInput) => ({
+          data: processedResultados.map((r) => ({
             exameId: novoExame.id,
             nome: safeEncrypt(r.nome),
             valor: safeEncrypt(r.valor),
             unidade: r.unidade ? safeEncrypt(r.unidade) : null,
             referencia: r.referencia || r.valorReferencia ? safeEncrypt(r.referencia || r.valorReferencia || "") : null,
+            categoria: r.categoria ? safeEncrypt(r.categoria) : null, // <-- SALVANDO!
           })),
         });
       }
