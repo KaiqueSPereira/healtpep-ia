@@ -5,12 +5,11 @@ import { redirect } from "next/navigation";
 import useAuthStore from "../_stores/authStore";
 import Searchbar from "../_components/searchbar";
 import NovaConsulta from "./consulta/components/novaconsulta";
-import AgendamentosList from "./consulta/components/agendamentolist";
 import { Loader2 } from "lucide-react";
 import ExameResultCard from "../_components/ExameResultCard";
 import TratamentoResultCard from "../_components/TratamentoResultCard";
 import ConsultaResultCard from "../_components/consultaResultCard";
-import ExamesList from "./exames/components/ExamesList";
+import AgendaList from "./_components/AgendaList";
 
 // Interfaces for search results
 interface ConsultaResult {
@@ -124,7 +123,7 @@ const Home = () => {
   const hasSearchResults = searchResults && (searchResults.consultas.length > 0 || searchResults.tratamentos.length > 0 || searchResults.exames.length > 0);
 
   return (
-    <div className="h-full overflow-y-auto"> {/* <-- AQUI ESTÁ A CORREÇÃO */}
+    <div className="h-full overflow-y-auto">
       <div className="p-5">
         <h2 className="text-2xl font-bold">Olá, {session.user.name}</h2>
         <p>{formattedDate}</p>
@@ -206,11 +205,8 @@ const Home = () => {
               <NovaConsulta />
             </div>
             <div>
-              <AgendamentosList />
+              <AgendaList userId={session.user.id} />
             </div>
-            <div>
-             <ExamesList userId={session.user.id} />
-             </div>
           </>
         )}
       </div>
