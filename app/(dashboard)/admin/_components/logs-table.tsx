@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import type { ErrorLog } from '@prisma/client';
-import { Input } from '@/app/_components/ui/input';
 import { Button } from '@/app/_components/ui/button';
 import {
   Table,
@@ -18,8 +16,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogDescription,
+  DialogTrigger,
 } from '@/app/_components/ui/dialog';
 import {
   Pagination,
@@ -32,10 +30,11 @@ import {
 } from '@/app/_components/ui/pagination';
 
 interface LogsTableProps {
-  initialLogs: ErrorLog[];
+  logs: ErrorLog[];
   currentPage: number;
   totalPages: number;
-  pathname: string; // Recebendo o pathname como prop
+  pathname: string;
+  searchParams: URLSearchParams; // Usaremos para manter os filtros na paginação
 }
 
 const truncate = (str: string | null, length: number) => {
@@ -43,65 +42,42 @@ const truncate = (str: string | null, length: number) => {
   return str.length > length ? `${str.substring(0, length)}...` : str;
 };
 
-export function LogsTable({ initialLogs, currentPage, totalPages, pathname }: LogsTableProps) {
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const filteredLogs = useMemo(() => {
-    if (!searchQuery) return initialLogs;
-    const lowercasedQuery = searchQuery.toLowerCase();
-    return initialLogs.filter(log =>
-      log.message.toLowerCase().includes(lowercasedQuery) ||
-      (log.url && log.url.toLowerCase().includes(lowercasedQuery))
-    );
-  }, [initialLogs, searchQuery]);
+export function LogsTable({ logs, currentPage, totalPages, pathname, searchParams }: LogsTableProps) {
 
   const createPageURL = (page: number) => {
-    return `${pathname}?page=${page}`;
+    const params = new URLSearchParams(searchParams);
+    params.set('page', String(page));
+    return `${pathname}?${params.toString()}`;
   };
   
   const renderPaginationItems = () => {
     const items = [];
-    // Show first page
-    items.push(
-      <PaginationItem key={1}>
-        <PaginationLink href={createPageURL(1)} isActive={currentPage === 1}>
-          1
-        </PaginationLink>
-      </PaginationItem>
-    );
+    // Lógica de paginação pode ser melhorada para mostrar um número fixo de links
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
 
-    // Ellipsis after first page
-    if (currentPage > 3) {
-      items.push(<PaginationItem key="start-ellipsis"><PaginationEllipsis /></PaginationItem>);
+    if (startPage > 1) {
+        items.push(<PaginationItem key={1}><PaginationLink href={createPageURL(1)}>1</PaginationLink></PaginationItem>);
+        if (startPage > 2) {
+            items.push(<PaginationItem key="start-ellipsis"><PaginationEllipsis /></PaginationItem>);
+        }
     }
 
-    // Pages around current page
-    for (let page = currentPage - 1; page <= currentPage + 1; page++) {
-      if (page > 1 && page < totalPages) {
+    for (let page = startPage; page <= endPage; page++) {
         items.push(
-          <PaginationItem key={page}>
-            <PaginationLink href={createPageURL(page)} isActive={page === currentPage}>
-              {page}
-            </PaginationLink>
-          </PaginationItem>
-        );
-      }
-    }
-
-    // Ellipsis before last page
-    if (currentPage < totalPages - 2) {
-      items.push(<PaginationItem key="end-ellipsis"><PaginationEllipsis /></PaginationItem>);
-    }
-
-    // Show last page
-    if (totalPages > 1) {
-        items.push(
-            <PaginationItem key={totalPages}>
-            <PaginationLink href={createPageURL(totalPages)} isActive={currentPage === totalPages}>
-                {totalPages}
-            </PaginationLink>
+            <PaginationItem key={page}>
+                <PaginationLink href={createPageURL(page)} isActive={page === currentPage}>
+                    {page}
+                </PaginationLink>
             </PaginationItem>
         );
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            items.push(<PaginationItem key="end-ellipsis"><PaginationEllipsis /></PaginationItem>);
+        }
+        items.push(<PaginationItem key={totalPages}><PaginationLink href={createPageURL(totalPages)}>{totalPages}</PaginationLink></PaginationItem>);
     }
 
     return items;
@@ -109,18 +85,9 @@ export function LogsTable({ initialLogs, currentPage, totalPages, pathname }: Lo
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Input
-          placeholder="Filtrar logs na página atual..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
-      </div>
-
-      {filteredLogs.length === 0 ? (
+      {logs.length === 0 ? (
         <div className="text-center p-8 text-muted-foreground">
-          Nenhum log encontrado para a busca atual.
+          Nenhum log encontrado para os filtros aplicados.
         </div>
       ) : (
         <div className="border rounded-lg">
@@ -128,18 +95,18 @@ export function LogsTable({ initialLogs, currentPage, totalPages, pathname }: Lo
             <TableHeader>
               <TableRow>
                 <TableHead>Horário</TableHead>
-                <TableHead>URL</TableHead>
+                <TableHead>Componente</TableHead>
                 <TableHead>Mensagem</TableHead>
                 <TableHead>Stack</TableHead>
                 <TableHead>Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredLogs.map((log: ErrorLog) => (
+              {logs.map((log: ErrorLog) => (
                 <TableRow key={log.id}>
                   <TableCell suppressHydrationWarning>{format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
-                  <TableCell>{truncate(log.url, 40)}</TableCell>
-                  <TableCell>{truncate(log.message, 100)}</TableCell>
+                  <TableCell>{truncate(log.component, 40)}</TableCell>
+                  <TableCell>{truncate(log.message, 80)}</TableCell>
                   <TableCell>
                     <code className="text-xs whitespace-pre-wrap break-words">
                       {truncate(log.stack, 100)}
@@ -156,6 +123,7 @@ export function LogsTable({ initialLogs, currentPage, totalPages, pathname }: Lo
                           <DialogDescription className="text-left pt-4">
                             <p><strong>ID:</strong> {log.id}</p>
                             <p suppressHydrationWarning><strong>Horário:</strong> {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</p>
+                             <p><strong>Componente:</strong> {log.component || 'N/A'}</p>
                             <p><strong>URL:</strong> {log.url || 'N/A'}</p>
                           </DialogDescription>
                         </DialogHeader>
@@ -181,25 +149,27 @@ export function LogsTable({ initialLogs, currentPage, totalPages, pathname }: Lo
         </div>
       )}
 
-      <div className="flex items-center justify-center space-x-2 py-4">
-        <Pagination>
-            <PaginationContent>
-                <PaginationItem>
-                    <PaginationPrevious
-                        href={createPageURL(currentPage - 1)}
-                        className={currentPage <= 1 ? "pointer-events-none opacity-50" : undefined}
-                    />
-                </PaginationItem>
-                {renderPaginationItems()}
-                <PaginationItem>
-                    <PaginationNext
-                        href={createPageURL(currentPage + 1)}
-                        className={currentPage >= totalPages ? "pointer-events-none opacity-50" : undefined}
-                    />
-                </PaginationItem>
-            </PaginationContent>
-        </Pagination>
-      </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center space-x-2 py-4">
+            <Pagination>
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious
+                            href={createPageURL(currentPage - 1)}
+                            className={currentPage <= 1 ? "pointer-events-none opacity-50" : undefined}
+                        />
+                    </PaginationItem>
+                    {renderPaginationItems()}
+                    <PaginationItem>
+                        <PaginationNext
+                            href={createPageURL(currentPage + 1)}
+                            className={currentPage >= totalPages ? "pointer-events-none opacity-50" : undefined}
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </Pagination>
+        </div>
+      )}
     </div>
   );
 }
