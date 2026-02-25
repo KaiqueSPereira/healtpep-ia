@@ -184,7 +184,7 @@ const BiomarkerManagerPage = () => {
           <DialogHeader>
             <DialogTitle>Diagnóstico de Marcadores Órfãos</DialogTitle>
             <DialogDescription>
-              Estes marcadores existem em exames mas não possuem regra de categorização. Use o botão abaixo para criá-los como 'Pendente' e iniciar a curadoria.
+              Estes marcadores existem em exames mas não possuem regra de categorização. Use o botão abaixo para criá-los como &apos;Pendente&apos; e iniciar a curadoria.
             </DialogDescription>
           </DialogHeader>
           <div className="my-4 max-h-60 overflow-y-auto rounded-md border p-4">

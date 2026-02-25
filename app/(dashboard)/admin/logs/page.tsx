@@ -108,7 +108,7 @@ const AdminLogsPage = async ({ searchParams }: { searchParams: SearchParams }) =
             currentPage={currentPage} 
             totalPages={totalPages} 
             pathname={pathname}
-            searchParams={new URLSearchParams(searchParams as any)}
+            searchParams={new URLSearchParams(searchParams as Record<string, string>)}
           />
         </CardContent>
       </Card>
