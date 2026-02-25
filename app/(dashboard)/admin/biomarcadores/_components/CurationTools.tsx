@@ -1,188 +1,205 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, ChevronsUpDown } from "lucide-react"
-
-import { cn } from "@/app/_lib/utils"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/_components/ui/card';
-import { Button } from '@/app/_components/ui/button';
-import { Input } from '@/app/_components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/ui/select';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { useToast } from '@/app/_hooks/use-toast';
-import { Popover, PopoverTrigger, PopoverContent } from '@/app/_components/ui/popover';
-import { Command, CommandInput, CommandEmpty, CommandGroup, CommandItem } from '@/app/_components/ui/command';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
+import {
+  Form, 
+  FormControl, 
+  FormDescription, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from '@/app/_components/ui/form';
+import { Input } from '@/app/_components/ui/input';
+import { Button } from '@/app/_components/ui/button';
+import { Loader2, Trash2 } from 'lucide-react';
+import { ComboboxForm } from './ComboboxForm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/app/_components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/app/_components/ui/alert-dialog"
+
+// Schemas for form validation
+const unifySchema = z.object({
+  sourceName: z.string().min(1, 'O biomarcador de origem é obrigatório.'),
+  targetName: z.string().min(1, 'O biomarcador de destino é obrigatório.'),
+});
+
+const renameBiomarkerSchema = z.object({
+  oldName: z.string().min(1, 'O nome atual do biomarcador é obrigatório.'),
+  newName: z.string().min(1, 'O novo nome do biomarcador é obrigatório.'),
+});
+
+const renameCategorySchema = z.object({
+    oldCategory: z.string().min(1, 'A categoria atual é obrigatória.'),
+    newCategory: z.string().min(1, 'A nova categoria é obrigatória.'),
+});
+
+const deleteCategorySchema = z.object({
+    categoryToDelete: z.string().min(1, 'A categoria a ser deletada é obrigatória.'),
+});
 
 interface CurationToolsProps {
   categories: string[];
   allBiomarkers: string[];
-  onCuration: () => void; // Callback para atualizar a página principal
+  onCuration: () => void;
 }
 
 export function CurationTools({ categories, allBiomarkers, onCuration }: CurationToolsProps) {
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  // Estado para unificação de biomarcadores
-  const [sourceBiomarker, setSourceBiomarker] = useState('');
-  const [targetBiomarker, setTargetBiomarker] = useState('');
-  const [comboboxOpen, setComboboxOpen] = useState(false);
+  // Multiple forms for each action
+  const unifyForm = useForm<z.infer<typeof unifySchema>>({ resolver: zodResolver(unifySchema), defaultValues: { sourceName: '', targetName: '' } });
+  const renameBiomarkerForm = useForm<z.infer<typeof renameBiomarkerSchema>>({ resolver: zodResolver(renameBiomarkerSchema), defaultValues: { oldName: '', newName: '' } });
+  const renameCategoryForm = useForm<z.infer<typeof renameCategorySchema>>({ resolver: zodResolver(renameCategorySchema), defaultValues: { oldCategory: '', newCategory: '' } });
+  const deleteCategoryForm = useForm<z.infer<typeof deleteCategorySchema>>({ resolver: zodResolver(deleteCategorySchema), defaultValues: { categoryToDelete: '' } });
 
-  // Estado para renomeação de categorias
-  const [sourceCategory, setSourceCategory] = useState('');
-  const [targetCategory, setTargetCategory] = useState('');
-
-  const [isUnifying, setIsUnifying] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-
-  const handleUnifyBiomarkers = async () => {
-    if (!sourceBiomarker || !targetBiomarker) {
-      toast({ title: 'Campos obrigatórios', description: 'Por favor, selecione um biomarcador de origem e um de destino.', variant: 'destructive' });
-      return;
-    }
-    
-    setIsUnifying(true);
+  const handleApiCall = async (action: string, values: Record<string, any>, successMessage: string, form: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/exames/biomarcadores/unify', {
+      const res = await fetch('/api/exames/biomarcadores', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceName: sourceBiomarker, targetName: targetBiomarker }),
+        body: JSON.stringify({ ...values, action }),
       });
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Falha ao unificar.');
-
-      toast({ title: 'Sucesso!', description: result.message });
-      setSourceBiomarker('');
-      setTargetBiomarker('');
-      onCuration(); // Atualiza os dados na página pai
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido';
-      toast({ title: 'Erro ao Unificar', description: errorMessage, variant: 'destructive' });
+      if (!res.ok) {
+        const errorData = await res.text();
+        throw new Error(errorData || 'Falha na operação de curadoria.');
+      }
+      const result = await res.json();
+      toast({ title: 'Sucesso!', description: `${successMessage} (${result.count} registros afetados).`, variant: 'success' });
+      form.reset();
+      onCuration();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+      toast({ title: 'Erro na Operação', description: errorMessage, variant: 'destructive' });
     } finally {
-      setIsUnifying(false);
+      setIsLoading(false);
     }
   };
 
-  const handleRenameCategory = async () => {
-    if (!sourceCategory || !targetCategory) {
-      toast({ title: 'Campos obrigatórios', description: 'Por favor, selecione uma categoria de origem e insira uma de destino.', variant: 'destructive' });
-      return;
-    }
-    
-    setIsRenaming(true);
+  const handleDeleteCategory = async (values: z.infer<typeof deleteCategorySchema>) => {
+    setIsLoading(true);
     try {
-      const response = await fetch('/api/exames/categorias/rename', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sourceCategory: sourceCategory, targetCategory: targetCategory }),
-      });
+        const res = await fetch(`/api/exames/biomarcadores?category=${encodeURIComponent(values.categoryToDelete)}`, {
+            method: 'DELETE',
+        });
 
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || 'Falha ao renomear.');
+        if (!res.ok) {
+            const errorData = await res.text();
+            throw new Error(errorData || 'Falha ao deletar a categoria.');
+        }
 
-      toast({ title: 'Sucesso!', description: result.message });
-      setSourceCategory('');
-      setTargetCategory('');
-      onCuration(); // Atualiza os dados na página pai
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido';
-      toast({ title: 'Erro ao Renomear', description: errorMessage, variant: 'destructive' });
+        const result = await res.json();
+        toast({ title: 'Sucesso!', description: result.message, variant: 'success' });
+        deleteCategoryForm.reset();
+        onCuration();
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.';
+        toast({ title: 'Erro ao Deletar', description: errorMessage, variant: 'destructive' });
     } finally {
-      setIsRenaming(false);
+        setIsLoading(false);
     }
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Unificar Biomarcadores</CardTitle>
-          <CardDescription>Unifique um biomarcador de origem com um de destino (novo ou existente).</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label>Biomarcador de Origem</label>
-            <Select onValueChange={setSourceBiomarker} value={sourceBiomarker}>
-              <SelectTrigger><SelectValue placeholder="Selecione um biomarcador..." /></SelectTrigger>
-              <SelectContent>
-                {allBiomarkers.filter(b => b !== targetBiomarker).map(name => <SelectItem key={name} value={name}>{name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label>Biomarcador de Destino</label>
-            <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                <PopoverTrigger asChild>
-                    <Button
-                        variant="outline"
-                        role="combobox"
-                        aria-expanded={comboboxOpen}
-                        className="w-full justify-between"
-                    >
-                        {targetBiomarker || "Selecione ou crie um biomarcador..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                    <Command>
-                        <CommandInput 
-                          placeholder="Buscar ou criar novo..." 
-                          onValueChange={(search) => setTargetBiomarker(search)}
-                          value={targetBiomarker}
-                        />
-                        <CommandEmpty>Nenhum biomarcador encontrado.</CommandEmpty>
-                        <CommandGroup>
-                            {allBiomarkers.filter(b => b !== sourceBiomarker).map((biomarker) => (
-                                <CommandItem
-                                    key={biomarker}
-                                    value={biomarker}
-                                    onSelect={(currentValue) => {
-                                        setTargetBiomarker(currentValue === targetBiomarker ? "" : currentValue)
-                                        setComboboxOpen(false)
-                                    }}
-                                >
-                                    <Check className={cn("mr-2 h-4 w-4", targetBiomarker === biomarker ? "opacity-100" : "opacity-0")} />
-                                    {biomarker}
-                                </CommandItem>
-                            ))}
-                        </CommandGroup>
-                    </Command>
-                </PopoverContent>
-            </Popover>
-          </div>
-          <Button onClick={handleUnifyBiomarkers} disabled={isUnifying || !sourceBiomarker || !targetBiomarker}>
-            {isUnifying ? 'Unificando...' : 'Unificar Biomarcador'}
-          </Button>
-        </CardContent>
-      </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Ferramentas de Curadoria Avançada</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="unify">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="unify">Unificar Marcadores</TabsTrigger>
+            <TabsTrigger value="rename_biomarker">Renomear Marcador</TabsTrigger>
+            <TabsTrigger value="manage_category">Gerenciar Categorias</TabsTrigger>
+          </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerenciar Categorias</CardTitle>
-          <CardDescription>Renomeie uma categoria existente ou unifique-a com outra. Se a categoria de destino não existir, ela será criada.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label>Categoria de Origem</label>
-            <Select onValueChange={setSourceCategory} value={sourceCategory}>
-              <SelectTrigger><SelectValue placeholder="Selecione uma categoria..." /></SelectTrigger>
-              <SelectContent>
-                {categories.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <label>Novo Nome da Categoria (Destino)</label>
-            <Input 
-              placeholder="Digite o novo nome para a categoria"
-              value={targetCategory}
-              onChange={(e) => setTargetCategory(e.target.value)}
-            />
-          </div>
-          <Button onClick={handleRenameCategory} disabled={isRenaming || !sourceCategory || !targetCategory}>
-            {isRenaming ? 'Renomeando...' : 'Renomear Categoria'}
-          </Button>
-        </CardContent>
-      </Card>
-    </div>
+          <TabsContent value="unify" className="mt-6">
+            <Form {...unifyForm}>
+              <form onSubmit={unifyForm.handleSubmit((v) => handleApiCall('unify', v, `Marcadores unificados de '${v.sourceName}' para '${v.targetName}'`, unifyForm))} className="space-y-6">
+                 <FormDescription>Combine um biomarcador de origem com um de destino. Todos os exames com o nome de origem serão atualizados.</FormDescription>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                  <ComboboxForm form={unifyForm} name="sourceName" label="Biomarcador de Origem" placeholder="Selecione para substituir" options={allBiomarkers} />
+                  <ComboboxForm form={unifyForm} name="targetName" label="Biomarcador de Destino" placeholder="Selecione o nome padrão" options={allBiomarkers} />
+                </div>
+                <Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Unificar</Button>
+              </form>
+            </Form>
+          </TabsContent>
+
+          <TabsContent value="rename_biomarker" className="mt-6">
+            <Form {...renameBiomarkerForm}>
+              <form onSubmit={renameBiomarkerForm.handleSubmit((v) => handleApiCall('rename_biomarker', { oldName: v.oldName, newName: v.newName }, `Marcador '${v.oldName}' renomeado para '${v.newName}'`, renameBiomarkerForm))} className="space-y-6">
+                <FormDescription>Renomeie o nome padronizado de um biomarcador em todas as regras de curadoria.</FormDescription>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <ComboboxForm form={renameBiomarkerForm} name="oldName" label="Nome Atual do Marcador" placeholder="Selecione o marcador" options={allBiomarkers} />
+                    <FormField control={renameBiomarkerForm.control} name="newName" render={({ field }) => (<FormItem><FormLabel>Novo Nome do Marcador</FormLabel><FormControl><Input placeholder="Digite o novo nome" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                </div>
+                <Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Renomear</Button>
+              </form>
+            </Form>
+          </TabsContent>
+
+          <TabsContent value="manage_category" className="mt-6 space-y-10">
+            <div>
+                <h3 className="text-lg font-medium">Renomear Categoria</h3>
+                <Form {...renameCategoryForm}>
+                <form onSubmit={renameCategoryForm.handleSubmit((v) => handleApiCall('rename_category', v, `Categoria '${v.oldCategory}' renomeada para '${v.newCategory}'`, renameCategoryForm))} className="space-y-6 mt-2">
+                    <FormDescription>Renomeie uma categoria existente. Todos os biomarcadores associados serão atualizados.</FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                        <ComboboxForm form={renameCategoryForm} name="oldCategory" label="Categoria Atual" placeholder="Selecione a categoria" options={categories} />
+                        <FormField control={renameCategoryForm.control} name="newCategory" render={({ field }) => (<FormItem><FormLabel>Novo Nome da Categoria</FormLabel><FormControl><Input placeholder="Digite o novo nome" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                    </div>
+                    <Button type="submit" disabled={isLoading}>{isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Renomear Categoria</Button>
+                </form>
+                </Form>
+            </div>
+            <div className="pt-6 border-t">
+                 <h3 className="text-lg font-medium">Apagar Categoria</h3>
+                <Form {...deleteCategoryForm}>
+                <form onSubmit={deleteCategoryForm.handleSubmit(handleDeleteCategory)} className="space-y-6 mt-2">
+                    <FormDescription>Delete uma categoria. Os biomarcadores serão movidos para "Pendente". A categoria "Pendente" não pode ser deletada.</FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                         <ComboboxForm form={deleteCategoryForm} name="categoryToDelete" label="Categoria para Apagar" placeholder="Selecione a categoria" options={categories.filter(c => c !== 'Pendente')} />
+                    </div>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isLoading || !deleteCategoryForm.watch("categoryToDelete")}><Trash2 className="mr-2 h-4 w-4"/>Apagar Categoria</Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            A categoria <strong>{deleteCategoryForm.watch("categoryToDelete")}</strong> será apagada. Todos os biomarcadores nela contidos serão movidos para a categoria "Pendente". Esta ação não pode ser desfeita.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={deleteCategoryForm.handleSubmit(handleDeleteCategory)}>Confirmar e Apagar</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                </form>
+                </Form>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   );
 }

@@ -14,7 +14,7 @@ import {
   Column,
   Row
 } from "@tanstack/react-table";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, X } from "lucide-react";
 
 import {
   Table,
@@ -27,6 +27,13 @@ import {
 import { Input } from "@/app/_components/ui/input";
 import { Button } from "@/app/_components/ui/button";
 import { BiomarkerActions } from "./BiomarkerActions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/_components/ui/select";
 
 export interface BiomarkerData {
   name: string;
@@ -104,6 +111,8 @@ export function BiomarkersDataTable({
     },
   });
 
+  const isFiltered = table.getState().columnFilters.length > 0;
+
   return (
     <div>
       <div className="flex items-center space-x-4 py-4">
@@ -115,14 +124,40 @@ export function BiomarkersDataTable({
           }
           className="max-w-sm"
         />
-        <Input
-          placeholder="Filtrar por categoria..."
+        
+        <Select
           value={(table.getColumn("category")?.getFilterValue() as string) ?? ''}
-          onChange={(event) =>
-            table.getColumn("category")?.setFilterValue(event.target.value)
-          }
-          className="max-w-sm"
-        />
+          onValueChange={(value) => {
+            // If the special value "all" is selected, clear the filter by setting it to an empty string
+            // Otherwise, apply the selected value as the filter.
+            table.getColumn("category")?.setFilterValue(value === "all" ? "" : value)
+          }}
+        >
+          <SelectTrigger className="max-w-sm">
+            <SelectValue placeholder="Filtrar por categoria..." />
+          </SelectTrigger>
+          <SelectContent>
+            {/* Using a special, non-empty value for the "All Categories" option */}
+            <SelectItem value="all">Todas as Categorias</SelectItem>
+            <SelectItem value="Pendente">Pendente</SelectItem>
+            {categories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {isFiltered && (
+            <Button
+              variant="ghost"
+              onClick={() => table.resetColumnFilters()}
+              className="h-8 px-2 lg:px-3"
+            >
+              Limpar filtros
+              <X className="ml-2 h-4 w-4" />
+            </Button>
+          )}
       </div>
       <div className="rounded-md border">
         <Table>
