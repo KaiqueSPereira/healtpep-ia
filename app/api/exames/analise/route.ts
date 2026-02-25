@@ -164,6 +164,7 @@ async function extrairTextoDePdf(buffer: Buffer): Promise<string> {
 
 export async function POST(req: NextRequest) {
   const componentName = "API /api/exames/analise";
+  await logErrorToDb("Análise de Exame Iniciada", `Requisição recebida em ${new Date().toISOString()}`, componentName);
   try {
     const formData = await req.formData();
     const file = formData.get("files") as File | null;
