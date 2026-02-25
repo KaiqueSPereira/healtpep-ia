@@ -119,9 +119,39 @@ export async function PUT(req: Request) {
 
       case 'rename_biomarker': {
         const { oldName, newName } = renameBiomarkerSchema.parse(body);
-        if (oldName === newName) return new NextResponse('Old and new names cannot be the same.', { status: 400 });
-        const result = await prisma.biomarkerRule.updateMany({ where: { standardizedName: oldName }, data: { standardizedName: newName }});
-        return NextResponse.json({ message: `Biomarker renamed successfully.`, count: result.count });
+        if (oldName === newName) {
+            return new NextResponse('Old and new names cannot be the same.', { status: 400 });
+        }
+
+        // Find all encrypted exam result names that match the old standardized name
+        const uniqueRawNames = await prisma.resultadoExame.findMany({
+            select: { nome: true },
+            distinct: ['nome'],
+            where: { nome: { not: '' } },
+        });
+
+        const rawNamesToUpdate = uniqueRawNames
+            .filter(r => safeDecrypt(r.nome) === oldName)
+            .map(r => r.nome);
+
+        const encryptedNewName = safeEncrypt(newName);
+
+        // Use a transaction to update both the rules and the actual exam results
+        const [, resultUpdateResult] = await prisma.$transaction([
+            prisma.biomarkerRule.updateMany({
+                where: { standardizedName: oldName },
+                data: { standardizedName: newName },
+            }),
+            prisma.resultadoExame.updateMany({
+                where: { nome: { in: rawNamesToUpdate } },
+                data: { nome: encryptedNewName },
+            }),
+        ]);
+
+        return NextResponse.json({
+            message: `Biomarker renamed successfully in rules and results.`,
+            count: resultUpdateResult.count,
+        });
       }
 
       case 'rename_category': {
