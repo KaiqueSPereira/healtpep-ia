@@ -2,72 +2,70 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/_lib/auth";
+import { authOptions } from "../../../_lib/auth"; // Corrected path
 import { safeDecrypt } from "@/app/_lib/crypto";
 
 // Handles GET requests to /api/exames/search
 export async function GET(request: Request) {
-  // Authenticate the user session
+  // 1. Authenticate the user session
   const session = await getServerSession(authOptions);
-  if (!session) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Extract the search query 'q' from the request URL
+  // 2. Extract and validate the search query
   const { searchParams } = new URL(request.url);
   const query = searchParams.get("q")?.toLowerCase();
 
-  // Return an empty array if no query is provided
   if (!query) {
     return NextResponse.json([]);
   }
 
   try {
-    // 1. Fetch all exam records from the database
-    const allExames = await prisma.resultadoExame.findMany({
+    // 3. EFFICIENT FETCH: Get results ONLY for the current user, ordered by most recent
+    const userExamResults = await prisma.resultadoExame.findMany({
+      where: {
+        exame: {
+          userId: session.user.id,
+        },
+      },
+      orderBy: {
+        exame: {
+          dataExame: 'desc',
+        },
+      },
       select: {
-        id: true,
         nome: true,
         unidade: true,
         referencia: true,
       },
     });
 
-    // 2. Decrypt all exams in memory
-    const decryptedExames = allExames.map((exame) => ({
-      id: exame.id,
-      nome: safeDecrypt(exame.nome),
-      unidade: safeDecrypt(exame.unidade || ""),
-      referencia: safeDecrypt(exame.referencia || ""),
+    // 4. Decrypt the user's results
+    const decryptedResults = userExamResults.map((result) => ({
+      nome: safeDecrypt(result.nome),
+      unidade: safeDecrypt(result.unidade || ""),
+      referencia: safeDecrypt(result.referencia || ""),
     }));
 
-    // 3. Filter the decrypted exams
-    const filteredExames = decryptedExames.filter((exame) =>
-      exame.nome.toLowerCase().includes(query)
-    );
-
-    // 4. Remove duplicates from the filtered results
-    const uniqueExames = [];
-    const seen = new Set();
-    for (const exame of filteredExames) {
-      const key = `${exame.nome}|${exame.unidade}|${exame.referencia}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        uniqueExames.push(exame);
+    // 5. SMART DE-DUPLICATION: Filter and get unique names (most recent entry wins)
+    const uniqueExamsMap = new Map();
+    for (const result of decryptedResults) {
+      // Check if the name matches the query and if we haven't seen this name before
+      if (result.nome.toLowerCase().includes(query) && !uniqueExamsMap.has(result.nome)) {
+        uniqueExamsMap.set(result.nome, result);
       }
     }
 
-    // 5. Limit the results to the top 10 matches
-    const limitedResults = uniqueExames.slice(0, 10);
+    // 6. Convert map to array and limit results
+    const finalResults = Array.from(uniqueExamsMap.values()).slice(0, 10);
 
-    return NextResponse.json(limitedResults);
+    return NextResponse.json(finalResults);
 
   } catch (error) {
-    // Log any server-side errors
-    console.error("Erro ao buscar exames:", error);
-    // Return a generic error response
+    console.error("Erro ao buscar nomes de exames:", error);
     return NextResponse.json(
-      { error: "Erro interno do servidor ao buscar exames" },
+      { error: "Erro interno do servidor ao buscar nomes de exames" },
       { status: 500 }
     );
   }
