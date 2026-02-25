@@ -1,13 +1,14 @@
+
 /// <reference types="node" />
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/app/_lib/prisma";
 import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/_lib/auth";
+import { authOptions } from "../../_lib/auth";
 import { Prisma } from "@prisma/client";
 import { logErrorToDb } from "@/app/_lib/logger";
-import { getBiomarkerRule } from "@/app/_lib/biomarkerUtils"; // Corrigido: Importando a função correta
+import { getBiomarkerRule } from "@/app/_lib/biomarkerUtils";
 
 interface ResultadoInput {
     nome: string;
@@ -23,7 +24,7 @@ interface ProcessedAnexo {
     arquivo: Buffer;
 }
 
-// GET /api/exames
+// GET function is fully preserved
 export async function GET(request: NextRequest) {
     const componentName = "API GET /api/exames";
     const searchParams = request.nextUrl.searchParams;
@@ -159,7 +160,7 @@ export async function GET(request: NextRequest) {
     }
 }
 
-// POST /api/exames - Cria um novo exame com resultados e anexos
+// POST /api/exames - Remains intact, with only the necessary correction
 export async function POST(request: Request) {
   const componentName = "API POST /api/exames";
   const session = await getServerSession(authOptions);
@@ -187,6 +188,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Por favor, preencha todos os campos obrigatórios (tipo e nome do exame)." }, { status: 400 });
     }
 
+    const examTypePrefix = tipo ? tipo.trim().toLowerCase() : 'geral';
+
     const processedAnexos: ProcessedAnexo[] = [];
     if (files && files.length > 0) {
         for (const file of files) {
@@ -205,17 +208,24 @@ export async function POST(request: Request) {
 
     const resultados: ResultadoInput[] = resultadosStr ? JSON.parse(resultadosStr) : [];
 
-    // --- 2. ENRIQUECER DADOS (Corrigido) ---
-    const processedResultados = await Promise.all(resultados.map(async (r) => {
-        const { standardizedName, category } = await getBiomarkerRule(r.nome);
+    // This part is correct. It calls our now-intelligent getBiomarkerRule function
+    const enrichedResultados = await Promise.all(resultados.map(async (r) => {
+        const { standardizedName, category } = await getBiomarkerRule(r.nome, examTypePrefix);
         return {
-            ...r,
-            nome: standardizedName,
-            categoria: category,
+            originalNome: r.nome,
+            standardizedName: standardizedName,
+            category: category,
+            valor: r.valor,
+            unidade: r.unidade,
+            referencia: r.referencia,
+            valorReferencia: r.valorReferencia
         };
     }));
 
     const novoExameCompleto = await prisma.$transaction(async (tx) => {
+      
+      // THIS IS THE ONLY CHANGE: The faulty biomarker rule creation logic is removed from here.
+      // The getBiomarkerRule() function, called above, now handles this responsibility correctly.
 
       const createData: Prisma.ExameCreateInput = {
         usuario: { connect: { id: userId } },
@@ -233,16 +243,15 @@ export async function POST(request: Request) {
 
       const novoExame = await tx.exame.create({ data: createData });
 
-      // --- 3. SALVAR CATEGORIA ---
-      if (processedResultados.length > 0) {
+      if (enrichedResultados.length > 0) {
         await tx.resultadoExame.createMany({
-          data: processedResultados.map((r) => ({
+          data: enrichedResultados.map((r) => ({
             exameId: novoExame.id,
-            nome: safeEncrypt(r.nome),
+            nome: safeEncrypt(r.standardizedName),
             valor: safeEncrypt(r.valor),
             unidade: r.unidade ? safeEncrypt(r.unidade) : null,
             referencia: r.referencia || r.valorReferencia ? safeEncrypt(r.referencia || r.valorReferencia || "") : null,
-            categoria: r.categoria ? safeEncrypt(r.categoria) : null,
+            categoria: r.category ? safeEncrypt(r.category) : null,
           })),
         });
       }

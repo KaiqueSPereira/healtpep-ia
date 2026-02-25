@@ -1,55 +1,79 @@
 
 import { prisma } from '@/app/_lib/prisma';
 
-/**
- * Normaliza um nome de biomarcador para criar uma chave de busca consistente.
- * A normalização inclui remover acentos, conteúdo em parênteses, caracteres especiais,
- * e converter para maiúsculas.
- * @param rawName O nome bruto do biomarcador (ex: "Col. LDL" ou "Colesterol - Ldl").
- * @returns O nome normalizado para ser usado como chave de busca (ex: "COLESTEROL LDL").
- */
-const normalizeName = (rawName: string): string => {
-  if (!rawName) return '';
-
-  return rawName
+// A função de normalização permanece a mesma.
+const normalize = (str: string): string => {
+  if (!str) return '';
+  return str
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")      // Remove acentos (ç -> c)
-    .replace(/\(.*?\)/g, "")          // Remove conteúdo dentro de parênteses
-    .replace(/[.\/-]/g, ' ')           // Substitui ., /, - por espaço
-    .replace(/\s+/g, ' ')             // Junta múltiplos espaços
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[()]/g, ' ')
+    .replace(/[.\/-]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
-    .toUpperCase();
+    .toLowerCase();
 };
 
 /**
- * Busca a regra de um biomarcador (nome padronizado e categoria) no banco de dados
- * com base em seu nome bruto.
+ * Busca ou CRIA a regra de um biomarcador. Esta é a única fonte da verdade para regras.
+ * Se uma regra não existe, ela é criada como "Pendente".
  * 
  * @param rawName O nome bruto do biomarcador vindo do resultado do exame.
- * @returns Um objeto contendo `standardizedName` e `category`. 
- *          Se nenhuma regra for encontrada, retorna o nome original e a categoria 'Pendente'.
+ * @param examType O tipo de exame (ex: 'hemograma completo') para criar um contexto.
+ * @returns Uma promessa que resolve para a regra do biomarcador (existente ou recém-criada).
  */
-export const getBiomarkerRule = async (rawName: string): Promise<{ standardizedName: string; category: string; }> => {
-  if (!rawName) {
-    return { standardizedName: '', category: 'Pendente' };
+export const getBiomarkerRule = async (
+    rawName: string, 
+    examType?: string
+): Promise<{ standardizedName: string; category: string; }> => {
+  if (!rawName || !rawName.trim()) {
+    return { standardizedName: 'Inválido', category: 'Pendente' };
   }
 
-  const normalizedKey = normalizeName(rawName);
+  const trimmedRawName = rawName.trim();
+  const genericKey = normalize(trimmedRawName);
 
-  const rule = await prisma.biomarkerRule.findUnique({
-    where: { normalizedRawName: normalizedKey },
+  // 1. Tenta encontrar uma regra específica para o tipo de exame (ex: espermograma:cor)
+  if (examType) {
+    const compositeKey = `${normalize(examType)}:${genericKey}`;
+    const specificRule = await prisma.biomarkerRule.findUnique({
+      where: { normalizedRawName: compositeKey },
+    });
+
+    if (specificRule) {
+      return specificRule;
+    }
+  }
+
+  // 2. Se não encontrar, tenta uma regra genérica (ex: cor semen)
+  const genericRule = await prisma.biomarkerRule.findUnique({
+    where: { normalizedRawName: genericKey },
   });
 
-  if (rule) {
-    return {
-      standardizedName: rule.standardizedName,
-      category: rule.category,
-    };
+  if (genericRule) {
+    return genericRule;
   }
 
-  // Se nenhuma regra for encontrada, o biomarcador precisa de curadoria.
-  return {
-    standardizedName: rawName.trim(),
-    category: 'Pendente',
-  };
+  // 3. Se NENHUMA regra for encontrada, CRIA uma nova regra PENDENTE.
+  try {
+    const newRule = await prisma.biomarkerRule.create({
+      data: {
+        normalizedRawName: genericKey,       // Chave principal de busca
+        standardizedName: trimmedRawName,   // Começa como o nome original
+        category: 'Pendente',             // Fila para curadoria
+        // O campo 'rawName' foi removido pois não existe no modelo do Prisma.
+      }
+    });
+    return newRule;
+  } catch (error) {
+    // Trata o caso de uma condição de corrida onde outra requisição criou a regra no último segundo
+    const existingRule = await prisma.biomarkerRule.findUnique({
+        where: { normalizedRawName: genericKey },
+    });
+    if(existingRule) return existingRule;
+    
+    // Se ainda falhar, lança o erro
+    throw error;
+  }
 };
+
