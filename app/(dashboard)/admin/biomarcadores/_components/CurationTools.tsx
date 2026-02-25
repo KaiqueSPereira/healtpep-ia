@@ -133,7 +133,7 @@ export function CurationTools({ categories, allBiomarkers, onCuration }: Curatio
             <Form {...unifyForm}>
               <form onSubmit={unifyForm.handleSubmit((v) => handleApiCall('unify', v, `Marcadores unificados de '${v.sourceName}' para '${v.targetName}'`, unifyForm))} className="space-y-6">
                  <FormDescription>Combine um biomarcador de origem com um de destino. Todos os exames com o nome de origem serão atualizados.</FormDescription>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                   <ComboboxForm form={unifyForm} name="sourceName" label="Biomarcador de Origem" placeholder="Selecione para substituir" options={allBiomarkers} />
                   <ComboboxForm form={unifyForm} name="targetName" label="Biomarcador de Destino" placeholder="Selecione o nome padrão" options={allBiomarkers} />
                 </div>
@@ -146,7 +146,7 @@ export function CurationTools({ categories, allBiomarkers, onCuration }: Curatio
             <Form {...renameBiomarkerForm}>
               <form onSubmit={renameBiomarkerForm.handleSubmit((v) => handleApiCall('rename_biomarker', { oldName: v.oldName, newName: v.newName }, `Marcador '${v.oldName}' renomeado para '${v.newName}'`, renameBiomarkerForm))} className="space-y-6">
                 <FormDescription>Renomeie o nome padronizado de um biomarcador em todas as regras de curadoria.</FormDescription>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                     <ComboboxForm form={renameBiomarkerForm} name="oldName" label="Nome Atual do Marcador" placeholder="Selecione o marcador" options={allBiomarkers} />
                     <FormField control={renameBiomarkerForm.control} name="newName" render={({ field }) => (<FormItem><FormLabel>Novo Nome do Marcador</FormLabel><FormControl><Input placeholder="Digite o novo nome" {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
@@ -161,7 +161,7 @@ export function CurationTools({ categories, allBiomarkers, onCuration }: Curatio
                 <Form {...renameCategoryForm}>
                 <form onSubmit={renameCategoryForm.handleSubmit((v) => handleApiCall('rename_category', v, `Categoria '${v.oldCategory}' renomeada para '${v.newCategory}'`, renameCategoryForm))} className="space-y-6 mt-2">
                     <FormDescription>Renomeie uma categoria existente. Todos os biomarcadores associados serão atualizados.</FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                         <ComboboxForm form={renameCategoryForm} name="oldCategory" label="Categoria Atual" placeholder="Selecione a categoria" options={categories} />
                         <FormField control={renameCategoryForm.control} name="newCategory" render={({ field }) => (<FormItem><FormLabel>Novo Nome da Categoria</FormLabel><FormControl><Input placeholder="Digite o novo nome" {...field} /></FormControl><FormMessage /></FormItem>)} />
                     </div>
@@ -173,8 +173,8 @@ export function CurationTools({ categories, allBiomarkers, onCuration }: Curatio
                  <h3 className="text-lg font-medium">Apagar Categoria</h3>
                 <Form {...deleteCategoryForm}>
                 <form onSubmit={deleteCategoryForm.handleSubmit(handleDeleteCategory)} className="space-y-6 mt-2">
-                    <FormDescription>Delete uma categoria. Os biomarcadores serão movidos para "Pendente". A categoria "Pendente" não pode ser deletada.</FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                    <FormDescription>Delete uma categoria. Os biomarcadores serão movidos para &quot;Pendente&quot;. A categoria &quot;Pendente&quot; não pode ser deletada.</FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                          <ComboboxForm form={deleteCategoryForm} name="categoryToDelete" label="Categoria para Apagar" placeholder="Selecione a categoria" options={categories.filter(c => c !== 'Pendente')} />
                     </div>
                     <AlertDialog>
@@ -185,7 +185,7 @@ export function CurationTools({ categories, allBiomarkers, onCuration }: Curatio
                         <AlertDialogHeader>
                           <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            A categoria <strong>{deleteCategoryForm.watch("categoryToDelete")}</strong> será apagada. Todos os biomarcadores nela contidos serão movidos para a categoria "Pendente". Esta ação não pode ser desfeita.
+                            A categoria <strong>{deleteCategoryForm.watch("categoryToDelete")}</strong> será apagada. Todos os biomarcadores nela contidos serão movidos para a categoria &quot;Pendente&quot;. Esta ação não pode ser desfeita.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
