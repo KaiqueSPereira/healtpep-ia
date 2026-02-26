@@ -14,7 +14,7 @@ export const defaultExamTypes = [
   "Eletrocardiograma (ECG)",
   "Teste Ergométrico",
   "Holter 24h",
-  "MAPA (Monitorização Ambulatorial da Pressão Arterial)",
+  "M.A.P.A.",
   "Ecocardiograma",
 
   // Neurologia

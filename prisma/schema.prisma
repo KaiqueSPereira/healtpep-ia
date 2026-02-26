@@ -9,6 +9,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Manter o modelo legado para migração de dados
+model PesoHistorico {
+  id        String   @id @default(uuid())
+  peso      String
+  data      String // Mantido como String para compatibilidade
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  usuario   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 model Role {
   id             String             @id @default(cuid())
   name           String             @unique
@@ -52,30 +65,118 @@ model ResourceLimit {
 }
 
 model User {
-  id             String           @id @default(cuid())
-  name           String?
-  email          String           @unique
-  emailVerified  DateTime?
-  image          String?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  roleId         String?
-  accounts       Account[]
-  Authenticator  Authenticator[]
-  condicoesSaude CondicaoSaude[]
-  consultas      Consultas[]
-  dadosSaude     DadosSaude?
-  endereco       Endereco[]
-  exames         Exame[]
-  medicamentos   Medicamento[]
-  notifications  Notification[]
-  historicoPeso  PesoHistorico[]
-  profissionais  Profissional[]
-  sessions       Session[]
-  unidades       UnidadeDeSaude[]
-  role           Role?            @relation(fields: [roleId], references: [id])
+  id               String                   @id @default(cuid())
+  name             String?
+  email            String                   @unique
+  emailVerified    DateTime?
+  image            String?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  roleId           String?
+  accounts         Account[]
+  Authenticator    Authenticator[]
+  condicoesSaude   CondicaoSaude[]
+  consultas        Consultas[]
+  dadosSaude       DadosSaude?
+  endereco         Endereco[]
+  exames           Exame[]
+  medicamentos     Medicamento[]
+  notifications    Notification[]
+  profissionais    Profissional[]
+  sessions         Session[]
+  unidades         UnidadeDeSaude[]
+  role             Role?                    @relation(fields: [roleId], references: [id])
+  historicoPeso    PesoHistorico[]
+  acompanhamentos  AcompanhamentoCorporal[]
+  bioimpedancias   Bioimpedancia[]
+  metas            Meta[]
 
   @@index([roleId])
+}
+
+model AcompanhamentoCorporal {
+  id        String                @id @default(uuid())
+  data      DateTime
+  peso      String?
+  imc       String?
+  pescoco   String?
+  torax     String?
+  cintura   String?
+  quadril   String?
+  bracoE    String?
+  bracoD    String?
+  pernaE    String?
+  pernaD    String?
+  pantE     String?
+  pantD     String?
+  userId    String
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+  usuario   User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fotos     FotosAcompanhamento[]
+
+  @@index([userId])
+}
+
+model FotosAcompanhamento {
+  id               String                 @id @default(uuid())
+  nomeArquivo      String
+  mimetype         String?
+  arquivo          Bytes?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  acompanhamentoId String
+  acompanhamento   AcompanhamentoCorporal @relation(fields: [acompanhamentoId], references: [id], onDelete: Cascade)
+
+  @@index([acompanhamentoId])
+}
+
+model Bioimpedancia {
+  id                String              @id @default(uuid())
+  data              DateTime
+  gorduraCorporal   String? 
+  massaMuscular     String? 
+  gorduraVisceral   String?
+  taxaMetabolica    String?
+  idadeCorporal     String?
+  massaOssea        String?
+  aguaCorporal      String?
+  userId            String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  usuario           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anexos            AnexoBioimpedancia[]
+
+  @@index([userId])
+}
+
+model AnexoBioimpedancia {
+  id              String        @id @default(uuid())
+  nomeArquivo     String
+  mimetype        String?
+  arquivo         Bytes?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  bioimpedanciaId String
+  bioimpedancia   Bioimpedancia @relation(fields: [bioimpedanciaId], references: [id], onDelete: Cascade)
+
+  @@index([bioimpedanciaId])
+}
+
+model Meta {
+  id           String     @id @default(uuid())
+  tipo         TipoMeta
+  valorAlvo    String // String para criptografia
+  valorInicial String? // String para criptografia
+  dataInicio   DateTime
+  dataFim      DateTime?
+  status       StatusMeta @default(ATIVA)
+  userId       String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  usuario      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model AnvisaMedicamento {
@@ -96,18 +197,6 @@ model DadosSaude {
   altura         String?
   alergias       String[] @default([])
   usuario        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model PesoHistorico {
-  id        String   @id @default(uuid())
-  peso      String
-  data      String
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  usuario   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 model Account {
@@ -354,7 +443,7 @@ model AnexoConsulta {
   mimetype    String?
   consulta    Consultas @relation(fields: [consultaId], references: [id], onDelete: Cascade)
 
-  @@index([ consultaId])
+  @@index([consultaId])
 }
 
 model Medicamento {
@@ -397,7 +486,7 @@ model Notification {
   id            String       @id @default(cuid())
   title         String
   message       String
-  url           String?      
+  url           String?
   isRead        Boolean      @default(false)
   createdAt     DateTime     @default(now())
   userId        String
@@ -425,7 +514,7 @@ model ErrorLog {
 
 model AbastecimentoMedicamento {
   id               String          @id @default(uuid())
-  data             String
+  data             String // Mantido como String por solicitação
   quantidade       String
   observacoes      String?
   createdAt        DateTime        @default(now())
@@ -447,6 +536,18 @@ model BiomarkerRule {
 
   @@index([standardizedName])
   @@index([category])
+}
+
+enum TipoMeta {
+  PESO
+  GORDURA_CORPORAL
+  MASSA_MUSCULAR
+}
+
+enum StatusMeta {
+  ATIVA
+  CONCLUIDA
+  CANCELADA
 }
 
 enum TipoAnexo {

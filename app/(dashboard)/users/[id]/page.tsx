@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
-import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity } from 'lucide-react';
+import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity, Ruler } from 'lucide-react';
 import EditCondicaoSaudeDialog from './_components/EditCondicaoSaudeDialog';
 import { Profissional } from '@prisma/client';
 import IMCChart from '../_components/IMCChart';
@@ -81,7 +81,7 @@ const UserProfilePage = () => {
         </div>
 
         <Tabs defaultValue="personal-info" className="w-full flex flex-col">
-          <TabsList className="grid w-full h-auto grid-cols-1 sm:h-10 sm:grid-cols-3">
+          <TabsList className="grid w-full h-auto grid-cols-1 sm:h-10 sm:grid-cols-4">
             <TabsTrigger value="personal-info">
               <UserIcon className="mr-2 h-4 w-4" /> Informações Pessoais
             </TabsTrigger>
@@ -90,6 +90,9 @@ const UserProfilePage = () => {
             </TabsTrigger>
             <TabsTrigger value="health-analysis">
               <Activity className="mr-2 h-4 w-4" /> Análise de Saúde
+            </TabsTrigger>
+            <TabsTrigger value="body-measurements">
+              <Ruler className="mr-2 h-4 w-4" /> Medidas Corporais
             </TabsTrigger>
           </TabsList>
           <TabsContent value="personal-info" className="mt-6">
@@ -158,6 +161,21 @@ const UserProfilePage = () => {
                       onDataChange={fetchUser}
                    />
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="body-measurements" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center"><Ruler className="mr-2" /> Medidas Corporais</CardTitle>
+                    {canEdit && (
+                        <Button variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Medidas</Button>
+                    )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">Acompanhe aqui os resultados de bioimpedância e outras medidas corporais.</p>
               </CardContent>
             </Card>
           </TabsContent>
