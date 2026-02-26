@@ -11,7 +11,6 @@ import type {
   Exame,
   Profissional,
   UnidadeDeSaude,
-  Consultatype,
 } from "@prisma/client";
 
 // Tipos Combinados

@@ -1,6 +1,7 @@
 "use client";
 
-import { ResponsiveContainer, LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line } from 'recharts';
+import { ResponsiveContainer, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, Area } from 'recharts';
+import { format } from 'date-fns';
 
 interface PesoRegistro {
   id: string;
@@ -18,12 +19,30 @@ interface PesoHistoryChartContentProps {
 const formatarDataGrafico = (dataString: string): string => {
   try {
     const date = new Date(dataString);
-    date.setUTCHours(0, 0, 0, 0);
-    if (isNaN(date.getTime())) return "Inválido";
-    return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+    const adjustedDate = new Date(date.valueOf() + date.getTimezoneOffset() * 60 * 1000)
+    return format(adjustedDate, "dd/MM");
   } catch {
     return dataString;
   }
+};
+
+// Definição de tipo explícita para as props do CustomTooltip
+interface CustomTooltipProps {
+    active?: boolean;
+    payload?: { value: number }[];
+    label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="p-2 bg-background border rounded-md shadow-md">
+        <p className="font-bold">{`Peso: ${payload[0].value?.toFixed(1)} kg`}</p>
+        <p className="text-sm text-muted-foreground">{`Data: ${label}`}</p>
+      </div>
+    );
+  }
+  return null;
 };
 
 export default function PesoHistoryChartContent({ historicoPeso }: PesoHistoryChartContentProps) {
@@ -37,25 +56,43 @@ export default function PesoHistoryChartContent({ historicoPeso }: PesoHistoryCh
   const pesos = transformedData.map(d => d.peso);
   const minPeso = pesos.length > 0 ? Math.min(...pesos) : 0;
   const maxPeso = pesos.length > 0 ? Math.max(...pesos) : 100;
-  const yAxisDomain = [
-      minPeso > 10 ? Math.floor(minPeso - 5) : 0,
+  const yAxisDomain: [number, number] = [
+      minPeso > 5 ? Math.floor(minPeso - 5) : 0,
       maxPeso > 0 ? Math.ceil(maxPeso + 5) : 100
   ];
 
   return (
     <div className="w-full h-80 mt-4">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart
+        <AreaChart
           data={transformedData}
-          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: -10, bottom: 5 }}
         >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" name="Data" />
-          <YAxis domain={yAxisDomain} name="Peso (kg)" />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="peso" name="Peso (kg)" stroke="#8884d8" activeDot={{ r: 8 }} />
-        </LineChart>
+          <defs>
+            <linearGradient id="colorPeso" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
+          <XAxis 
+            dataKey="date" 
+            stroke="#888888" 
+            fontSize={12} 
+            tickLine={false} 
+            axisLine={false} 
+          />
+          <YAxis 
+            domain={yAxisDomain} 
+            stroke="#888888" 
+            fontSize={12} 
+            tickLine={false} 
+            axisLine={false} 
+            tickFormatter={(value) => `${value}kg`}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          <Area type="monotone" dataKey="peso" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorPeso)" />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   );
