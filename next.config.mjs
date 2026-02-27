@@ -2,6 +2,7 @@ import withBundleAnalyzer from '@next/bundle-analyzer';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  turbopack: {},
   webpack: (config, { isServer, webpack }) => {
     // Rule from original config for pdfreader
     config.plugins.push(

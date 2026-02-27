@@ -8,10 +8,11 @@ import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
 import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity, Ruler } from 'lucide-react';
-import EditCondicaoSaudeDialog from './_components/EditCondicaoSaudeDialog';
+import EditCondicaoSaudeDialog from '../_components/EditCondicaoSaudeDialog';
 import { Profissional } from '@prisma/client';
 import IMCChart from '../_components/IMCChart';
 import PesoHistoryChart from '../_components/PesoHistoryChart';
+import MedidasCorporaisTab from '../_components/MedidasCorporaisTab';
 
 interface CondicaoSaude {
   id: string;
@@ -42,7 +43,7 @@ const UserProfilePage = () => {
     if (typeof id !== 'string') return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/pacientes/dashboard/${id}`);
+      const response = await fetch(`/api/users/${id}`);
       if (!response.ok) throw new Error('Usuário não encontrado');
       const data: UserData = await response.json();
       setUser(data);
@@ -165,19 +166,7 @@ const UserProfilePage = () => {
             </Card>
           </TabsContent>
           <TabsContent value="body-measurements" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                    <CardTitle className="flex items-center"><Ruler className="mr-2" /> Medidas Corporais</CardTitle>
-                    {canEdit && (
-                        <Button variant="outline" size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Adicionar Medidas</Button>
-                    )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">Acompanhe aqui os resultados de bioimpedância e outras medidas corporais.</p>
-              </CardContent>
-            </Card>
+             <MedidasCorporaisTab />
           </TabsContent>
         </Tabs>
       </div>

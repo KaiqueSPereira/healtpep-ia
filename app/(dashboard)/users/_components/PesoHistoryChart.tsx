@@ -104,7 +104,7 @@ export default function PesoHistoryChart({
     }
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/pacientes/dashboard/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ peso: novoPeso, data: novaDataPeso }) });
+      const response = await fetch(`/api/users/${userId}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ peso: novoPeso, data: novaDataPeso }) });
       if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'Erro ao adicionar peso'); }
       onDataChange();
       setNovoPeso('');
@@ -122,7 +122,7 @@ export default function PesoHistoryChart({
   const handleDeletePeso = async (registroId: string) => {
     if (!userId) return;
     try {
-        const response = await fetch(`/api/pacientes/dashboard/${userId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: registroId }) });
+        const response = await fetch(`/api/users/${userId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: registroId }) });
         if (!response.ok) { const errorData = await response.json(); throw new Error(errorData.error || 'Erro ao deletar peso'); }
         onDataChange();
         toast({ title: "Sucesso!", description: "Registro de peso deletado." });

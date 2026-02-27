@@ -64,7 +64,7 @@ const UserEditPage = () => {
 
     const fetchUserData = async () => {
       try {
-        const response = await fetch(`/api/pacientes/dashboard/${id}`);
+        const response = await fetch(`/api/users/${id}`);
         if (!response.ok) throw new Error('Falha ao carregar dados do usuário');
         
         const user: UserData = await response.json();
