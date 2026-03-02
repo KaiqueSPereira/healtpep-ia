@@ -87,7 +87,7 @@ const ExameItem = ({ exame }: ExameItemProps) => {
 
                       <div className="flex items-center justify-between mt-auto">
                         <Button variant="secondary" size="sm" asChild>
-                          <a>Ver Detalhes</a>
+                          <span>Ver Detalhes</span>
                         </Button>
                         {hasAnexos && (
                           <Button

@@ -7,12 +7,13 @@ import Link from 'next/link';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
-import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity, Ruler } from 'lucide-react';
+import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity } from 'lucide-react';
 import EditCondicaoSaudeDialog from '../_components/EditCondicaoSaudeDialog';
 import { Profissional } from '@prisma/client';
-import IMCChart from '../_components/IMCChart';
 import PesoHistoryChart from '../_components/PesoHistoryChart';
-import MedidasCorporaisTab from '../_components/MedidasCorporaisTab';
+import BioimpedanciaTab from '../_components/BioimpedanciaTab';
+import IMCChart from '../_components/IMCChart';
+import BodyMeasurementChart from '../_components/BodyMeasurementChart';
 
 interface CondicaoSaude {
   id: string;
@@ -23,13 +24,30 @@ interface CondicaoSaude {
   profissional?: Profissional | null;
 }
 
+// Interface padronizada com nomes curtos
+interface PesoRegistro {
+  id: string;
+  peso: string;
+  data: string;
+  pescoco?: string | null;
+  torax?: string | null;
+  cintura?: string | null;
+  quadril?: string | null;
+  bracoE?: string | null;
+  bracoD?: string | null;
+  pernaE?: string | null;
+  pernaD?: string | null;
+  pantE?: string | null;
+  pantD?: string | null;
+}
+
 interface UserData {
     id: string;
     name?: string | null;
     email?: string | null;
     image?: string | null;
     dadosSaude?: { dataNascimento?: string | null; sexo?: string | null; tipoSanguineo?: string | null; altura?: string | null; } | null;
-    historicoPeso: { id: string; peso: string; data: string }[];
+    historicoPeso: PesoRegistro[];
     condicoesSaude: CondicaoSaude[];
 }
 
@@ -72,49 +90,39 @@ const UserProfilePage = () => {
   }
 
   return (
-    <div className="p-0 sm:p-6">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex justify-between items-center mb-6 px-4 pt-4 sm:px-0 sm:pt-0">
-          <h1 className="text-3xl font-bold">Perfil do Usuário</h1>
-          {canEdit && (
-            <Button asChild variant="outline"><Link href={`/users/${id}/editar`}><Edit className="mr-2 h-4 w-4" /> Editar Perfil</Link></Button>
-          )}
-        </div>
+    <div className="container mx-auto p-4 sm:p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Perfil do Usuário</h1>
+        {canEdit && (
+          <Button asChild variant="outline"><Link href={`/users/${id}/editar`}><Edit className="mr-2 h-4 w-4" /> Editar Perfil</Link></Button>
+        )}
+      </div>
 
-        <Tabs defaultValue="personal-info" className="w-full flex flex-col">
-          <TabsList className="grid w-full h-auto grid-cols-1 sm:h-10 sm:grid-cols-4">
-            <TabsTrigger value="personal-info">
-              <UserIcon className="mr-2 h-4 w-4" /> Informações Pessoais
-            </TabsTrigger>
-            <TabsTrigger value="health-conditions">
-              <HeartPulse className="mr-2 h-4 w-4" /> Condições de Saúde
-            </TabsTrigger>
-            <TabsTrigger value="health-analysis">
-              <Activity className="mr-2 h-4 w-4" /> Análise de Saúde
-            </TabsTrigger>
-            <TabsTrigger value="body-measurements">
-              <Ruler className="mr-2 h-4 w-4" /> Medidas Corporais
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="personal-info" className="mt-6">
-            <Card>
-              <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InfoItem icon={UserIcon} label="Nome" value={user.name} />
-                <InfoItem icon={Calendar} label="Data de Nascimento" value={user.dadosSaude?.dataNascimento ? new Date(user.dadosSaude.dataNascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : null} />
-                <InfoItem icon={UserIcon} label="Gênero" value={user.dadosSaude?.sexo} />
-                <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.dadosSaude?.tipoSanguineo} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-          <TabsContent value="health-conditions" className="mt-6">
+      <Tabs defaultValue="health-analysis" className="w-full flex flex-col">
+        <TabsList className="grid w-full h-auto grid-cols-1 sm:h-10 sm:grid-cols-3">
+          <TabsTrigger value="personal-info"><UserIcon className="mr-2 h-4 w-4" /> Informações Pessoais</TabsTrigger>
+          <TabsTrigger value="health-conditions"><HeartPulse className="mr-2 h-4 w-4" /> Condições de Saúde</TabsTrigger>
+          <TabsTrigger value="health-analysis"><Activity className="mr-2 h-4 w-4" /> Análise de Saúde</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="personal-info" className="mt-6">
+          <Card>
+            <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <InfoItem icon={UserIcon} label="Nome" value={user.name} />
+              <InfoItem icon={Calendar} label="Data de Nascimento" value={user.dadosSaude?.dataNascimento ? new Date(user.dadosSaude.dataNascimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : null} />
+              <InfoItem icon={UserIcon} label="Gênero" value={user.dadosSaude?.sexo} />
+              <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.dadosSaude?.tipoSanguineo} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="health-conditions" className="mt-6">
             <Card>
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle className="flex items-center"><HeartPulse className="mr-2" /> Condições de Saúde</CardTitle>
-                  {canEdit && (
-                    <Button asChild variant="outline" size="sm"><Link href={`/condicoes/novo?userId=${id}`}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Link></Button>
-                  )}
+                  {canEdit && <Button asChild variant="outline" size="sm"><Link href={`/condicoes/novo?userId=${id}`}><PlusCircle className="mr-2 h-4 w-4" /> Adicionar</Link></Button>}
                 </div>
               </CardHeader>
               <CardContent>
@@ -122,54 +130,35 @@ const UserProfilePage = () => {
                   <ul className="space-y-4">
                     {user.condicoesSaude.map(cond => (
                       <li key={cond.id} className="flex justify-between items-start p-3 rounded-md border">
-                          <div className="flex-1">
-                              <p className="font-semibold">{cond.nome}</p>
-                              {cond.profissional && (
-                                  <div className="text-sm text-muted-foreground flex items-center mt-1">
-                                      <Stethoscope className="h-4 w-4 mr-2" />
-                                      <span>{cond.profissional.nome} - {cond.profissional.especialidade}</span>
-                                  </div>
-                              )}
-                          </div>
-                          {canEdit && <EditCondicaoSaudeDialog condicao={cond} onCondicaoUpdated={fetchUser} />}
+                        <div className="flex-1">
+                          <p className="font-semibold">{cond.nome}</p>
+                          {cond.profissional && <p className="text-sm text-muted-foreground flex items-center mt-1"><Stethoscope className="h-4 w-4 mr-2" />{cond.profissional.nome} - {cond.profissional.especialidade}</p>}
+                        </div>
+                        {canEdit && <EditCondicaoSaudeDialog condicao={cond} onCondicaoUpdated={fetchUser} />}
                       </li>
                     ))}
                   </ul>
                 ) : <p className="text-muted-foreground">Nenhuma condição de saúde registrada.</p>}
               </CardContent>
             </Card>
-          </TabsContent>
-          <TabsContent value="health-analysis" className="mt-6">
+        </TabsContent>
+
+        <TabsContent value="health-analysis" className="mt-6 space-y-6">
             <Card>
-              <CardHeader><CardTitle className="flex items-center"><Weight className="mr-2" /> Análise de Peso</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <div className="col-span-1">
-                  <IMCChart 
-                    userId={user.id}
-                    userHeight={userHeightForIMC}
-                    historicoPeso={user.historicoPeso}
-                    loadingHistorico={loading}
-                    errorHistorico={null}
-                  />
-                </div>
-                <div className="col-span-1">
-                   <PesoHistoryChart 
-                      userId={user.id}
-                      historicoPeso={user.historicoPeso}
-                      altura={userHeightForIMC}
-                      loading={loading}
-                      error={null}
-                      onDataChange={fetchUser}
-                   />
-                </div>
-              </CardContent>
+                 <CardHeader><CardTitle className="flex items-center"><Weight className="mr-2" /> Análise Corporal</CardTitle></CardHeader>
+                 <CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    <div className="col-span-1 space-y-6">
+                        <IMCChart userId={user.id} userHeight={userHeightForIMC} historicoPeso={user.historicoPeso} loadingHistorico={loading} errorHistorico={null} />
+                        <BodyMeasurementChart historicoPeso={user.historicoPeso} />
+                    </div>
+                    <div className="col-span-1 lg:col-span-2">
+                        <PesoHistoryChart userId={user.id} historicoPeso={user.historicoPeso} altura={userHeightForIMC} loading={loading} error={null} onDataChange={fetchUser} />
+                    </div>
+                 </CardContent>
             </Card>
+            <BioimpedanciaTab canEdit={canEdit} onDataAdded={fetchUser} />
           </TabsContent>
-          <TabsContent value="body-measurements" className="mt-6">
-             <MedidasCorporaisTab />
-          </TabsContent>
-        </Tabs>
-      </div>
+      </Tabs>
     </div>
   );
 };

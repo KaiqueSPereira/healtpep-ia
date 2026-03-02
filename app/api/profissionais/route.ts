@@ -43,12 +43,34 @@ export async function GET(request: Request) {
             orderBy: { nome: 'asc' },
         });
 
-        const decryptedProfissionais = profissionais.map(p => ({
-            ...p,
-            nome: decryptString(p.nome),
-            especialidade: decryptString(p.especialidade),
-            NumClasse: decryptString(p.NumClasse),
-        }));
+        const decryptedProfissionaisPromises = profissionais.map(async (p) => {
+            try {
+                return {
+                    ...p,
+                    nome: decryptString(p.nome),
+                    especialidade: decryptString(p.especialidade),
+                    NumClasse: decryptString(p.NumClasse),
+                };
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : "Erro desconhecido na descriptografia";
+                await logAction({
+                    userId,
+                    action: "decryption_error_profissional",
+                    level: "error",
+                    message: `Falha ao descriptografar dados do profissional com id: ${p.id}`,
+                    details: errorMessage,
+                    component: "profissionais-api",
+                });
+                return {
+                    ...p,
+                    nome: "Erro de Descriptografia",
+                    especialidade: "Erro de Descriptografia",
+                    NumClasse: "Erro de Descriptografia",
+                };
+            }
+        });
+
+        const decryptedProfissionais = await Promise.all(decryptedProfissionaisPromises);
 
         return NextResponse.json(decryptedProfissionais);
 
