@@ -7,6 +7,7 @@ import { db } from '@/app/_lib/prisma';
 import { TipoMedicamento, StatusMedicamento, FrequenciaTipo } from '@prisma/client';
 import { encryptString, safeDecrypt } from '@/app/_lib/crypto';
 import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
+import { logAction } from "@/app/_lib/logger";
 
 // Esquema de validação para criação de medicamentos
 const medicamentoCreateSchema = z.object({
@@ -31,14 +32,15 @@ const medicamentoCreateSchema = z.object({
 
 // --- FUNÇÃO GET: BUSCAR E DESCRIPTOGRAFAR MEDICAMENTOS ---
 export async function GET() {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!userId) {
       return new NextResponse('Não autorizado', { status: 401 });
     }
 
     const medicamentos = await db.medicamento.findMany({
-      where: { userId: session.user.id },
+      where: { userId: userId },
       include: {
         profissional: true,
         condicaoSaude: true,
@@ -70,19 +72,27 @@ export async function GET() {
 
     return NextResponse.json(decryptedMedicamentos);
   } catch (error) {
-    console.error('[MEDICAMENTOS_GET]', error);
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    await logAction({
+        userId: userId,
+        action: "get_medicamentos_error",
+        level: "error",
+        message: "Erro ao buscar medicamentos",
+        details: errorMessage,
+        component: "medicamentos-api"
+    });
     return new NextResponse('Erro Interno do Servidor', { status: 500 });
   }
 }
 
 // --- FUNÇÃO POST: CRIPTOGRAFAR E CRIAR NOVO MEDICAMENTO ---
 export async function POST(request: Request) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!userId) {
       return new NextResponse('Não autorizado', { status: 401 });
     }
-    const userId = session.user.id;
 
     // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
     const permissions = await getPermissionsForUser(userId);
@@ -109,9 +119,18 @@ export async function POST(request: Request) {
 
     const medicamento = await db.medicamento.create({
       data: {
-        userId: session.user.id,
+        userId: userId,
         ...encryptedData,
       },
+    });
+
+    await logAction({
+        userId: userId,
+        action: "create_medicamento",
+        level: "info",
+        message: `Medicamento '${medicamento.id}' criado com sucesso`,
+        details: { medicamentoId: medicamento.id },
+        component: "medicamentos-api"
     });
 
     return NextResponse.json(medicamento, { status: 201 });
@@ -119,7 +138,15 @@ export async function POST(request: Request) {
     if (error instanceof z.ZodError) {
       return new NextResponse(JSON.stringify(error.issues), { status: 422 });
     }
-    console.error('[MEDICAMENTOS_POST]', error);
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    await logAction({
+        userId: userId,
+        action: "create_medicamento_error",
+        level: "error",
+        message: "Erro ao criar medicamento",
+        details: errorMessage,
+        component: "medicamentos-api"
+    });
     return new NextResponse('Erro Interno do Servidor', { status: 500 });
   }
 }

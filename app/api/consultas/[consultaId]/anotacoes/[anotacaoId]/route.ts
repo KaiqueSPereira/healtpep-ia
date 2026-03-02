@@ -2,58 +2,95 @@
 import { NextResponse } from "next/server";
 import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { db } from "@/app/_lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/_lib/auth";
+import { logAction } from "@/app/_lib/logger";
 
-// 📌 PATCH - Atualizar uma anotação específica
-export async function PATCH(
-  request: Request,
-  { params }: { params: { consultaId: string; anotacaoId: string } },
-) {
-  try {
-    const body = await request.json();
-    const { anotacao } = body;
-
-    if (!anotacao) {
-      return NextResponse.json(
-        { error: "O conteúdo da anotação é obrigatório para atualização." },
-        { status: 400 },
-      );
+async function getSessionInfo() {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user || !session.user.id) {
+        throw new Error("Não autorizado");
     }
-
-    const encryptedAnotacao = encryptString(anotacao);
-
-    const updatedAnotacao = await db.anotacoes.update({ // Usando db.anotacao
-      where: { id: params.anotacaoId },
-      data: { anotacao: encryptedAnotacao },
-    });
-
-    const decryptedAnotacao = {
-        ...updatedAnotacao,
-        anotacao: decryptString(updatedAnotacao.anotacao),
-    };
-
-    return NextResponse.json(decryptedAnotacao, { status: 200 });
-
-  } catch (error) {
-    console.error("Erro ao atualizar anotação:", error);
-    return NextResponse.json(
-      { error: "Erro ao atualizar anotação." },
-      { status: 500 },
-    );
-  }
+    return { userId: session.user.id };
 }
 
-// 📌 DELETE - Deletar uma anotação específica
-export async function DELETE(
-  request: Request,
-  { params }: { params: { consultaId: string; anotacaoId: string } },
-) {
-  try {
-    await db.anotacoes.delete({ where: { id: params.anotacaoId } }); // Usando db.anotacao
+const getIdsFromUrl = (url: string) => {
+  const parts = url.split('/');
+  const anotacaoId = parts[parts.length - 1];
+  const consultaId = parts[parts.length - 3];
+  return { consultaId, anotacaoId };
+};
 
-    return NextResponse.json({ message: "Anotação deletada com sucesso." }, { status: 200 });
+export async function PATCH(request: Request) {
+    let userId: string | undefined;
+    const { consultaId, anotacaoId } = getIdsFromUrl(request.url);
+    try {
+        const { userId: uId } = await getSessionInfo();
+        userId = uId;
 
-  } catch (error) {
-    console.error("Erro ao deletar anotação:", error);
-    return NextResponse.json({ error: "Erro ao deletar anotação." }, { status: 500 });
-  }
+        if (!anotacaoId || !consultaId) {
+            return NextResponse.json({ error: "IDs de consulta e anotação são obrigatórios." }, { status: 400 });
+        }
+
+        const anotacaoExists = await db.anotacoes.findFirst({
+            where: { id: anotacaoId, consultaId: consultaId, consulta: { userId: userId } }
+        });
+
+        if (!anotacaoExists) {
+            return NextResponse.json({ error: "Anotação não encontrada ou não autorizada." }, { status: 404 });
+        }
+
+        const { anotacao: newContent } = await request.json();
+        if (!newContent) {
+            return NextResponse.json({ error: "O conteúdo da anotação é obrigatório." }, { status: 400 });
+        }
+
+        const updatedAnotacao = await db.anotacoes.update({
+            where: { id: anotacaoId },
+            data: { anotacao: encryptString(newContent) },
+        });
+
+        await logAction({ userId, action: "update_anotacao", level: "info", message: `Anotação '${anotacaoId}' atualizada`, component: "consultas-anotacao-id-api" });
+
+        return NextResponse.json({ ...updatedAnotacao, anotacao: newContent });
+
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        await logAction({ userId, action: "update_anotacao_error", level: "error", message: `Erro ao atualizar anotação '${anotacaoId}'`, details: errorMessage, component: "consultas-anotacao-id-api" });
+        const status = errorMessage === "Não autorizado" ? 401 : 500;
+        return NextResponse.json({ error: `Erro ao atualizar anotação: ${errorMessage}` }, { status });
+    }
+}
+
+export async function DELETE(request: Request) {
+    let userId: string | undefined;
+    const { consultaId, anotacaoId } = getIdsFromUrl(request.url);
+    try {
+        const { userId: uId } = await getSessionInfo();
+        userId = uId;
+
+        if (!anotacaoId || !consultaId) {
+            return NextResponse.json({ error: "IDs de consulta e anotação são obrigatórios." }, { status: 400 });
+        }
+
+        const anotacaoExists = await db.anotacoes.findFirst({
+            where: { id: anotacaoId, consultaId: consultaId, consulta: { userId: userId } }
+        });
+
+        if (!anotacaoExists) {
+            return NextResponse.json({ error: "Anotação não encontrada ou não autorizada para exclusão." }, { status: 404 });
+        }
+
+        await db.anotacoes.delete({ where: { id: anotacaoId } });
+
+        await logAction({ userId, action: "delete_anotacao", level: "info", message: `Anotação '${anotacaoId}' deletada`, component: "consultas-anotacao-id-api" });
+
+        return new NextResponse(null, { status: 204 });
+
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        await logAction({ userId, action: "delete_anotacao_error", level: "error", message: `Erro ao deletar anotação '${anotacaoId}'`, details: errorMessage, component: "consultas-anotacao-id-api" });
+        const status = errorMessage === "Não autorizado" ? 401 : 500;
+        return NextResponse.json({ error: `Erro ao deletar anotação: ${errorMessage}` }, { status });
+    }
 }

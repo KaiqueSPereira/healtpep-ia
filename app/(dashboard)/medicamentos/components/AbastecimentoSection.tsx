@@ -59,7 +59,7 @@ export default function AbastecimentoSection({ medicamentoId, onAbastecimentoSuc
         try {
             const [abastResponse, unidadesResponse] = await Promise.all([
                 fetch(`/api/medicamentos/abastecimentos?medicamentoId=${medicamentoId}`),
-                fetch('/api/unidades') 
+                fetch('/api/unidadesaude') 
             ]);
 
             if (!abastResponse.ok) throw new Error('Falha ao buscar histórico de abastecimentos.');

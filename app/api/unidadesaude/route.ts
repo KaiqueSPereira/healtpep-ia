@@ -1,23 +1,20 @@
 // app/api/unidadesaude/route.ts
 import { db } from "@/app/_lib/prisma";
-import { NextResponse } from "next/server";
-import { ApiRouteHandler } from "../types";
+import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { getPermissionsForUser } from "@/app/_lib/auth/permission-checker"; // Importando o verificador
+import { logAction } from "@/app/_lib/logger";
 
-type UnidadeParams = Record<string, never>;
-
-export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
   try {
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
-
     if (!userId) {
       return NextResponse.json({ error: "Usuário não autenticado" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(request.url);
+    const { searchParams } = request.nextUrl;
     const id = searchParams.get("id");
 
     if (id) {
@@ -56,7 +53,15 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
 
     return NextResponse.json(unidades);
   } catch (error) {
-    console.error("Erro ao buscar unidades:", error);
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    await logAction({
+        userId: userId,
+        action: "get_unidadesaude_error",
+        level: "error",
+        message: "Erro ao buscar unidades de saúde",
+        details: errorMessage,
+        component: "unidadesaude-api"
+    });
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 },
@@ -65,14 +70,13 @@ export const GET: ApiRouteHandler<UnidadeParams> = async (request) => {
 };
 
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session || !session.user || !session.user.id) {
+    if (!userId) {
       return NextResponse.json({ error: "Usuário não autenticado." }, { status: 401 });
     }
-    const userId = session.user.id;
 
     // --- INÍCIO DA VERIFICAÇÃO DE PERMISSÃO ---
     const permissions = await getPermissionsForUser(userId);
@@ -109,7 +113,7 @@ export async function POST(req: Request) {
             tipo,
             telefone,
             usuario: {
-                connect: { id: session.user.id },
+                connect: { id: userId },
             },
             endereco: {
                 create: {
@@ -128,12 +132,28 @@ export async function POST(req: Request) {
         }
     });
 
+    await logAction({
+        userId: userId,
+        action: "create_unidade_saude",
+        level: "info",
+        message: `Unidade de saúde '${novaUnidade.id}' criada com sucesso`,
+        details: { unidadeId: novaUnidade.id },
+        component: "unidadesaude-api"
+    });
+
     return NextResponse.json(novaUnidade, { status: 201 });
   } catch (error) {
-    console.error("Erro ao cadastrar a unidade:", error);
-    const errorMessage = (error as Error).message || "Falha ao cadastrar a unidade";
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    await logAction({
+        userId: userId,
+        action: "create_unidade_saude_error",
+        level: "error",
+        message: "Erro ao cadastrar a unidade",
+        details: errorMessage,
+        component: "unidadesaude-api"
+    });
     return NextResponse.json(
-      { error: errorMessage },
+      { error: `Falha ao cadastrar a unidade: ${errorMessage}` },
       { status: 500 },
     );
   }

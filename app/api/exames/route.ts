@@ -7,7 +7,7 @@ import { safeDecrypt, safeEncrypt, encryptString, encrypt as encryptBuffer } fro
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../_lib/auth";
 import { Prisma } from "@prisma/client";
-import { logErrorToDb } from "@/app/_lib/logger";
+import { logAction } from "@/app/_lib/logger";
 import { getBiomarkerRule } from "@/app/_lib/biomarkerUtils";
 
 interface ResultadoInput {
@@ -28,15 +28,16 @@ interface ProcessedAnexo {
 export async function GET(request: NextRequest) {
     const componentName = "API GET /api/exames";
     const searchParams = request.nextUrl.searchParams;
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
 
     if (searchParams.get('forMenu') === 'true') {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        if (!userId) {
             return NextResponse.json({ error: "Você precisa estar autenticado." }, { status: 401 });
         }
         try {
             const exames = await prisma.exame.findMany({
-                where: { userId: session.user.id },
+                where: { userId: userId },
                 include: {
                     profissional: true,
                     profissionalExecutante: true,
@@ -63,20 +64,24 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(decryptedExames, { status: 200 });
 
         } catch (error) {
-             await logErrorToDb(
-                "Erro ao buscar lista de exames para o menu.",
-                error instanceof Error ? error.stack || error.message : String(error),
-                componentName
-            );
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+            await logAction({
+                userId: userId,
+                action: "get_exames_for_menu_error",
+                level: "error",
+                message: "Erro ao buscar lista de exames para o menu.",
+                details: errorMessage,
+                component: componentName
+            });
             return NextResponse.json({ error: "Não foi possível carregar os exames para o menu." }, { status: 500 });
         }
     }
 
-    const userId = searchParams.get('userId');
+    const queryUserId = searchParams.get('userId');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '10', 10);
 
-    if (!userId) {
+    if (!queryUserId) {
         return NextResponse.json({ error: "O ID do usuário é obrigatório." }, { status: 400 });
     }
 
@@ -85,7 +90,7 @@ export async function GET(request: NextRequest) {
     try {
         const [exames, total] = await prisma.$transaction([
             prisma.exame.findMany({
-                where: { userId: userId },
+                where: { userId: queryUserId },
                 include: {
                     profissional: true,
                     profissionalExecutante: true,
@@ -98,7 +103,7 @@ export async function GET(request: NextRequest) {
                 skip: skip,
                 take: limit,
             }),
-            prisma.exame.count({ where: { userId: userId } })
+            prisma.exame.count({ where: { userId: queryUserId } })
         ]);
 
         const decryptedExames = exames.map(exame => {
@@ -151,11 +156,15 @@ export async function GET(request: NextRequest) {
         }, { status: 200 });
 
     } catch (error) {
-        await logErrorToDb(
-            "Erro ao buscar a lista de exames.", 
-            error instanceof Error ? error.stack || error.message : String(error), 
-            componentName
-        );
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        await logAction({
+            userId: userId,
+            action: "get_exames_error",
+            level: "error",
+            message: "Erro ao buscar a lista de exames.",
+            details: errorMessage,
+            component: componentName
+        });
         return NextResponse.json({ error: "Não foi possível carregar os exames. Tente novamente mais tarde." }, { status: 500 });
     }
 }
@@ -164,14 +173,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   const componentName = "API POST /api/exames";
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
+  const userId = session?.user?.id;
+  if (!userId) {
     return NextResponse.json({ error: "Você precisa estar autenticado para realizar esta ação." }, { status: 401 });
   }
 
   try {
     const formData = await request.formData();
     
-    const userId = formData.get("userId") as string;
+    const requestUserId = formData.get("userId") as string;
     const tipo = formData.get("tipo") as string | null;
     const nome = formData.get("nome") as string | null;
     const anotacao = formData.get("anotacao") as string | null;
@@ -184,7 +194,7 @@ export async function POST(request: Request) {
     const resultadosStr = formData.get("resultados") as string | null;
     const files = formData.getAll("files") as File[];
 
-    if (!userId || !tipo || !nome) {
+    if (!requestUserId || !tipo || !nome) {
       return NextResponse.json({ error: "Por favor, preencha todos os campos obrigatórios (tipo e nome do exame)." }, { status: 400 });
     }
 
@@ -228,7 +238,7 @@ export async function POST(request: Request) {
       // The getBiomarkerRule() function, called above, now handles this responsibility correctly.
 
       const createData: Prisma.ExameCreateInput = {
-        usuario: { connect: { id: userId } },
+        usuario: { connect: { id: requestUserId } },
         nome: safeEncrypt(nome),
         tipo: safeEncrypt(tipo),
       };
@@ -276,14 +286,27 @@ export async function POST(request: Request) {
       return exameComRelacoes;
     }, { timeout: 20000 });
 
+    await logAction({
+        userId: userId,
+        action: "create_exame",
+        level: "info",
+        message: `Exame com ID '${novoExameCompleto?.id}' criado com sucesso.`,
+        details: { exameId: novoExameCompleto?.id },
+        component: componentName
+    });
+
     return NextResponse.json({ message: "Exame criado com sucesso!", exame: novoExameCompleto }, { status: 201 });
 
   } catch (error: unknown) {
-    await logErrorToDb(
-        "Erro ao criar o exame.",
-        error instanceof Error ? error.stack || error.message : String(error),
-        componentName
-    );
+    const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+    await logAction({
+        userId: userId,
+        action: "create_exame_error",
+        level: "error",
+        message: "Erro ao criar o exame.",
+        details: errorMessage,
+        component: componentName
+    });
     return NextResponse.json({ error: "Não foi possível salvar o exame. Verifique os dados e tente novamente." }, { status: 500 });
   }
 }

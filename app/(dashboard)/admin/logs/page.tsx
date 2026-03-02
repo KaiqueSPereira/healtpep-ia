@@ -1,119 +1,102 @@
-import { prisma } from '@/app/_lib/prisma';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/app/_components/ui/card";
-import { LogsTable } from '@/app/(dashboard)/admin/_components/logs-table';
-import { LogToolbar } from '@/app/(dashboard)/admin/_components/log-toolbar';
-import { ClearLogsButton } from '@/app/(dashboard)/admin/_components/clear-logs-button';
-import type { Prisma } from '@prisma/client';
+// app/(dashboard)/admin/logs/page.tsx
+import { db } from "@/app/_lib/prisma";
+import { LogsTable } from "../_components/logs-table";
+import { LogToolbar } from "../_components/log-toolbar";
+import { Prisma } from '@prisma/client';
+import { ClearLogsButton } from "../_components/clear-logs-button";
 
 const LOGS_PER_PAGE = 20;
 
-interface SearchParams {
-  page?: string;
-  query?: string;
-  component?: string;
-  startDate?: string;
-  endDate?: string;
+interface AdminLogsPageProps {
+  searchParams: {
+    query?: string;
+    level?: string;
+    component?: string;
+    page?: string;
+  };
 }
 
-async function getErrorLogs(searchParams: SearchParams) {
-  const { 
-    page = '1',
-    query,
-    component,
-    startDate,
-    endDate
-  } = searchParams;
+export default async function AdminLogsPage({ searchParams }: AdminLogsPageProps) {
+  const { query, level, component, page } = searchParams;
+  const currentPage = Number(page) || 1;
 
-  const currentPage = Math.max(Number(page) || 1, 1);
   const skip = (currentPage - 1) * LOGS_PER_PAGE;
 
-  const where: Prisma.ErrorLogWhereInput = {};
+  const where: Prisma.ActionLogWhereInput = {};
 
   if (query) {
     where.OR = [
       { message: { contains: query, mode: 'insensitive' } },
       { stack: { contains: query, mode: 'insensitive' } },
-      { component: { contains: query, mode: 'insensitive' } },
+      { action: { contains: query, mode: 'insensitive' } },
+      { userId: { contains: query, mode: 'insensitive' } },
     ];
   }
 
+  if (level) {
+    where.level = { equals: level, mode: 'insensitive' };
+  }
+
   if (component) {
-    where.component = component;
+    where.component = { contains: component, mode: 'insensitive' };
   }
 
-  if (startDate || endDate) {
-    where.timestamp = {};
-    if (startDate) {
-      where.timestamp.gte = new Date(startDate);
-    }
-    if (endDate) {
-      where.timestamp.lte = new Date(endDate);
-    }
-  }
-
-  const [logs, totalLogs, componentNames] = await Promise.all([
-    prisma.errorLog.findMany({
+  const [logs, totalLogs, distinctComponents] = await db.$transaction([
+    db.actionLog.findMany({
       where,
-      orderBy: {
-        timestamp: 'desc',
-      },
-      skip,
+      orderBy: { timestamp: 'desc' },
       take: LOGS_PER_PAGE,
+      skip,
     }),
-    prisma.errorLog.count({ where }),
-    prisma.errorLog.findMany({
-        distinct: ['component'],
-        select: {
-            component: true,
+    db.actionLog.count({ where }),
+    db.actionLog.findMany({
+      distinct: ['component'],
+      select: {
+        component: true,
+      },
+      where: {
+        component: {
+          not: null,
         },
-        where: {
-            component: {
-                not: null,
-            }
-        }
-    }).then(results => results.map(r => r.component!))
+      },
+    }),
   ]);
 
+  const componentNames = distinctComponents.map(c => c.component!);
+
   const totalPages = Math.ceil(totalLogs / LOGS_PER_PAGE);
-
-  return { logs, totalLogs, totalPages, componentNames, currentPage };
-}
-
-const AdminLogsPage = async ({ searchParams }: { searchParams: SearchParams }) => {
-  const { logs, totalPages, componentNames, currentPage } = await getErrorLogs(searchParams);
-  const pathname = '/admin/logs'; 
   
-  const initialFilters = {
-      query: searchParams.query || '',
-      component: searchParams.component || '',
-  };
+  const safeSearchParams = new URLSearchParams();
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (value) {
+        safeSearchParams.set(key, String(value));
+    }
+  });
 
   return (
-    <div className="p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Painel de Logs do Sistema</CardTitle>
-          <CardDescription>
-            Analise os logs de erro e eventos capturados pelo sistema.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <LogToolbar 
-            componentNames={componentNames} 
-            initialFilters={initialFilters}
-            actions={<ClearLogsButton />}
-          />
-          <LogsTable 
-            logs={logs} 
-            currentPage={currentPage} 
-            totalPages={totalPages} 
-            pathname={pathname}
-            searchParams={new URLSearchParams(searchParams as Record<string, string>)}
-          />
-        </CardContent>
-      </Card>
+    <div className="w-full p-4 md:p-6">
+       <div className="flex justify-between items-center mb-4">
+        <div>
+          <h1 className="text-2xl font-bold">Logs do Sistema</h1>
+          <p className="text-muted-foreground">
+            Revise os logs de ações e erros para monitorar a saúde da aplicação.
+          </p>
+        </div>
+      </div>
+      <LogToolbar 
+        componentNames={componentNames}
+        initialFilters={{ query, component }}
+        actions={<ClearLogsButton />}
+      />
+      <div className="mt-4">
+        <LogsTable 
+          logs={logs} 
+          currentPage={currentPage} 
+          totalPages={totalPages}
+          pathname="/admin/logs"
+          searchParams={safeSearchParams}
+        />
+      </div>
     </div>
   );
-};
-
-export default AdminLogsPage;
+}

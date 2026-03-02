@@ -90,6 +90,7 @@ model User {
   acompanhamentos  AcompanhamentoCorporal[]
   bioimpedancias   Bioimpedancia[]
   metas            Meta[]
+  actionLogs       ActionLog[]
 
   @@index([roleId])
 }
@@ -134,8 +135,8 @@ model FotosAcompanhamento {
 model Bioimpedancia {
   id                String              @id @default(uuid())
   data              DateTime
-  gorduraCorporal   String? 
-  massaMuscular     String? 
+  gorduraCorporal   String?
+  massaMuscular     String?
   gorduraVisceral   String?
   taxaMetabolica    String?
   idadeCorporal     String?
@@ -502,14 +503,20 @@ model Notification {
   @@index([relatedId, relatedModel])
 }
 
-model ErrorLog {
+model ActionLog {
   id        String   @id @default(uuid())
   message   String
   stack     String?
-  url       String?
-  level     String?
   component String?
+  level     String   // 'info', 'warn', 'error'
+  action    String   // e.g., 'create_consulta', 'delete_exame'
   timestamp DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([level])
 }
 
 model AbastecimentoMedicamento {

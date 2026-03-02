@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import type { ErrorLog } from '@prisma/client';
+import type { ActionLog } from '@prisma/client';
 import { Button } from '@/app/_components/ui/button';
 import {
   Table,
@@ -30,7 +30,7 @@ import {
 } from '@/app/_components/ui/pagination';
 
 interface LogsTableProps {
-  logs: ErrorLog[];
+  logs: ActionLog[];
   currentPage: number;
   totalPages: number;
   pathname: string;
@@ -102,7 +102,7 @@ export function LogsTable({ logs, currentPage, totalPages, pathname, searchParam
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log: ErrorLog) => (
+              {logs.map((log: ActionLog) => (
                 <TableRow key={log.id}>
                   <TableCell suppressHydrationWarning>{format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</TableCell>
                   <TableCell>{truncate(log.component, 40)}</TableCell>
@@ -124,7 +124,6 @@ export function LogsTable({ logs, currentPage, totalPages, pathname, searchParam
                             <p><strong>ID:</strong> {log.id}</p>
                             <p suppressHydrationWarning><strong>Horário:</strong> {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</p>
                              <p><strong>Componente:</strong> {log.component || 'N/A'}</p>
-                            <p><strong>URL:</strong> {log.url || 'N/A'}</p>
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">

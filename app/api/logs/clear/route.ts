@@ -6,7 +6,7 @@ import { prisma } from '@/app/_lib/prisma';
 
 export async function POST() {
   try {
-    await prisma.errorLog.deleteMany({});
+    await prisma.actionLog.deleteMany({});
 
     return NextResponse.json({ message: 'Todos os logs foram excluídos com sucesso.' });
 

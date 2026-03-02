@@ -27,16 +27,11 @@ interface Unidade {
   tipo: string;
 }
 
-// Não parece que ProfissionalUnidadeLink é usado diretamente no componente, pode ser removido se não for o caso.
-// interface ProfissionalUnidadeLink { /* ... */ }
-
-
 interface UnidadeSelectorMultipleProps {
   profissionalId: string;
   currentUnidades: Unidade[];
   onUnidadesChange?: (updatedUnidades: Unidade[]) => void;
 }
-
 
 const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
   profissionalId,
@@ -71,7 +66,6 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
        setSelectedUnidades(currentUnidades);
    }, [currentUnidades]);
 
-
   const handleAddUnidade = async (unidade: Unidade) => {
     if (selectedUnidades.find((u) => u.id === unidade.id)) {
       setPopoverOpen(false);
@@ -80,10 +74,14 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch(`/api/profissionais/${profissionalId}/unidades`, {
-        method: "POST",
+      const response = await fetch(`/api/unidadesaude/${unidade.id}`,
+       {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unidadeId: unidade.id }),
+        body: JSON.stringify({ 
+          action: "associate_profissional",
+          profissionalId: profissionalId 
+        }),
       });
 
       if (!response.ok) {
@@ -91,14 +89,10 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
          throw new Error(errorData.error || "Erro ao associar unidade ao profissional");
       }
 
-
-      // Assumindo que a API POST retorna a lista atualizada de unidades do profissional
       const updatedUnidadesList: Unidade[] = await response.json();
 
-      // Atualiza o estado local COM A LISTA RETORNADA PELA API
       setSelectedUnidades(updatedUnidadesList);
 
-      // CHAMA O CALLBACK APENAS SE ELE EXISTIR
       if (onUnidadesChange) {
          onUnidadesChange(updatedUnidadesList);
       }
@@ -116,12 +110,16 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
     }
   };
 
-
   const handleRemoveUnidade = async (unidadeId: string) => {
      setLoading(true);
     try {
-      const response = await fetch(`/api/profissionais/${profissionalId}/unidades/${unidadeId}`, {
-        method: "DELETE",
+      const response = await fetch(`/api/unidadesaude/${unidadeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          action: "disassociate_profissional",
+          profissionalId: profissionalId 
+        }),
       });
 
       if (!response.ok) {
@@ -129,13 +127,10 @@ const UnidadeSelectorMultiple: React.FC<UnidadeSelectorMultipleProps> = ({
          throw new Error(errorData.error || "Erro ao desassociar unidade do profissional");
       }
 
-       // Assumindo que a API DELETE retorna a lista atualizada de unidades do profissional
        const updatedUnidadesList: Unidade[] = await response.json();
 
-       // Atualiza o estado local COM A LISTA RETORNADA PELA API
        setSelectedUnidades(updatedUnidadesList);
 
-       // CHAMA O CALLBACK APENAS SE ELE EXISTIR
        if (onUnidadesChange) {
           onUnidadesChange(updatedUnidadesList);
        }

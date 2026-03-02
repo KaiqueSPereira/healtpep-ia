@@ -1,114 +1,84 @@
+
 import { NextResponse } from 'next/server';
 import { db } from '@/app/_lib/prisma';
-import { FrequenciaTipo, StatusMedicamento } from '@prisma/client';
-import { startOfDay } from 'date-fns';
+import { logAction } from '@/app/_lib/logger';
+import { StatusMedicamento, FrequenciaTipo } from '@prisma/client';
 
-// Função para calcular a dose diária
-function getDosesPorDia(frequenciaTipo: FrequenciaTipo, frequenciaNumero: number, quantidadeDose: number): number {
+const calculateDosesSince = (lastUpdate: Date, frequenciaNumero: number, frequenciaTipo: FrequenciaTipo): number => {
+    const now = new Date();
+    const diffMs = now.getTime() - lastUpdate.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    let hoursPerDose = 0;
     switch (frequenciaTipo) {
-        case 'Hora': return (24 / frequenciaNumero) * quantidadeDose;
-        case 'Dia': return frequenciaNumero * quantidadeDose;
-        case 'Semana': return (frequenciaNumero / 7) * quantidadeDose;
-        case 'Mes': return (frequenciaNumero / 30) * quantidadeDose; // Aproximação
-        default: return 0;
+        case FrequenciaTipo.Hora: hoursPerDose = frequenciaNumero; break;
+        case FrequenciaTipo.Dia: hoursPerDose = frequenciaNumero * 24; break;
+        case FrequenciaTipo.Semana: hoursPerDose = frequenciaNumero * 24 * 7; break;
+        case FrequenciaTipo.Mes: hoursPerDose = frequenciaNumero * 24 * 30; break; // Aproximação
     }
-}
+
+    if (hoursPerDose === 0) return 0;
+    return Math.floor(diffHours / hoursPerDose);
+};
 
 export async function GET(request: Request) {
-    // --- PROTEÇÃO DA ROTA ---
-    const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    console.log('Iniciando rotina de dedução de estoque...');
+    await logAction({ action: "cron_stock_deduction_start", level: "info", message: "Iniciando rotina de dedução de estoque", component: "cron-stock-deduction" });
 
     try {
-        const medicamentosAtivos = await db.medicamento.findMany({
-            where: {
-                status: StatusMedicamento.Ativo,
-                estoque: { gt: 0 },
-                frequenciaNumero: { not: null },
-                frequenciaTipo: { not: null },
-                quantidadeDose: { not: null },
-                dataInicio: { lte: new Date() },
-                ultimaAtualizacaoEstoque: { not: null }, // Garante que a lógica só rode em medicamentos já abastecidos.
-            }
-        });
+        const users = await db.user.findMany({ where: { emailVerified: { not: null } } });
 
-        let totalProcessado = 0;
-        let totalNotificacoes = 0;
-
-        for (const med of medicamentosAtivos) {
-            // As verificações abaixo são redundantes devido ao where, mas mantidas por segurança.
-            if (!med.frequenciaTipo || !med.frequenciaNumero || !med.quantidadeDose || !med.estoque || !med.ultimaAtualizacaoEstoque) {
-                continue;
-            }
-
-            const dosesPorDia = getDosesPorDia(med.frequenciaTipo, med.frequenciaNumero, med.quantidadeDose);
-            if (dosesPorDia <= 0) {
-                continue;
-            }
-
-            // --- LÓGICA DE DATA CORRIGIDA ---
-            const hoje = startOfDay(new Date());
-            const ultimaAtualizacao = startOfDay(med.ultimaAtualizacaoEstoque);
-            const diffEmMs = hoje.getTime() - ultimaAtualizacao.getTime();
-            const diffEmDias = Math.round(diffEmMs / (1000 * 60 * 60 * 24));
-
-            // Se a última atualização foi hoje ou no futuro, não faz nada.
-            if (diffEmDias < 1) {
-                continue;
-            }
-
-            const totalDeducao = dosesPorDia * diffEmDias;
-            const novoEstoque = Math.max(0, med.estoque - totalDeducao);
-
-            await db.medicamento.update({
-                where: { id: med.id },
-                data: {
-                    estoque: novoEstoque,
-                    status: novoEstoque === 0 ? StatusMedicamento.Concluido : med.status,
-                    ultimaAtualizacaoEstoque: new Date() // Atualiza a data para marcar a baixa de hoje como o novo ponto de partida.
+        for (const user of users) {
+            const userId = user.id;
+            const medicamentos = await db.medicamento.findMany({
+                where: {
+                    userId: userId,
+                    status: StatusMedicamento.Ativo,
+                    estoque: { not: null },
+                    frequenciaNumero: { not: null },
+                    frequenciaTipo: { not: null },
+                    ultimaAtualizacaoEstoque: { not: null },
                 }
             });
 
-            totalProcessado++;
+            for (const medicamento of medicamentos) {
+                // @ts-ignore: Garantimos que os campos não são nulos na query
+                const dosesConsumidas = calculateDosesSince(medicamento.ultimaAtualizacaoEstoque, medicamento.frequenciaNumero, medicamento.frequenciaTipo);
+                const quantidadeDose = medicamento.quantidadeDose ?? 1; // Default de 1 se não especificado
 
-            const diasRestantes = novoEstoque / dosesPorDia;
+                if (dosesConsumidas > 0) {
+                    const deducaoTotal = dosesConsumidas * quantidadeDose;
+                    const novoEstoque = Math.max(0, (medicamento.estoque ?? 0) - deducaoTotal);
 
-            // Lógica de notificação permanece a mesma...
-            if (diasRestantes <= 7 && diasRestantes > 0) {
-                const notificacaoExistente = await db.notification.findFirst({
-                    where: {
-                        medicamentoId: med.id,
-                        type: 'ESTOQUE_BAIXO',
-                        isRead: false
-                    }
-                });
-
-                if (!notificacaoExistente) {
-                    // A descriptografia do nome só é necessária para a mensagem
-                    const nomeMedicamento = med.nome;
-                    await db.notification.create({
+                    await db.medicamento.update({
+                        where: { id: medicamento.id },
                         data: {
-                            userId: med.userId,
-                            medicamentoId: med.id,
-                            type: 'ESTOQUE_BAIXO',
-                            title: 'Estoque Baixo',
-                            message: `Seu estoque de ${nomeMedicamento} está acabando. Restam aproximadamente ${Math.ceil(diasRestantes)} dias.`
-                        }
+                            estoque: novoEstoque,
+                            ultimaAtualizacaoEstoque: new Date(),
+                        },
                     });
-                    totalNotificacoes++;
+
+                    await logAction({
+                        userId,
+                        action: "cron_stock_deduction_success",
+                        level: "info",
+                        message: `Dedução de estoque para o medicamento ${medicamento.id}. Doses: ${dosesConsumidas}, Redução: ${deducaoTotal}, Novo Estoque: ${novoEstoque}`,
+                        component: "cron-stock-deduction"
+                    });
                 }
             }
         }
 
-        console.log(`Rotina finalizada. Medicamentos processados: ${totalProcessado}. Novas notificações: ${totalNotificacoes}.`);
-        return NextResponse.json({ success: true, processed: totalProcessado, notifications: totalNotificacoes });
+        await logAction({ action: "cron_stock_deduction_finish", level: "info", message: "Rotina de dedução de estoque finalizada com sucesso", component: "cron-stock-deduction" });
 
-    } catch (error) {
-        console.error('[CRON_STOCK_DEDUCTION_ERROR]', error);
+        return NextResponse.json({ success: true });
+
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        await logAction({ action: "cron_stock_deduction_error", level: "error", message: "Erro na rotina de dedução de estoque", details: errorMessage, component: "cron-stock-deduction" });
         return new NextResponse('Internal Server Error', { status: 500 });
     }
 }

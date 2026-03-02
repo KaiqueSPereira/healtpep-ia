@@ -63,7 +63,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     const fetchData = async () => {
       try {
         const [unidadesRes, profissionaisRes, condicoesRes, consultasRes] = await Promise.all([
-          fetch("/api/unidades"),
+          fetch("/api/unidadesaude"),
           fetch("/api/profissionais"),
           fetch("/api/condicoes"),
           fetch("/api/consultas"),

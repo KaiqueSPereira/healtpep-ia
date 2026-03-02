@@ -1,32 +1,40 @@
 import { prisma } from '@/app/_lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Interface para definir a estrutura esperada do corpo da requisição
 interface LogPayload {
   message: string;
-  level?: 'error' | 'info' | 'warn';
+  level?: 'error' | 'info' | 'warn' | 'debug';
   component?: string;
-  stack?: string;
-  url?: string; // Opcional, pode ser adicionado pelo frontend no futuro
+  stack?: any;
+  url?: string;
+  action?: string;
+  userId?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    // Tipagem forte do corpo da requisição para maior segurança
     const logData: LogPayload = await request.json();
 
-    // Validação mínima para garantir que a mensagem existe
     if (!logData.message) {
       return NextResponse.json({ message: "O campo 'message' é obrigatório." }, { status: 400 });
     }
 
-    await prisma.errorLog.create({
+    let stackInfo: string | undefined = undefined;
+    if (logData.stack) {
+      stackInfo = typeof logData.stack === 'string' ? logData.stack : JSON.stringify(logData.stack, null, 2);
+    }
+    if (logData.url) {
+      stackInfo = stackInfo ? `${stackInfo}\n\nURL: ${logData.url}` : `URL: ${logData.url}`;
+    }
+
+    await prisma.actionLog.create({
       data: {
-        message: logData.message, // Campo obrigatório
-        level: logData.level,       // Novo campo, opcional
-        component: logData.component, // Novo campo, opcional
-        stack: logData.stack,       // Opcional
-        url: logData.url,           // Opcional
+        action: logData.action || 'client_log',
+        message: logData.message,
+        level: logData.level || 'info',
+        component: logData.component,
+        stack: stackInfo,
+        userId: logData.userId,
       },
     });
 
@@ -39,7 +47,6 @@ export async function POST(request: NextRequest) {
     }
     console.error("Falha crítica na API de logs:", e);
     
-    // Retorna uma resposta de erro, mas evita que a própria API de log cause um loop de erros
     return NextResponse.json({ message: "Falha ao registrar o log.", error: errorMessage }, { status: 500 });
   }
 }
