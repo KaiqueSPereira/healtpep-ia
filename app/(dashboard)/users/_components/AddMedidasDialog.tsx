@@ -1,110 +1,63 @@
 'use client';
 
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/app/_components/ui/dialog';
 import { Button } from '@/app/_components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/app/_components/ui/dialog';
 import { Input } from '@/app/_components/ui/input';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/app/_components/ui/form';
-import { Loader2, PlusCircle, Zap } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useToast } from '@/app/_hooks/use-toast';
+import { Label } from '@/app/_components/ui/label';
 
-const formSchema = z.object({
-  gorduraCorporal: z.string().optional(),
-  massaMuscular: z.string().optional(),
-  gorduraVisceral: z.string().optional(),
-  taxaMetabolica: z.string().optional(),
-  idadeCorporal: z.string().optional(),
-  massaOssea: z.string().optional(),
-  aguaCorporal: z.string().optional(),
-  data: z.string().nonempty({ message: "Data é obrigatória" }),
-});
-
-interface AddBioimpedanciaDialogProps {
-  onDataAdded: () => void;
+interface AddRegistroDialogProps {
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onRegistroAdded: () => void;
+  userId: string;
+  altura: number | null;
 }
 
-const AddBioimpedanciaDialog = ({ onDataAdded }: AddBioimpedanciaDialogProps) => {
-  const { id: userId } = useParams();
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+const AddRegistroDialog = ({ isOpen, onOpenChange, onRegistroAdded, userId, altura }: AddRegistroDialogProps) => {
+  const [formData, setFormData] = useState({ data: new Date().toISOString().split('T')[0], peso: '', pescoco: '', torax: '', cintura: '', quadril: '', bracoE: '', bracoD: '', pernaE: '', pernaD: '', pantE: '', pantD: '' });
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { data: new Date().toISOString().split('T')[0] },
-  });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async () => {
     try {
       const response = await fetch(`/api/users/${userId}/medidas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...values, type: 'bioimpedancia' }),
+        body: JSON.stringify({ ...formData, altura }),
       });
-
-      if (!response.ok) {
-        throw new Error('Falha ao adicionar bioimpedância');
-      }
-
-      toast({ title: 'Sucesso', description: 'Novos dados de bioimpedância adicionados.' });
-      onDataAdded();
-      setOpen(false);
-      form.reset();
+      if (!response.ok) throw new Error('Falha ao adicionar registro');
+      onRegistroAdded();
+      onOpenChange(false);
     } catch (error) {
-      console.error('Failed to submit data', error);
-      toast({ title: 'Erro', description: 'Não foi possível salvar os dados.', variant: 'destructive' });
+      console.error(error);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <PlusCircle className="mr-2 h-4 w-4" /> Adicionar Bioimpedância
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Adicionar Bioimpedância</DialogTitle>
-          <DialogDescription>
-            Preencha os campos abaixo com os resultados do exame de bioimpedância.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField control={form.control} name="data" render={({ field }) => <FormItem><FormLabel>Data do Exame</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>} />
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <FormField control={form.control} name="gorduraCorporal" render={({ field }) => <FormItem><FormLabel>% Gordura Corporal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="massaMuscular" render={({ field }) => <FormItem><FormLabel>Massa Muscular (kg)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="gorduraVisceral" render={({ field }) => <FormItem><FormLabel>Gordura Visceral</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="taxaMetabolica" render={({ field }) => <FormItem><FormLabel>Taxa Metabólica (kcal)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="idadeCorporal" render={({ field }) => <FormItem><FormLabel>Idade Corporal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="massaOssea" render={({ field }) => <FormItem><FormLabel>Massa Óssea (kg)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-                <FormField control={form.control} name="aguaCorporal" render={({ field }) => <FormItem><FormLabel>% Água Corporal</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
-            </div>
-            <DialogFooter className="mt-4">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Salvar
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        <DialogHeader><DialogTitle>Adicionar Novo Registro de Peso e Medidas</DialogTitle></DialogHeader>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4">
+          <div className="col-span-1 sm:col-span-2 space-y-2"><Label htmlFor="data">Data</Label><Input id="data" name="data" type="date" value={formData.data} onChange={handleChange} /></div>
+          <div className="col-span-1 sm:col-span-2 space-y-2"><Label htmlFor="peso">Peso (kg)</Label><Input id="peso" name="peso" value={formData.peso} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="pescoco">Pescoço (cm)</Label><Input id="pescoco" name="pescoco" value={formData.pescoco} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="torax">Tórax (cm)</Label><Input id="torax" name="torax" value={formData.torax} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="cintura">Cintura (cm)</Label><Input id="cintura" name="cintura" value={formData.cintura} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="quadril">Quadril (cm)</Label><Input id="quadril" name="quadril" value={formData.quadril} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="bracoE">Braço E. (cm)</Label><Input id="bracoE" name="bracoE" value={formData.bracoE} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="bracoD">Braço D. (cm)</Label><Input id="bracoD" name="bracoD" value={formData.bracoD} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="pernaE">Perna E. (cm)</Label><Input id="pernaE" name="pernaE" value={formData.pernaE} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="pernaD">Perna D. (cm)</Label><Input id="pernaD" name="pernaD" value={formData.pernaD} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="pantE">Pant. E. (cm)</Label><Input id="pantE" name="pantE" value={formData.pantE} onChange={handleChange} /></div>
+          <div className="space-y-2"><Label htmlFor="pantD">Pant. D. (cm)</Label><Input id="pantD" name="pantD" value={formData.pantD} onChange={handleChange} /></div>
+        </div>
+        <DialogFooter><Button onClick={handleSubmit}>Salvar</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
 };
 
-export default AddBioimpedanciaDialog;
+export default AddRegistroDialog;

@@ -24,11 +24,10 @@ interface CondicaoSaude {
   profissional?: Profissional | null;
 }
 
-// Interface padronizada com nomes curtos
 interface PesoRegistro {
   id: string;
-  peso: string;
   data: string;
+  peso: string;
   pescoco?: string | null;
   torax?: string | null;
   cintura?: string | null;
@@ -39,6 +38,13 @@ interface PesoRegistro {
   pernaD?: string | null;
   pantE?: string | null;
   pantD?: string | null;
+  gorduraCorporal?: string | null;
+  massaMuscular?: string | null;
+  gorduraVisceral?: string | null;
+  taxaMetabolica?: string | null;
+  idadeCorporal?: string | null;
+  massaOssea?: string | null;
+  aguaCorporal?: string | null;
 }
 
 interface UserData {
@@ -57,26 +63,43 @@ const UserProfilePage = () => {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = useCallback(async () => {
+  const fetchUserAndMedidas = useCallback(async () => {
     if (typeof id !== 'string') return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/users/${id}`);
-      if (!response.ok) throw new Error('Usuário não encontrado');
-      const data: UserData = await response.json();
-      setUser(data);
+      const userResponse = await fetch(`/api/users/${id}`);
+      if (!userResponse.ok) throw new Error('Usuário não encontrado');
+      const userData: Omit<UserData, 'historicoPeso'> = await userResponse.json();
+
+      const medidasResponse = await fetch(`/api/users/${id}/medidas`);
+       let mergedHistorico: PesoRegistro[] = [];
+      if (medidasResponse.ok) {
+          const medidasData = await medidasResponse.json();
+          mergedHistorico = medidasData.acompanhamentos.map((acomp: any) => {
+            const bio = medidasData.bioimpedancias.find(
+              (b: any) => new Date(b.data).toDateString() === new Date(acomp.data).toDateString()
+            );
+            return { ...acomp, ...bio };
+          });
+      }
+
+      setUser({ ...userData, historicoPeso: mergedHistorico });
+
     } catch (error) {
       console.error(error);
+       if (user) {
+        setUser({ ...user, historicoPeso: [] });
+      }
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, user]);
 
   useEffect(() => {
     if (id) {
-        fetchUser();
+        fetchUserAndMedidas();
     }
-  }, [id, fetchUser]);
+  }, [id]);
 
   const userHeightForIMC = user?.dadosSaude?.altura ? parseFloat(user.dadosSaude.altura) : null;
   const canEdit = session?.user?.id === id;
@@ -134,7 +157,7 @@ const UserProfilePage = () => {
                           <p className="font-semibold">{cond.nome}</p>
                           {cond.profissional && <p className="text-sm text-muted-foreground flex items-center mt-1"><Stethoscope className="h-4 w-4 mr-2" />{cond.profissional.nome} - {cond.profissional.especialidade}</p>}
                         </div>
-                        {canEdit && <EditCondicaoSaudeDialog condicao={cond} onCondicaoUpdated={fetchUser} />}
+                        {canEdit && <EditCondicaoSaudeDialog condicao={cond} onCondicaoUpdated={fetchUserAndMedidas} />}
                       </li>
                     ))}
                   </ul>
@@ -152,11 +175,12 @@ const UserProfilePage = () => {
                         <BodyMeasurementChart historicoPeso={user.historicoPeso} />
                     </div>
                     <div className="col-span-1 lg:col-span-2">
-                        <PesoHistoryChart userId={user.id} historicoPeso={user.historicoPeso} altura={userHeightForIMC} loading={loading} error={null} onDataChange={fetchUser} />
+                        {/* CORREÇÃO: Removidas as propriedades 'loading' e 'error' */}
+                        <PesoHistoryChart userId={user.id} historicoPeso={user.historicoPeso} altura={userHeightForIMC} onDataChange={fetchUserAndMedidas} />
                     </div>
                  </CardContent>
             </Card>
-            <BioimpedanciaTab canEdit={canEdit} onDataAdded={fetchUser} />
+            <BioimpedanciaTab historico={user.historicoPeso} />
           </TabsContent>
       </Tabs>
     </div>

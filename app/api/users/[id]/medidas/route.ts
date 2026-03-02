@@ -1,11 +1,29 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/app/_lib/prisma';
+import { decryptString, encryptString } from '@/app/_lib/crypto';
 
 const getUserIdFromUrl = (url: string) => {
   const parts = url.split('/');
   return parts[parts.length - 2];
+};
+
+// Função para descriptografar uma lista de itens
+const decryptItems = (items: any[], fields: string[]) => {
+  return items.map(item => {
+    const decryptedItem: { [key: string]: any } = { ...item };
+    for (const field of fields) {
+      if (typeof item[field] === 'string' && item[field]) {
+        try {
+          decryptedItem[field] = decryptString(item[field]);
+        } catch (e: any) {
+          console.warn(`Falha ao descriptografar campo ${field} para o item ${item.id}. Mantendo valor original. Erro: ${e.message}`);
+          decryptedItem[field] = item[field]; 
+        }
+      }
+    }
+    return decryptedItem;
+  });
 };
 
 export async function GET(req: NextRequest) {
@@ -26,11 +44,26 @@ export async function GET(req: NextRequest) {
       orderBy: { data: 'desc' },
     });
 
-    return NextResponse.json({ acompanhamentos, bioimpedancias });
+    // Descriptografa os dados, AGORA INCLUINDO O IMC
+    const decryptedAcompanhamentos = decryptItems(acompanhamentos, ['peso', 'imc', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD']);
+    const decryptedBioimpedancias = decryptItems(bioimpedancias, ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal']);
+
+    return NextResponse.json({ acompanhamentos: decryptedAcompanhamentos, bioimpedancias: decryptedBioimpedancias });
   } catch (error) {
     console.error('Error fetching medidas:', error);
     return NextResponse.json({ error: 'Erro ao buscar medidas.' }, { status: 500 });
   }
+}
+
+// Criptografa os dados antes de salvar
+const encryptData = (data: any) => {
+    const encryptedData: { [key: string]: any } = {};
+    for (const key in data) {
+        if (typeof data[key] === 'string' && data[key] !== '') {
+            encryptedData[key] = encryptString(data[key]);
+        }
+    }
+    return encryptedData;
 }
 
 export async function POST(req: NextRequest) {
@@ -49,27 +82,35 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { data, ...medidas } = body;
 
-    // Separate data for each model
-    const acompanhamentoData: any = { userId, data: new Date() };
-    const bioimpedanciaData: any = { userId, data: new Date() };
+    const acompanhamentoFields = ['peso', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD'];
+    const bioimpedanciaFields = ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal'];
 
-    Object.keys(medidas).forEach(key => {
-      if (medidas[key] === '' || medidas[key] === null) return;
-      
-      if (['peso', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD'].includes(key)) {
-        acompanhamentoData[key] = medidas[key];
-      } else if (['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal'].includes(key)) {
-        bioimpedanciaData[key] = medidas[key];
-      }
-    });
+    const acompanhamentoData: any = { userId, data: new Date(data) };
+    const bioimpedanciaData: any = { userId, data: new Date(data) };
 
-    // Only create records if there is data for them
-    if (Object.keys(acompanhamentoData).length > 2) {
-      await prisma.acompanhamentoCorporal.create({ data: acompanhamentoData });
+    let hasAcompanhamentoData = false;
+    let hasBioimpedanciaData = false;
+
+    for (const key in medidas) {
+        if (medidas[key] !== '' && medidas[key] !== null) {
+            const encryptedValue = encryptString(medidas[key]);
+            if (acompanhamentoFields.includes(key)) {
+                acompanhamentoData[key] = encryptedValue;
+                hasAcompanhamentoData = true;
+            }
+            if (bioimpedanciaFields.includes(key)) {
+                bioimpedanciaData[key] = encryptedValue;
+                hasBioimpedanciaData = true;
+            }
+        }
     }
 
-    if (Object.keys(bioimpedanciaData).length > 2) {
-      await prisma.bioimpedancia.create({ data: bioimpedanciaData });
+    if (hasAcompanhamentoData) {
+        await prisma.acompanhamentoCorporal.create({ data: acompanhamentoData });
+    }
+
+    if (hasBioimpedanciaData) {
+        await prisma.bioimpedancia.create({ data: bioimpedanciaData });
     }
 
     return NextResponse.json({ message: 'Medidas adicionadas com sucesso' }, { status: 201 });
