@@ -7,6 +7,7 @@ import { ClearLogsButton } from "../_components/clear-logs-button";
 
 const LOGS_PER_PAGE = 20;
 
+// A interface descreve o objeto *depois* de ser resolvido.
 interface AdminLogsPageProps {
   searchParams: {
     query?: string;
@@ -16,8 +17,21 @@ interface AdminLogsPageProps {
   };
 }
 
+// Acessamos a prop `searchParams`, que neste caso se comporta como uma Promise.
 export default async function AdminLogsPage({ searchParams }: AdminLogsPageProps) {
-  const { query, level, component, page } = searchParams;
+  
+  // CORREÇÃO DEFINITIVA: Tratar 'searchParams' como uma Promise e usar 'await' para resolvê-la.
+  const resolvedSearchParams = await (searchParams as unknown as Promise<{
+    query?: string;
+    level?: string;
+    component?: string;
+    page?: string;
+  }>);
+
+  const query = resolvedSearchParams?.query;
+  const level = resolvedSearchParams?.level;
+  const component = resolvedSearchParams?.component;
+  const page = resolvedSearchParams?.page;
   const currentPage = Number(page) || 1;
 
   const skip = (currentPage - 1) * LOGS_PER_PAGE;
@@ -67,11 +81,9 @@ export default async function AdminLogsPage({ searchParams }: AdminLogsPageProps
   const totalPages = Math.ceil(totalLogs / LOGS_PER_PAGE);
   
   const safeSearchParams = new URLSearchParams();
-  Object.entries(searchParams).forEach(([key, value]) => {
-    if (value) {
-        safeSearchParams.set(key, String(value));
-    }
-  });
+  if (query) safeSearchParams.set("query", query);
+  if (level) safeSearchParams.set("level", level);
+  if (component) safeSearchParams.set("component", component);
 
   return (
     <div className="w-full p-4 md:p-6">

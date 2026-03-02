@@ -17,6 +17,24 @@ async function getSessionInfo() {
     return { userId: session.user.id };
 }
 
+// Função auxiliar para descriptografia segura
+const safeDecrypt = (value: string | null | undefined, fieldName: string, id: string) => {
+  if (typeof value !== 'string' || !value) {
+    return value;
+  }
+  try {
+    return decryptString(value);
+  } catch (e) {
+    logAction({
+        action: "decryption_fallback",
+        level: "warn",
+        message: `Falha ao descriptografar campo '${fieldName}' para o ID: ${id}. Usando valor original.`,
+        component: "profissionais-api-list"
+    });
+    return value; // Retorna o valor original em caso de falha
+  }
+};
+
 const profissionalCreateSchema = z.object({
   nome: z.string().min(1, "O nome é obrigatório."),
   especialidade: z.string().min(1, "A especialidade é obrigatória."),
@@ -43,34 +61,13 @@ export async function GET(request: Request) {
             orderBy: { nome: 'asc' },
         });
 
-        const decryptedProfissionaisPromises = profissionais.map(async (p) => {
-            try {
-                return {
-                    ...p,
-                    nome: decryptString(p.nome),
-                    especialidade: decryptString(p.especialidade),
-                    NumClasse: decryptString(p.NumClasse),
-                };
-            } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : "Erro desconhecido na descriptografia";
-                await logAction({
-                    userId,
-                    action: "decryption_error_profissional",
-                    level: "error",
-                    message: `Falha ao descriptografar dados do profissional com id: ${p.id}`,
-                    details: errorMessage,
-                    component: "profissionais-api",
-                });
-                return {
-                    ...p,
-                    nome: "Erro de Descriptografia",
-                    especialidade: "Erro de Descriptografia",
-                    NumClasse: "Erro de Descriptografia",
-                };
-            }
-        });
-
-        const decryptedProfissionais = await Promise.all(decryptedProfissionaisPromises);
+        // Mapeia para descriptografar os dados de forma segura
+        const decryptedProfissionais = profissionais.map(p => ({
+            ...p,
+            nome: safeDecrypt(p.nome, 'nome', p.id),
+            especialidade: safeDecrypt(p.especialidade, 'especialidade', p.id),
+            NumClasse: safeDecrypt(p.NumClasse, 'NumClasse', p.id),
+        }));
 
         return NextResponse.json(decryptedProfissionais);
 

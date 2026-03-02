@@ -3,7 +3,7 @@ import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { safeDecrypt, encryptString } from "@/app/_lib/crypto";
+import { decryptString, encryptString } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { logAction } from "@/app/_lib/logger";
@@ -20,6 +20,25 @@ async function getSessionInfo() {
   }
   return { session, userId: session.user.id };
 }
+
+// Função auxiliar para descriptografia segura
+const safeDecrypt = (value: string | null | undefined, fieldName: string, id: string) => {
+  if (typeof value !== 'string' || !value) {
+    return value;
+  }
+  try {
+    return decryptString(value);
+  } catch (e) {
+    logAction({
+        action: "decryption_fallback",
+        level: "warn",
+        message: `Falha ao descriptografar campo '${fieldName}' para o ID: ${id}. Usando valor original.`,
+        component: "profissionais-api-get"
+    });
+    return value; // Retorna o valor original em caso de falha
+  }
+};
+
 
 const profissionalPatchSchema = z.object({
   nome: z.string().min(1, "O nome é obrigatório.").optional(),
@@ -43,11 +62,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Profissional não encontrado" }, { status: 404 });
     }
 
+    // Lógica de descriptografia segura aplicada
     const decryptedData = {
       ...profissional,
-      nome: safeDecrypt(profissional.nome),
-      especialidade: profissional.especialidade ? safeDecrypt(profissional.especialidade) : profissional.especialidade,
-      exames: profissional.exames.map(exame => ({ ...exame, tipo: exame.tipo ? safeDecrypt(exame.tipo) : exame.tipo, usuario: (exame.usuario && exame.usuario.name) ? { ...exame.usuario, name: safeDecrypt(exame.usuario.name) } : exame.usuario }))
+      nome: safeDecrypt(profissional.nome, 'nome', profissional.id),
+      especialidade: safeDecrypt(profissional.especialidade, 'especialidade', profissional.id),
+      exames: profissional.exames.map(exame => ({
+        ...exame,
+        tipo: safeDecrypt(exame.tipo, 'exame.tipo', exame.id),
+        usuario: exame.usuario ? {
+          ...exame.usuario,
+          name: safeDecrypt(exame.usuario.name, 'exame.usuario.name', exame.usuario.id),
+        } : exame.usuario,
+      })),
     };
 
     return NextResponse.json(decryptedData);

@@ -34,7 +34,7 @@ interface LogsTableProps {
   currentPage: number;
   totalPages: number;
   pathname: string;
-  searchParams: URLSearchParams; // Usaremos para manter os filtros na paginação
+  searchParams: URLSearchParams;
 }
 
 const truncate = (str: string | null, length: number) => {
@@ -52,7 +52,6 @@ export function LogsTable({ logs, currentPage, totalPages, pathname, searchParam
   
   const renderPaginationItems = () => {
     const items = [];
-    // Lógica de paginação pode ser melhorada para mostrar um número fixo de links
     const startPage = Math.max(1, currentPage - 2);
     const endPage = Math.min(totalPages, currentPage + 2);
 
@@ -120,10 +119,12 @@ export function LogsTable({ logs, currentPage, totalPages, pathname, searchParam
                       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Detalhes do Log</DialogTitle>
-                          <DialogDescription className="text-left pt-4">
-                            <p><strong>ID:</strong> {log.id}</p>
-                            <p suppressHydrationWarning><strong>Horário:</strong> {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</p>
-                             <p><strong>Componente:</strong> {log.component || 'N/A'}</p>
+                          <DialogDescription asChild className="text-left pt-4">
+                           <div>
+                            <div><strong>ID:</strong> {log.id}</div>
+                            <div suppressHydrationWarning><strong>Horário:</strong> {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}</div>
+                             <div><strong>Componente:</strong> {log.component || 'N/A'}</div>
+                            </div>
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
