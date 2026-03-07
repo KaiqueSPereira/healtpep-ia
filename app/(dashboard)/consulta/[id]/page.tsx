@@ -130,10 +130,10 @@ const ConsultaPage = () => {
 
             setConsulta(prev => {
                 if (!prev) return null;
-                const existingAnotacoes = prev.Anotacao || [];
+                const existingAnotacoes = prev.Anotacoes || [];
                 return {
                     ...prev,
-                    Anotacao: [...existingAnotacoes, novaAnotacao],
+                    Anotacoes: [...existingAnotacoes, novaAnotacao],
                 };
             });
 
@@ -142,6 +142,69 @@ const ConsultaPage = () => {
 
         } catch (error) {
             toast({ title: "Erro ao adicionar anotação", description: (error as Error).message, variant: "destructive" });
+        }
+    };
+
+    const handleUpdateAnotacao = async (anotacaoId: string, newContent: string) => {
+        if (!consulta) return;
+    
+        try {
+            const response = await fetch(`/api/consultas/${consulta.id}/anotacoes/${anotacaoId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ anotacao: newContent }),
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Falha ao atualizar anotação');
+            }
+    
+            const updatedAnotacao: Anotacao = await response.json();
+    
+            setConsulta(prev => {
+                if (!prev) return null;
+                const updatedAnotacoes = prev.Anotacoes?.map((a: Anotacao) =>
+                    a.id === anotacaoId ? updatedAnotacao : a
+                );
+                return {
+                    ...prev,
+                    Anotacoes: updatedAnotacoes,
+                };
+            });
+    
+            toast({ title: "Anotação atualizada com sucesso!" });
+    
+        } catch (error) {
+            toast({ title: "Erro ao atualizar anotação", description: (error as Error).message, variant: "destructive" });
+        }
+    };
+
+    const handleDeleteAnotacao = async (anotacaoId: string) => {
+        if (!consulta) return;
+        try {
+            const response = await fetch(`/api/consultas/${consulta.id}/anotacoes/${anotacaoId}`, {
+                method: 'DELETE',
+            });
+    
+            if (response.status !== 204) { // DELETE returns 204 No Content
+                const errorData = await response.json().catch(() => ({})); 
+                throw new Error(errorData.error || 'Falha ao deletar anotação');
+            }
+    
+            setConsulta(prev => {
+                if (!prev) return null;
+                const updatedAnotacoes = prev.Anotacoes?.filter((a: Anotacao) => a.id !== anotacaoId);
+                return {
+                    ...prev,
+                    Anotacoes: updatedAnotacoes,
+                };
+            });
+    
+            toast({ title: "Anotação deletada com sucesso!" });
+    
+        } catch (error) {
+            toast({ title: "Erro ao deletar anotação", description: (error as Error).message, variant: "destructive" });
         }
     };
 
@@ -207,10 +270,12 @@ const ConsultaPage = () => {
                             </TabsContent>
                             <TabsContent value="anotacoes" className="pt-4">
                                 <AnotacoesCard 
-                                    anotacoes={consulta.Anotacao || []} 
+                                    anotacoes={consulta.Anotacoes || []} 
                                     novaAnotacaoContent={novaAnotacaoContent} 
                                     setNovaAnotacaoContent={setNovaAnotacaoContent} 
-                                    handleAdicionarAnotacao={handleAdicionarAnotacao} 
+                                    handleAdicionarAnotacao={handleAdicionarAnotacao}
+                                    handleDeleteAnotacao={handleDeleteAnotacao}
+                                    handleUpdateAnotacao={handleUpdateAnotacao}
                                 />
                             </TabsContent>
                         </Tabs>

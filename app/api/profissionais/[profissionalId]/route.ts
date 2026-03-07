@@ -1,4 +1,3 @@
-
 import { db } from "@/app/_lib/prisma";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -57,7 +56,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "ID do Profissional não encontrado" }, { status: 400 });
     }
 
-    const profissional = await db.profissional.findUnique({ where: { id: profissionalId }, include: { unidades: true, condicoesSaude: true, consultas: { include: { usuario: true, unidade: true } }, exames: { include: { usuario: true, unidades: true }, orderBy: { dataExame: 'desc' }, take: 5 } } });
+    const profissional = await db.profissional.findUnique({ where: { id: profissionalId, userId }, include: { unidades: true, condicoesSaude: true, consultas: { include: { usuario: true, unidade: true } }, exames: { include: { usuario: true, unidades: true }, orderBy: { dataExame: 'desc' }, take: 5 } } });
     if (!profissional) {
       return NextResponse.json({ error: "Profissional não encontrado" }, { status: 404 });
     }
@@ -67,6 +66,8 @@ export async function GET(request: Request) {
       ...profissional,
       nome: safeDecrypt(profissional.nome, 'nome', profissional.id),
       especialidade: safeDecrypt(profissional.especialidade, 'especialidade', profissional.id),
+      // CORREÇÃO: Descriptografar o NumClasse
+      NumClasse: safeDecrypt(profissional.NumClasse, 'NumClasse', profissional.id),
       exames: profissional.exames.map(exame => ({
         ...exame,
         tipo: safeDecrypt(exame.tipo, 'exame.tipo', exame.id),
@@ -99,19 +100,34 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "ID do Profissional não encontrado" }, { status: 400 });
     }
 
+    // Adicionado para garantir que o usuário só edite seus próprios profissionais
+    const originalProfissional = await db.profissional.findFirst({ where: { id: profissionalId, userId } });
+    if (!originalProfissional) {
+        return NextResponse.json({ error: "Profissional não encontrado ou não pertence a este usuário." }, { status: 404 });
+    }
+
     const body = await request.json();
     const parsedData = profissionalPatchSchema.parse(body);
     const updateData: Prisma.ProfissionalUpdateInput = {};
 
     if (parsedData.nome) updateData.nome = encryptString(parsedData.nome);
     if (parsedData.especialidade) updateData.especialidade = encryptString(parsedData.especialidade);
-    if (parsedData.NumClasse) updateData.NumClasse = parsedData.NumClasse;
+    // CORREÇÃO: Criptografar o NumClasse ao atualizar
+    if (parsedData.NumClasse) updateData.NumClasse = encryptString(parsedData.NumClasse);
 
     const profissionalAtualizado = await db.profissional.update({ where: { id: profissionalId }, data: updateData, include: { unidades: true } });
 
     await logAction({ userId, action: "update_profissional", level: "info", message: `Profissional '${profissionalId}' atualizado com sucesso`, component: "profissionais-api" });
 
-    return NextResponse.json(profissionalAtualizado);
+    // Retorna os dados atualizados e descriptografados para consistência com o GET
+    const decryptedData = {
+        ...profissionalAtualizado,
+        nome: safeDecrypt(profissionalAtualizado.nome, 'nome', profissionalAtualizado.id),
+        especialidade: safeDecrypt(profissionalAtualizado.especialidade, 'especialidade', profissionalAtualizado.id),
+        NumClasse: safeDecrypt(profissionalAtualizado.NumClasse, 'NumClasse', profissionalAtualizado.id),
+    };
+
+    return NextResponse.json(decryptedData);
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
     await logAction({ userId, action: "update_profissional_error", level: "error", message: `Erro ao atualizar profissional '${profissionalId}'`, details: errorMessage, component: "profissionais-api" });
@@ -136,6 +152,12 @@ export async function DELETE(request: Request) {
 
     if (!profissionalId) {
       return NextResponse.json({ error: "ID do Profissional não encontrado" }, { status: 400 });
+    }
+
+    // Adicionado para garantir que o usuário só delete seus próprios profissionais
+    const profissionalToDelete = await db.profissional.findFirst({ where: { id: profissionalId, userId } });
+    if (!profissionalToDelete) {
+        return NextResponse.json({ error: "Profissional não encontrado ou não pertence a este usuário." }, { status: 404 });
     }
 
     await db.profissional.delete({ where: { id: profissionalId } });

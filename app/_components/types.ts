@@ -40,7 +40,7 @@ export type Consulta = Omit<PrismaConsulta, 'data'> & {
   unidade?: Unidade | null;
   condicaoSaude?: CondicaoSaude | null;
   anexos?: Anexo[];
-  Anotacao?: Anotacao[];
+  Anotacoes?: Anotacao[];
   historicoTratamento?: Consulta[];
   consultaOrigem?: Consulta | null;
   Exame?: Exame[]; 

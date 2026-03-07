@@ -1,16 +1,11 @@
 
 import { db } from "@/app/_lib/prisma";
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { decryptString, encryptString, safeDecrypt } from "@/app/_lib/crypto";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/_lib/auth";
 import { Prisma, Consultatype } from '@prisma/client';
 import { logAction } from "@/app/_lib/logger";
-
-const getConsultaIdFromUrl = (url: string) => {
-  const parts = url.split('/');
-  return parts[parts.length - 1].split('?')[0];
-};
 
 async function getSessionInfo() {
   const session = await getServerSession(authOptions);
@@ -37,9 +32,9 @@ const decryptExames = (exames: ExameParaDescriptografar[] | undefined) => {
     return exames.map(e => ({ ...e, tipo: safeDecrypt(e.tipo), anotacao: safeDecrypt(e.anotacao), dataExame: new Date(e.dataExame).toISOString() }));
 };
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest, context: { params: Promise<{ consultaId: string }> }) {
   let userId: string | undefined;
-  const consultaId = getConsultaIdFromUrl(request.url);
+  const { consultaId } = await context.params;
   try {
     const { userId: uId } = await getSessionInfo();
     userId = uId;
@@ -78,9 +73,9 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ consultaId: string }> }) {
   let userId: string | undefined;
-  const consultaId = getConsultaIdFromUrl(request.url);
+  const { consultaId } = await context.params;
   try {
     const { userId: uId } = await getSessionInfo();
     userId = uId;
@@ -118,9 +113,9 @@ export async function PATCH(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+export async function DELETE(request: NextRequest, context: { params: Promise<{ consultaId: string }> }) {
   let userId: string | undefined;
-  const consultaId = getConsultaIdFromUrl(request.url);
+  const { consultaId } = await context.params;
   try {
     const { userId: uId } = await getSessionInfo();
     userId = uId;

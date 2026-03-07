@@ -5,6 +5,7 @@ import { authOptions } from "@/app/_lib/auth";
 import { getServerSession } from "next-auth";
 import { decryptString } from "@/app/_lib/crypto";
 import { Consulta } from "@/app/_components/types";
+import { logAction } from "@/app/_lib/logger";
 
 // Tipo para a consulta com relações, usado para a desencriptação
 type ConsultaParaDesencriptar = Consultas & {
@@ -25,9 +26,28 @@ export async function fetchProfissionais() {
   return profissionais;
 }
 
-// Função para buscar os tipos de consulta
+// Função de diagnóstico SIMPLES para buscar os tipos de consulta
 export async function fetchTipos() {
-  return Object.values(Consultatype);
+  const tipos = Object.values(Consultatype);
+  
+  // Log de diagnóstico SIMPLES para garantir que ele seja registrado.
+  try {
+    const session = await getServerSession(authOptions);
+    await logAction({
+      userId: session?.user?.id,
+      action: "fetch_tipos_simple_diagnosis",
+      level: "info",
+      message: `fetchTipos foi executada.`,
+      details: {
+        "Quantidade de tipos encontrados": tipos.length,
+      },
+      component: "data-lib-simplified",
+    });
+  } catch (e) {
+    // Se até isso falhar, o problema é muito mais profundo, mas pelo menos a app não quebra.
+  }
+
+  return tipos;
 }
 
 // Função para descriptografar uma consulta com tipos corretos
@@ -61,27 +81,28 @@ export async function fetchConsultas(params: FetchConsultasParams) {
   const { search, tipo, profissionalId, limit = 8, cursor } = params;
   const userId = session.user.id;
 
-  // 1. A busca no banco de dados filtra APENAS por campos não encriptados
   const where: Prisma.ConsultasWhereInput = { userId };
   if (profissionalId) where.profissionalId = profissionalId;
-  if (tipo) where.tipo = tipo as Consultatype;
-
-  // O filtro de "search" foi REMOVIDO daqui
+  
+  if (tipo) {
+    const foundType = Object.values(Consultatype).find(
+        validType => validType.toLowerCase() === tipo.toLowerCase().trim()
+    );
+    if (foundType) {
+        where.tipo = foundType;
+    }
+  }
 
   const consultasDoBanco = await db.consultas.findMany({
     where,
-    // Se estivermos a pesquisar, temos de obter todos os registos para filtrar em memória.
-    // A paginação será aplicada após a filtragem.
     take: search ? undefined : limit + 1, 
     cursor: search ? undefined : (cursor ? { id: cursor } : undefined),
     include: { profissional: true, unidade: true, Anotacoes: true },
     orderBy: { data: "desc" },
   });
 
-  // 2. Desencriptamos TODOS os resultados obtidos
   const decryptedConsultas = consultasDoBanco.map(decryptConsulta);
 
-  // 3. Aplicamos o filtro de busca em MEMÓRIA (se existir)
   const filteredConsultas = search
     ? decryptedConsultas.filter(c => {
         const searchTerm = search.toLowerCase();
@@ -97,16 +118,15 @@ export async function fetchConsultas(params: FetchConsultasParams) {
       })
     : decryptedConsultas;
 
-  // 4. Aplicamos a lógica de paginação no resultado FINAL (já filtrado)
   let nextCursor: string | null = null;
   let items = filteredConsultas;
 
-  if (!search) { // A lógica de cursor só se aplica se não estivermos a pesquisar
+  if (!search) {
       if (filteredConsultas.length > limit) {
         const nextItem = items.pop();
         nextCursor = nextItem!.id;
       }
-  } else { // Se estamos a pesquisar, podemos simplesmente limitar os resultados
+  } else {
       items = filteredConsultas.slice(0, limit);
   }
   

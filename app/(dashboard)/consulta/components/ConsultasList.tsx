@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { useInView } from 'react-intersection-observer';
 import { Profissional, Consultatype } from '@prisma/client';
@@ -52,58 +52,54 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
 
   const { ref, inView } = useInView({ threshold: 1.0 });
 
+  const performSearch = useCallback((newSearch = true) => {
+    startTransition(async () => {
+      const params = new URLSearchParams();
+      params.append('limit', '8');
+      if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
+      if (tipo) params.append('tipo', tipo);
+      if (profissionalId) params.append('profissionalId', profissionalId);
+
+      if (!newSearch && cursor) {
+        params.append('cursor', cursor);
+        setLoadingMore(true);
+      } else {
+        setConsultas([]); // Limpa para nova busca
+      }
+
+      try {
+        const data = await fetchConsultasAPI(params);
+        if (newSearch) {
+          setConsultas(data.items);
+        } else {
+          setConsultas(prev => [...prev, ...data.items]);
+        }
+        setCursor(data.nextCursor);
+        setHasMore(!!data.nextCursor);
+      } catch (error) {
+        console.error("Erro ao buscar consultas", error);
+      } finally {
+        if (!newSearch) {
+          setLoadingMore(false);
+        }
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm, profissionalId, tipo, cursor]);
+
   // Efeito para NOVAS buscas (acionado por filtros)
   useEffect(() => {
-    const performSearch = async () => {
-      startTransition(async () => {
-        const params = new URLSearchParams();
-        params.append('limit', '8');
-        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
-        if (tipo) params.append('tipo', tipo);
-        if (profissionalId) params.append('profissionalId', profissionalId);
-
-        try {
-          const data = await fetchConsultasAPI(params);
-          setConsultas(data.items);
-          setCursor(data.nextCursor);
-          setHasMore(!!data.nextCursor);
-        } catch (error) {
-          console.error("Erro ao realizar nova busca", error);
-        }
-      });
-    };
-
-    performSearch();
+    performSearch(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchTerm, profissionalId, tipo]);
 
   // Efeito para CARREGAR MAIS (scroll infinito)
   useEffect(() => {
-    const loadMore = async () => {
-      if (inView && hasMore && !loadingMore && !isPending) {
-        setLoadingMore(true);
-        const params = new URLSearchParams();
-        params.append('limit', '8');
-        if (cursor) params.append('cursor', cursor);
-        if (debouncedSearchTerm) params.append('search', debouncedSearchTerm);
-        if (tipo) params.append('tipo', tipo);
-        if (profissionalId) params.append('profissionalId', profissionalId);
-
-        try {
-          const data = await fetchConsultasAPI(params);
-          setConsultas(prev => [...prev, ...data.items]);
-          setCursor(data.nextCursor);
-          setHasMore(!!data.nextCursor);
-        } catch (error) {
-          console.error("Erro ao carregar mais consultas", error);
-        } finally {
-          setLoadingMore(false);
-        }
-      }
-    };
-    loadMore();
+    if (inView && hasMore && !loadingMore && !isPending) {
+      performSearch(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inView, hasMore, isPending]);
+  }, [inView, hasMore, loadingMore, isPending]);
 
 
   // Efeito para processar e separar as consultas em futuras e passadas
@@ -148,7 +144,7 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
       />
 
       <div className="flex-grow overflow-y-auto space-y-6 pb-10">
-        {isPending ? (
+        {isPending && consultas.length === 0 ? (
           <>
             <section>
                 <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
@@ -186,7 +182,7 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
             {loadingMore && <div className="flex justify-center"><p className="text-center">Carregando mais...</p></div>}
             {!loadingMore && hasMore && <div ref={ref} className="h-10" />}
             {!loadingMore && !hasMore && consultas.length > 0 && <p className="text-center text-gray-500 py-4">Fim dos resultados.</p>}
-            {!isPending && consultas.length === 0 && (
+            {(!isPending || consultas.length > 0) && consultas.length === 0 && (
                 <p className="text-center text-gray-500 py-4">Nenhum resultado encontrado para os filtros selecionados.</p>
             )}
           </>

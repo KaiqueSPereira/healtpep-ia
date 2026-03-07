@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
 import ConsultaTipoSelector from "@/app/_components/consultatiposelector";
 import MenuUnidades from "@/app/(dashboard)/unidades/_components/menuunidades";
-import { Profissional, Unidade, CondicaoSaude, Consulta } from "@/app/_components/types";
+// CORREÇÃO: Importando 'ConsultaType' com 'T' maiúsculo.
+import { Profissional, Unidade, CondicaoSaude, Consulta, ConsultaType } from "@/app/_components/types";
 import { Button } from "@/app/_components/ui/button";
 import { Calendar } from "@/app/_components/ui/calendar";
 import {
@@ -15,7 +16,7 @@ import {
   SheetClose,
 } from "@/app/_components/ui/sheet";
 import { ptBR } from "date-fns/locale";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import MenuProfissionais from "@/app/(dashboard)/profissionais/_components/menuprofissionais";
 import { useForm } from "react-hook-form";
 import {
@@ -29,7 +30,6 @@ import { Textarea } from "@/app/_components/ui/textarea";
 import { toast } from "@/app/_hooks/use-toast";
 import MenuCondicoes from "@/app/(dashboard)/condicoes/_Components/MenuCondicoes";
 import { set } from "date-fns";
-type Consultatype = "Emergencia" | "Rotina" | "Tratamento" | "Retorno" | "Exame";
 import {
   Select,
   SelectContent,
@@ -48,7 +48,12 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
 
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [consultas, setConsultas] = useState<Consulta[]>([]);
-  const [selectedTipo, setSelectedTipo] = useState<Consultatype | undefined>();
+  // CORREÇÃO: Usando o tipo 'ConsultaType' correto.
+  const [tiposConsulta, setTiposConsulta] = useState<ConsultaType[]>([]);
+  const [loadingInitialData, setLoadingInitialData] = useState(true);
+  
+  // CORREÇÃO: Usando o tipo 'ConsultaType' correto.
+  const [selectedTipo, setSelectedTipo] = useState<ConsultaType | undefined>();
   const [allProfissionais, setAllProfissionais] = useState<Profissional[]>([]);
   const [filteredProfissionais, setFilteredProfissionais] = useState<Profissional[]>([]);
   const [selectedProfissional, setSelectedProfissional] = useState<Profissional | null>(null);
@@ -59,38 +64,65 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
   const form = useForm({ defaultValues: { queixas: "", tipoexame: "", anotacaoExame: "" } });
   const [selectedUnidade, setSelectedUnidade] = useState<Unidade | null>(null);
 
+  const logAction = useCallback(async (level: 'info' | 'warn' | 'error', message: string, details: object = {}) => {
+    if (!session?.user?.id) return;
+    try {
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ level, message, details, userId: session.user.id, component: 'NovaConsultaForm' }),
+      });
+    } catch (logError) {
+      console.error("Falha ao registrar o log no servidor:", logError);
+    }
+  }, [session?.user?.id]);
+
   useEffect(() => {
     const fetchData = async () => {
+      setLoadingInitialData(true);
       try {
-        const [unidadesRes, profissionaisRes, condicoesRes, consultasRes] = await Promise.all([
+        const [unidadesRes, profissionaisRes, condicoesRes, consultasRes, tiposRes] = await Promise.all([
           fetch("/api/unidadesaude"),
           fetch("/api/profissionais"),
           fetch("/api/condicoes"),
           fetch("/api/consultas"),
+          fetch("/api/consultas?get=tipos")
         ]);
 
         if (!unidadesRes.ok) throw new Error("Falha ao buscar unidades");
         if (!profissionaisRes.ok) throw new Error("Falha ao buscar profissionais");
         if (!condicoesRes.ok) throw new Error("Falha ao buscar condições de saúde");
         if (!consultasRes.ok) throw new Error("Falha ao buscar consultas");
+        if (!tiposRes.ok) throw new Error("Falha ao buscar tipos de consulta");
 
         const unidadesData = await unidadesRes.json();
         const profissionaisData = await profissionaisRes.json();
         const condicoesData = await condicoesRes.json();
         const consultasData = await consultasRes.json();
+        const tiposData = await tiposRes.json();
+
+        if (!tiposData || tiposData.length === 0) {
+          logAction('warn', 'A lista de tipos de consulta retornou vazia ou nula.');
+        }
 
         setUnidades(unidadesData);
         setAllProfissionais(profissionaisData);
         setCondicoesSaude(condicoesData);
         setConsultas(Array.isArray(consultasData) ? consultasData : consultasData.consultas || []);
+        setTiposConsulta(tiposData);
+        logAction('info', 'Dados iniciais do formulário carregados com sucesso.');
 
       } catch (error) {
-        console.error("Erro ao carregar dados do formulário:", error);
+        const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+        logAction('error', `Falha ao carregar dados essenciais para o formulário: ${errorMessage}`);
+        toast({ title: "Erro ao carregar dados para o formulário.", variant: "destructive" });
+      } finally {
+        setLoadingInitialData(false);
       }
     };
 
-    fetchData();
-  }, []);
+    if (session?.user?.id) fetchData();
+  }, [logAction, session?.user?.id]);
 
   useEffect(() => {
     if (selectedUnidade) {
@@ -104,23 +136,15 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     setSelectedProfissional(null);
   }, [selectedUnidade, allProfissionais]);
 
-  const logErrorToServer = async (errorData: { message: string; stack?: string; url?: string }) => {
-      try {
-          await fetch('/api/logs', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(errorData),
-          });
-      } catch (logError) {
-          console.error("Falha ao registrar o erro no servidor:", logError);
-      }
-  };
-
   const handleConsultaOrigemSelect = (consulta: Consulta | null) => {
     setSelectedConsultaOrigem(consulta);
     if (consulta) {
       if (consulta.unidade) setSelectedUnidade(consulta.unidade);
+      else logAction('warn', 'Consulta de origem selecionada não possui unidade.', { consultaId: consulta.id });
+      
       if (consulta.profissional) setSelectedProfissional(consulta.profissional);
+      else logAction('warn', 'Consulta de origem selecionada não possui profissional.', { consultaId: consulta.id });
+      
       if (consulta.condicaoSaude) setSelectedCondicao(consulta.condicaoSaude);
     }
   };
@@ -132,6 +156,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
     }
 
     if (selectedTipo === 'Retorno' && !selectedConsultaOrigem) {
+        logAction('warn', 'Tentativa de salvar Retorno sem consulta de origem.');
         toast({ title: "Para Retorno, selecione a consulta original.", variant: "destructive" });
         return;
     }
@@ -146,7 +171,7 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         const newDate = set(selectedDay, { hours: hour, minutes: minute });
 
         const consultaData = {
-          tipo: selectedTipo as Consultatype,
+          tipo: selectedTipo as ConsultaType,
           data: newDate,
           unidadeId: selectedUnidade?.id || null,
           profissionalId: selectedProfissional?.id || null,
@@ -157,10 +182,13 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
         };
 
         if (selectedTipo === "Emergencia" && (!consultaData.queixas || !consultaData.unidadeId)) {
+           logAction('warn', 'Tentativa de salvar Emergência sem queixas ou unidade.', { hasQueixas: !!consultaData.queixas, hasUnidade: !!consultaData.unidadeId });
            toast({ title: "Emergência requer queixas e unidade.", variant: "destructive" });
            return;
         }
         if (["Tratamento", "Retorno"].includes(selectedTipo) && (!consultaData.condicaoSaudeId || !consultaData.profissionalId || !consultaData.unidadeId)) {
+           // CORREÇÃO: Removido o 'tipo' duplicado.
+           logAction('warn', 'Tentativa de salvar Tratamento/Retorno sem campos obrigatórios.', { ...consultaData });
            toast({ title: "Tratamento e Retorno requerem condição, profissional e unidade.", variant: "destructive" });
            return;
         }
@@ -176,25 +204,14 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
              const error = new Error(responseData?.error || `Erro do servidor: ${response.status} ${response.statusText}`);
              throw error;
           }
+          const savedConsulta = await response.json();
+          logAction('info', `Consulta do tipo '${selectedTipo}' salva com sucesso.`, { consultaId: savedConsulta.id });
           toast({ title: "Consulta salva com sucesso!" });
-          onSaveSuccess?.();
-        } catch (error: unknown) { // CORREÇÃO: trocado 'any' por 'unknown'
-            let errorMessage = "Ocorreu um erro desconhecido";
-            let errorStack = undefined;
-            if (error instanceof Error) {
-                errorMessage = error.message;
-                errorStack = error.stack;
-            }
-            await logErrorToServer({
-                message: `Erro ao salvar consulta: ${errorMessage}`,
-                stack: errorStack,
-                url: "/api/consultas (frontend)",
-            });
-            toast({
-                title: "Erro ao salvar a consulta",
-                description: "Ocorreu um problema ao salvar. Nossa equipe já foi notificada.",
-                variant: "destructive"
-            });
+          if(onSaveSuccess) onSaveSuccess();
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+            logAction('error', `Falha ao salvar consulta: ${errorMessage}`, { error: String(error) });
+            toast({ title: "Erro ao salvar a consulta", description: "Ocorreu um problema ao salvar. Tente novamente.", variant: "destructive" });
         }
 
     } else { // Lógica para Exame
@@ -233,25 +250,13 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
            const error = new Error(responseData?.error || `Erro do servidor: ${response.status} ${response.statusText}`);
            throw error;
         }
+        logAction('info', `Exame do tipo '${tipoExameValue}' salvo com sucesso.`);
         toast({ title: "Exame salvo com sucesso!" });
-        onSaveSuccess?.();
-      } catch (error: unknown) { // CORREÇÃO: trocado 'any' por 'unknown'
-        let errorMessage = "Ocorreu um erro desconhecido";
-        let errorStack = undefined;
-        if (error instanceof Error) {
-            errorMessage = error.message;
-            errorStack = error.stack;
-        }
-        await logErrorToServer({
-            message: `Erro ao salvar exame: ${errorMessage}`,
-            stack: errorStack,
-            url: "/api/exames (frontend)",
-        });
-        toast({
-            title: "Erro ao salvar o exame",
-            description: "Ocorreu um problema ao salvar. Nossa equipe já foi notificada.",
-            variant: "destructive"
-        });
+        if(onSaveSuccess) onSaveSuccess();
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        logAction('error', `Falha ao salvar exame: ${errorMessage}`, { error: String(error) });
+        toast({ title: "Erro ao salvar o exame", description: "Ocorreu um problema ao salvar. Tente novamente.", variant: "destructive" });
       }
     }
   };
@@ -269,7 +274,13 @@ const NovaConsulta = ({ onSaveSuccess }: { onSaveSuccess?: () => void }) => {
             <div className="flex flex-col gap-3">
               <input type="time" className="rounded border bg-background p-2 text-foreground w-full" onChange={(e) => setManualTime(e.target.value)} value={manualTime} />
             </div>
-            <ConsultaTipoSelector selectedTipo={selectedTipo} onTipoSelect={setSelectedTipo} />
+            
+            <ConsultaTipoSelector 
+              tipos={tiposConsulta} 
+              loading={loadingInitialData} 
+              selectedTipo={selectedTipo} 
+              onTipoSelect={setSelectedTipo} 
+            />
             
             {(selectedTipo === 'Retorno' || selectedTipo === 'Exame') && (
               <div className="space-y-2">
