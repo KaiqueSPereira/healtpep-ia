@@ -7,7 +7,7 @@ import { ClearLogsButton } from "../_components/clear-logs-button";
 
 const LOGS_PER_PAGE = 20;
 
-// A interface descreve o objeto *depois* de ser resolvido.
+// searchParams em Componentes de Servidor Async são objetos.
 interface AdminLogsPageProps {
   searchParams: {
     query?: string;
@@ -17,21 +17,9 @@ interface AdminLogsPageProps {
   };
 }
 
-// Acessamos a prop `searchParams`, que neste caso se comporta como uma Promise.
 export default async function AdminLogsPage({ searchParams }: AdminLogsPageProps) {
   
-  // CORREÇÃO DEFINITIVA: Tratar 'searchParams' como uma Promise e usar 'await' para resolvê-la.
-  const resolvedSearchParams = await (searchParams as unknown as Promise<{
-    query?: string;
-    level?: string;
-    component?: string;
-    page?: string;
-  }>);
-
-  const query = resolvedSearchParams?.query;
-  const level = resolvedSearchParams?.level;
-  const component = resolvedSearchParams?.component;
-  const page = resolvedSearchParams?.page;
+  const { query, level, component, page } = searchParams;
   const currentPage = Number(page) || 1;
 
   const skip = (currentPage - 1) * LOGS_PER_PAGE;
