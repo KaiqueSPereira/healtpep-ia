@@ -125,13 +125,13 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
   }, [consultas]);
 
   const renderSkeletons = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        {[...Array(10)].map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)}
     </div>
   );
 
   return (
-    <div className="flex flex-col flex-grow p-6 space-y-6 min-h-0">
+    <div className="flex flex-col flex-grow py-4 space-y-6 min-h-0">
       <ConsultaFilter 
         professionals={profissionais} 
         consultationTypes={tipos} 
@@ -160,7 +160,7 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
             <section>
               <h2 className="text-xl font-semibold mb-4">Consultas Agendadas</h2>
               {agendamentosFuturos.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {agendamentosFuturos.map(ag => <AgendamentoItem key={`futuro-${ag.id}`} agendamento={ag} />)}
                 </div>
               ) : (
@@ -171,7 +171,7 @@ const ConsultasList = ({ initialConsultas, profissionais, tipos, initialNextCurs
             <section>
               <h2 className="text-xl font-semibold mb-4">Consultas Passadas</h2>
               {agendamentosPassados.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {agendamentosPassados.map(ag => <AgendamentoItem key={`passado-${ag.id}`} agendamento={ag} />)}
                 </div>
               ) : (
