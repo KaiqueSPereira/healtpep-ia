@@ -184,10 +184,11 @@ const ConsultaPage = () => {
                             </TabsContent>
                         </Tabs>
                     </div>
-
-                    <div className="w-full lg:w-1/3 space-y-6">
-                       <HistoricoTratamentoCard items={timelineUnificada} consultaAtualId={consulta.id} />
-                    </div>
+                    {timelineUnificada && timelineUnificada.length > 0 && (
+                        <div className="w-full lg:w-1/3 space-y-6">
+                           <HistoricoTratamentoCard items={timelineUnificada} consultaAtualId={consulta.id} />
+                        </div>
+                    )}
                 </div>
             </main>
         </div>
