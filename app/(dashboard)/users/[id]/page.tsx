@@ -14,6 +14,7 @@ import PesoHistoryChart from '../_components/PesoHistoryChart';
 import BioimpedanciaTab from '../_components/BioimpedanciaTab';
 import IMCChart from '../_components/IMCChart';
 import BodyMeasurementChart from '../_components/BodyMeasurementChart';
+import RegistrosDetalhadosTable from '../_components/RegistrosDetalhadosTable';
 
 interface CondicaoSaude {
   id: string;
@@ -169,14 +170,18 @@ const UserProfilePage = () => {
         <TabsContent value="health-analysis" className="mt-6 space-y-6">
             <Card>
                  <CardHeader><CardTitle className="flex items-center"><Weight className="mr-2" /> Análise Corporal</CardTitle></CardHeader>
-                 <CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    <div className="col-span-1 space-y-6">
+                 <CardContent className="grid grid-cols-1 lg:grid-cols-10 gap-8 items-start">
+                    <div className="lg:col-span-4">
                         <IMCChart userId={user.id} userHeight={userHeightForIMC} historicoPeso={user.historicoPeso} loadingHistorico={loading} errorHistorico={null} />
+                    </div>
+                    <div className="lg:col-span-6">
+                        <PesoHistoryChart userId={user.id} historicoPeso={user.historicoPeso} altura={userHeightForIMC} onDataChange={fetchUserAndMedidas} />
+                    </div>
+                    <div className="lg:col-span-5">
                         <BodyMeasurementChart historicoPeso={user.historicoPeso} />
                     </div>
-                    <div className="col-span-1 lg:col-span-2">
-                        {/* CORREÇÃO: Removidas as propriedades 'loading' e 'error' */}
-                        <PesoHistoryChart userId={user.id} historicoPeso={user.historicoPeso} altura={userHeightForIMC} onDataChange={fetchUserAndMedidas} />
+                    <div className="lg:col-span-5">
+                        <RegistrosDetalhadosTable userId={user.id} registros={user.historicoPeso} altura={userHeightForIMC} onDataChange={fetchUserAndMedidas} />
                     </div>
                  </CardContent>
             </Card>
