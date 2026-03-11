@@ -185,7 +185,7 @@ const UserProfilePage = () => {
                     </div>
                  </CardContent>
             </Card>
-            <BioimpedanciaTab historico={user.historicoPeso} />
+            <BioimpedanciaTab userId={user.id} />
           </TabsContent>
       </Tabs>
     </div>
