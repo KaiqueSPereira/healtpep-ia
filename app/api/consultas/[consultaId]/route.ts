@@ -18,6 +18,7 @@ async function getSessionInfo() {
 // NOTE: These types and functions could be further optimized for type safety
 interface AnotacaoParaDescriptografar { id: string; anotacao: string; createdAt: Date; }
 interface ExameParaDescriptografar { id: string; tipo: string; anotacao: string; dataExame: Date; profissional?: { nome: string } | null; unidades?: { nome: string } | null; }
+interface AnexoParaDescriptografar { id: string; nomeArquivo: string; mimetype: string | null; tipo: string; [key: string]: any; }
 interface HistoricoItem { id: string; tipo: Consultatype; motivo: string | null; data: Date; profissional: { nome: string } | null; unidade: { nome: string } | null; }
 
 const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({ include: { condicoes: true, profissional: true, unidade: { include: { endereco: true } }, Anotacoes: { orderBy: { createdAt: 'desc' } }, anexos: true, Exame: { include: { profissional: true, unidades: { include: { endereco: true } } }, orderBy: { dataExame: 'desc' } }, consultaOrigem: { include: { Anotacoes: { orderBy: { createdAt: 'desc' } }, anexos: true, Exame: { include: { profissional: true, unidades: { include: { endereco: true } } }, orderBy: { dataExame: 'desc' } } } }, retornos: { include: { profissional: true, unidade: { include: { endereco: true } } }, orderBy: { data: 'desc' } } } });
@@ -25,6 +26,11 @@ const consultaWithRelations = Prisma.validator<Prisma.ConsultasDefaultArgs>()({ 
 const decryptAnotacoes = (anotacoes: AnotacaoParaDescriptografar[] | undefined) => {
     if (!anotacoes) return [];
     return anotacoes.map(a => ({ ...a, anotacao: safeDecrypt(a.anotacao) }));
+};
+
+const decryptAnexos = (anexos: AnexoParaDescriptografar[] | undefined) => {
+    if (!anexos) return [];
+    return anexos.map(anexo => ({ ...anexo, nomeArquivo: safeDecrypt(anexo.nomeArquivo) }));
 };
 
 const decryptExames = (exames: ExameParaDescriptografar[] | undefined) => {
@@ -56,8 +62,15 @@ export async function GET(request: NextRequest, context: { params: Promise<{ con
         motivo: safeDecrypt(consulta.motivo),
         tipodeexame: safeDecrypt(consulta.tipodeexame|| ""),
         Anotacoes: decryptAnotacoes(consulta.Anotacoes as AnotacaoParaDescriptografar[]),
+        anexos: decryptAnexos(consulta.anexos as AnexoParaDescriptografar[]),
         Exame: decryptExames(consulta.Exame as ExameParaDescriptografar[]),
-        consultaOrigem: consulta.consultaOrigem ? { ...consulta.consultaOrigem, motivo: safeDecrypt(consulta.consultaOrigem.motivo), Anotacoes: decryptAnotacoes(consulta.consultaOrigem.Anotacoes as AnotacaoParaDescriptografar[]), Exame: decryptExames(consulta.consultaOrigem.Exame as ExameParaDescriptografar[]) } : null,
+        consultaOrigem: consulta.consultaOrigem ? { 
+            ...consulta.consultaOrigem, 
+            motivo: safeDecrypt(consulta.consultaOrigem.motivo), 
+            Anotacoes: decryptAnotacoes(consulta.consultaOrigem.Anotacoes as AnotacaoParaDescriptografar[]),
+            anexos: decryptAnexos(consulta.consultaOrigem.anexos as AnexoParaDescriptografar[]),
+            Exame: decryptExames(consulta.consultaOrigem.Exame as ExameParaDescriptografar[]) 
+        } : null,
         historicoTratamento,
     };
 
