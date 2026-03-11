@@ -5,27 +5,38 @@ import { z } from 'zod';
 import { Button } from '@/app/_components/ui/button';
 import { Input } from '@/app/_components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/_components/ui/select';
-import { TipoAnexo } from '@prisma/client';
 import { toast } from '@/app/_hooks/use-toast';
 import { Loader2, Paperclip, X } from 'lucide-react';
 import { Anexo } from '@/app/_components/types';
 
 interface AnexoUploaderProps {
     consultaId: string;
-    // --- PROP RENOMEADA PARA onAnexoAdicionado ---
     onAnexoAdicionado: (newAnexo: Anexo) => void; 
     onClose: () => void;
 }
 
+// MODIFICAÇÃO: Definir os tipos de anexo diretamente no frontend
+const tiposAnexo = [
+    { value: 'Atestado', label: 'Atestado' },
+    { value: 'Declaracao', label: 'Declaração' },
+    { value: 'Encaminhamento', label: 'Encaminhamento' },
+    { value: 'Receita_Medica', label: 'Receita Médica' },
+    { value: 'Relatorio', label: 'Relatório' },
+    { value: 'Outro', label: 'Outro' },
+] as const;
+
+type TipoAnexoValue = typeof tiposAnexo[number]['value'];
+
 const fileSchema = typeof window !== 'undefined' ? z.instanceof(File) : z.any();
 const formSchema = z.object({
     file: fileSchema.refine(file => file && file.size > 0, 'É necessário selecionar um arquivo.'),
-    tipo: z.nativeEnum(TipoAnexo, { errorMap: () => ({ message: "É necessário selecionar um tipo." }) }),
+    // MODIFICAÇÃO: Usar o array de tipos definidos acima para validação
+    tipo: z.enum(tiposAnexo.map(t => t.value) as [string, ...string[]]),
 });
 
 export default function AnexoUploader({ consultaId, onAnexoAdicionado, onClose }: AnexoUploaderProps) {
     const [file, setFile] = useState<File | null>(null);
-    const [tipo, setTipo] = useState<TipoAnexo | null>(null);
+    const [tipo, setTipo] = useState<TipoAnexoValue | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,9 +73,8 @@ export default function AnexoUploader({ consultaId, onAnexoAdicionado, onClose }
             
             const newAnexo = await response.json();
 
-            toast({ title: 'Anexo enviado com sucesso!' });
-            // --- CHAMADA DA PROP CORRIGIDA PARA onAnexoAdicionado ---
-            onAnexoAdicionado(newAnexo); 
+            toast({ title: 'Anexo enviado com sucesso!', description: `O arquivo foi salvo como: ${newAnexo.nomeArquivo}` });
+            onAnexoAdicionado(newAnexo);
             onClose();
 
         } catch (err) { 
@@ -91,12 +101,13 @@ export default function AnexoUploader({ consultaId, onAnexoAdicionado, onClose }
                     </div>
                     <div className='space-y-2'>
                         <label className="text-sm font-medium">Tipo de Anexo</label>
-                        <Select onValueChange={(value: TipoAnexo) => setTipo(value)} value={tipo ?? undefined}>
+                        <Select onValueChange={(value: TipoAnexoValue) => setTipo(value)} value={tipo ?? undefined}>
                             <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                             <SelectContent>
-                                {Object.values(TipoAnexo).map(type => (
-                                    <SelectItem key={type} value={type}>
-                                        {type.replace(/_/g, ' ').charAt(0).toUpperCase() + type.replace(/_/g, ' ').slice(1).toLowerCase()}
+                                {/* MODIFICAÇÃO: Mapear os tipos de anexo do frontend */}
+                                {tiposAnexo.map(type => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                        {type.label}
                                     </SelectItem>
                                 ))}
                             </SelectContent>
