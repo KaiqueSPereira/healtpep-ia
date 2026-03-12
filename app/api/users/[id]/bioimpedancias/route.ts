@@ -60,22 +60,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'A data é obrigatória.' }, { status: 400 });
     }
 
-    // Prepara os dados para o Prisma, convertendo para string
     const bioimpedanciaData = {
       userId,
       data: new Date(data),
-      gorduraCorporal: formData.get('gorduraCorporal')?.toString(),
-      massaMuscular: formData.get('massaMuscular')?.toString(),
-      gorduraVisceral: formData.get('gorduraVisceral')?.toString(),
-      taxaMetabolica: formData.get('taxaMetabolica')?.toString(),
+      gorduraCorporal: formData.get('gorduraCorporal')?.toString().replace('.', ','),
+      massaMuscular: formData.get('massaMuscular')?.toString().replace('.', ','),
+      gorduraVisceral: formData.get('gorduraVisceral')?.toString().replace('.', ','),
+      taxaMetabolica: formData.get('taxaMetabolica')?.toString().replace('.', ','),
       idadeCorporal: formData.get('idadeCorporal')?.toString(),
-      massaOssea: formData.get('massaOssea')?.toString(),
-      aguaCorporal: formData.get('aguaCorporal')?.toString(),
+      massaOssea: formData.get('massaOssea')?.toString().replace('.', ','),
+      aguaCorporal: formData.get('aguaCorporal')?.toString().replace('.', ','),
     };
 
     const novoRegistro = await prisma.bioimpedancia.create({ data: bioimpedanciaData });
 
-    // Se houver um anexo, salva-o no banco de dados
     if (anexo) {
       const fileBuffer = Buffer.from(await anexo.arrayBuffer());
       await prisma.anexoBioimpedancia.create({
@@ -94,4 +92,84 @@ export async function POST(request: NextRequest) {
     console.error('Erro ao criar registro de bioimpedância:', error);
     return NextResponse.json({ error: 'Erro interno do servidor ao criar registro.' }, { status: 500 });
   }
+}
+
+// Função DELETE para apagar um registro
+export async function DELETE(request: NextRequest) {
+    try {
+        const url = new URL(request.url);
+        const id = url.searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID do registro não fornecido.' }, { status: 400 });
+        }
+
+        await prisma.$transaction(async (prisma) => {
+            await prisma.anexoBioimpedancia.deleteMany({
+                where: { bioimpedanciaId: id },
+            });
+            await prisma.bioimpedancia.delete({
+                where: { id: id },
+            });
+        });
+
+        return NextResponse.json({ message: 'Registro apagado com sucesso.' }, { status: 200 });
+
+    } catch (error) {
+        console.error('Erro ao apagar registro de bioimpedância:', error);
+        return NextResponse.json({ error: 'Erro interno do servidor ao apagar o registro.' }, { status: 500 });
+    }
+}
+
+// Função PUT para atualizar um registro
+export async function PUT(request: NextRequest) {
+    try {
+        const formData = await request.formData();
+        const id = formData.get('id') as string;
+
+        if (!id) {
+            return NextResponse.json({ error: 'ID do registro é obrigatório para atualização.' }, { status: 400 });
+        }
+
+        const data = formData.get('data') as string;
+        const anexo = formData.get('anexo') as File | null;
+
+        const bioimpedanciaDataToUpdate = {
+            data: new Date(data),
+            gorduraCorporal: formData.get('gorduraCorporal')?.toString().replace('.', ','),
+            massaMuscular: formData.get('massaMuscular')?.toString().replace('.', ','),
+            gorduraVisceral: formData.get('gorduraVisceral')?.toString().replace('.', ','),
+            taxaMetabolica: formData.get('taxaMetabolica')?.toString().replace('.', ','),
+            idadeCorporal: formData.get('idadeCorporal')?.toString(),
+            massaOssea: formData.get('massaOssea')?.toString().replace('.', ','),
+            aguaCorporal: formData.get('aguaCorporal')?.toString().replace('.', ','),
+        };
+
+        const updatedRecord = await prisma.bioimpedancia.update({
+            where: { id },
+            data: bioimpedanciaDataToUpdate,
+        });
+
+        if (anexo) {
+            await prisma.anexoBioimpedancia.deleteMany({
+                where: { bioimpedanciaId: id },
+            });
+
+            const fileBuffer = Buffer.from(await anexo.arrayBuffer());
+            await prisma.anexoBioimpedancia.create({
+                data: {
+                    nomeArquivo: anexo.name,
+                    mimetype: anexo.type,
+                    arquivo: fileBuffer,
+                    bioimpedanciaId: id,
+                },
+            });
+        }
+
+        return NextResponse.json(updatedRecord, { status: 200 });
+
+    } catch (error) {
+        console.error('Erro ao atualizar registro de bioimpedância:', error);
+        return NextResponse.json({ error: 'Erro interno do servidor ao atualizar registro.' }, { status: 500 });
+    }
 }

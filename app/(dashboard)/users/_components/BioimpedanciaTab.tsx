@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Zap, Loader2, ServerCrash, Download } from 'lucide-react';
+import { Zap, Loader2, ServerCrash } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
-import { Button } from '@/app/_components/ui/button';
 import AddBioimpedanciaDialog from './AddBioimpedanciaDialog';
+import BioimpedanciaActions from './BioimpedanciaActions';
 
 interface Anexo {
   id: string;
@@ -21,7 +21,7 @@ interface BioimpedanceRecord {
   massaMuscular?: number | null;
   aguaCorporal?: number | null;
   massaOssea?: number | null;
-  taxaMetabolica?: number | null; // Corrigido de metabolismoBasal
+  taxaMetabolica?: number | null; 
   idadeCorporal?: number | null;
   anexos: Anexo[];
 }
@@ -79,24 +79,32 @@ const BioimpedanciaTab = ({ userId }: BioimpedanciaTabProps) => {
 
     return (
       <Table>
-        <TableHeader><TableRow><TableHead>Data</TableHead><TableHead>% Gordura</TableHead><TableHead>M. Muscular</TableHead><TableHead>Idade Corporal</TableHead><TableHead>Anexos</TableHead></TableRow></TableHeader>
+        <TableHeader>
+            <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>% Gordura</TableHead>
+                <TableHead>G. Visceral</TableHead>
+                <TableHead>M. Muscular</TableHead>
+                <TableHead>% Água</TableHead>
+                <TableHead>M. Óssea</TableHead>
+                <TableHead>TMB</TableHead>
+                <TableHead>Id. Corporal</TableHead>
+                <TableHead>Ações</TableHead>
+            </TableRow>
+        </TableHeader>
         <TableBody>
           {data.map(b => (
             <TableRow key={b.id}>
               <TableCell>{formatDate(b.data)}</TableCell>
               <TableCell>{b.gorduraCorporal ? `${b.gorduraCorporal.toFixed(1)}%` : '-'}</TableCell>
+              <TableCell>{b.gorduraVisceral ? b.gorduraVisceral.toFixed(1) : '-'}</TableCell>
               <TableCell>{b.massaMuscular ? `${b.massaMuscular.toFixed(1)} kg` : '-'}</TableCell>
+              <TableCell>{b.aguaCorporal ? `${b.aguaCorporal.toFixed(1)}%` : '-'}</TableCell>
+              <TableCell>{b.massaOssea ? `${b.massaOssea.toFixed(1)} kg` : '-'}</TableCell>
+              <TableCell>{b.taxaMetabolica ? b.taxaMetabolica.toFixed(0) : '-'}</TableCell>
               <TableCell>{b.idadeCorporal || '-'}</TableCell>
               <TableCell>
-                {b.anexos && b.anexos.length > 0 ? (
-                    <Button variant="outline" size="sm" asChild>
-                        {/* O link de download precisará de uma API específica no futuro */}
-                        <a href={`/api/bioimpedancias/anexos/${b.anexos[0].id}`} target="_blank" rel="noopener noreferrer">
-                            <Download className="h-4 w-4 mr-2" />
-                            {b.anexos[0].nomeArquivo.substring(0, 15)}...
-                        </a>
-                    </Button>
-                ) : '-'}
+                <BioimpedanciaActions record={b} onSuccess={fetchData} />
               </TableCell>
             </TableRow>
           ))}
