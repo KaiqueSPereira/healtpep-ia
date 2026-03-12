@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
-import { Zap, Loader2, ServerCrash } from 'lucide-react';
+import { Zap, Loader2, ServerCrash, FileDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
 import AddBioimpedanciaDialog from './AddBioimpedanciaDialog';
 import BioimpedanciaActions from './BioimpedanciaActions';
+import { Button } from '@/app/_components/ui/button';
+import { toast } from '@/app/_hooks/use-toast';
 
 interface Anexo {
   id: string;
@@ -34,6 +36,7 @@ const BioimpedanciaTab = ({ userId }: BioimpedanciaTabProps) => {
   const [data, setData] = useState<BioimpedanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -56,6 +59,30 @@ const BioimpedanciaTab = ({ userId }: BioimpedanciaTabProps) => {
     if (!userId) return;
     fetchData();
   }, [userId, fetchData]);
+
+  const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    try {
+        const response = await fetch(`/api/users/${userId}/bioimpedancias/report`);
+        if (!response.ok) {
+            throw new Error('Não foi possível gerar o relatório. Verifique se existem dados de bioimpedância.');
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `relatorio_bioimpedancia_${userId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        toast({ title: "Relatório gerado com sucesso!" });
+    } catch (error) {
+        toast({ title: "Erro ao gerar relatório", description: (error instanceof Error) ? error.message : 'Ocorreu um erro inesperado.', variant: 'destructive' });
+    } finally {
+        setIsGeneratingReport(false);
+    }
+  };
 
   const formatDate = (date: string | Date) => new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
 
@@ -120,7 +147,13 @@ const BioimpedanciaTab = ({ userId }: BioimpedanciaTabProps) => {
           <Zap className="mr-2 h-5 w-5" />
           Bioimpedância
         </CardTitle>
-        <AddBioimpedanciaDialog userId={userId} onSuccess={fetchData} />
+        <div className="flex items-center gap-2">
+            <Button onClick={handleGenerateReport} variant="outline" size="sm" disabled={isGeneratingReport || data.length === 0}>
+                {isGeneratingReport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                Gerar Relatório
+            </Button>
+            <AddBioimpedanciaDialog userId={userId} onSuccess={fetchData} />
+        </div>
       </CardHeader>
       <CardContent>
         {renderContent()}
