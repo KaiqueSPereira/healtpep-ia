@@ -17,19 +17,6 @@ enum TipoAnexo {
   Outro
 }
 
-// Manter o modelo legado para migração de dados
-model PesoHistorico {
-  id        String   @id @default(uuid())
-  peso      String
-  data      String // Mantido como String para compatibilidade
-  userId    String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  usuario   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
 model Role {
   id             String             @id @default(cuid())
   name           String             @unique
@@ -94,7 +81,6 @@ model User {
   sessions         Session[]
   unidades         UnidadeDeSaude[]
   role             Role?                    @relation(fields: [roleId], references: [id])
-  historicoPeso    PesoHistorico[]
   acompanhamentos  AcompanhamentoCorporal[]
   bioimpedancias   Bioimpedancia[]
   metas            Meta[]
@@ -175,8 +161,8 @@ model AnexoBioimpedancia {
 model Meta {
   id           String     @id @default(uuid())
   tipo         TipoMeta
-  valorAlvo    String // String para criptografia
-  valorInicial String? // String para criptografia
+  valorAlvo    String
+  valorInicial String?
   dataInicio   DateTime
   dataFim      DateTime?
   status       StatusMeta @default(ATIVA)
@@ -516,8 +502,8 @@ model ActionLog {
   message   String
   stack     String?
   component String?
-  level     String   // 'info', 'warn', 'error'
-  action    String   // e.g., 'create_consulta', 'delete_exame'
+  level     String
+  action    String
   timestamp DateTime @default(now())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -529,7 +515,7 @@ model ActionLog {
 
 model AbastecimentoMedicamento {
   id               String          @id @default(uuid())
-  data             String // Mantido como String por solicitação
+  data             String
   quantidade       String
   observacoes      String?
   createdAt        DateTime        @default(now())
@@ -557,6 +543,17 @@ enum TipoMeta {
   PESO
   GORDURA_CORPORAL
   MASSA_MUSCULAR
+  IMC
+  PESCOCO
+  TORAX
+  CINTURA
+  QUADRIL
+  BRACO_E
+  BRACO_D
+  PERNA_E
+  PERNA_D
+  PANTURRILHA_E
+  PANTURRILHA_D
 }
 
 enum StatusMeta {

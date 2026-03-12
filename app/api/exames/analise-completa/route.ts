@@ -41,7 +41,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
           include: {
             dadosSaude: true,
             condicoesSaude: true,
-            historicoPeso: { orderBy: { data: 'desc' }, take: 1 }
+            acompanhamentos: { orderBy: { data: 'desc' }, take: 1 }
           }
         },
         consulta: true
@@ -64,7 +64,7 @@ async function analisarExame(examId: string, userId: string): Promise<string | n
     const dadosSaude = exame.usuario.dadosSaude;
     const idade = dadosSaude?.dataNascimento ? calcularIdade(dadosSaude.dataNascimento) : 'Não informado';
     const sexo = dadosSaude?.sexo || 'Não informado';
-    const peso = exame.usuario.historicoPeso[0]?.peso ? `${exame.usuario.historicoPeso[0].peso} kg` : 'Não informado';
+    const peso = exame.usuario.acompanhamentos[0]?.peso ? `${exame.usuario.acompanhamentos[0].peso} kg` : 'Não informado';
     
     const tratamentosAtuais = exame.usuario.condicoesSaude.map((t: LocalTratamento) => `- ${t.nome}`).join('\n') || "Nenhum";
 

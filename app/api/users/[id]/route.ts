@@ -1,7 +1,7 @@
 import { prisma } from '@/app/_lib/prisma';
 import { NextResponse } from 'next/server';
 import { encryptString, decryptString } from '@/app/_lib/crypto';
-import type { User, DadosSaude, PesoHistorico, CondicaoSaude, Profissional } from '@prisma/client';
+import type { User, DadosSaude, CondicaoSaude, Profissional } from '@prisma/client';
 
 // Função auxiliar para obter o ID da URL
 const getUserIdFromUrl = (url: string) => {
@@ -13,22 +13,19 @@ const getUserIdFromUrl = (url: string) => {
 type CondicaoSaudeComProfissional = CondicaoSaude & { profissional: Profissional | null };
 type UserWithRelations = User & {
   dadosSaude: DadosSaude | null;
-  historicoPeso: PesoHistorico[];
   condicoesSaude: CondicaoSaudeComProfissional[];
 };
 
 // Tipos descriptografados
 type DecryptedDadosSaude = Omit<DadosSaude, 'alergias'> & { alergias: string[] };
-type DecryptedPesoHistorico = Omit<PesoHistorico, 'peso' | 'data'> & { peso: string; data: string };
 
 type DecryptedCondicaoSaude = Omit<CondicaoSaudeComProfissional, 'nome' | 'objetivo' | 'observacoes'> & {
   nome: string;
   objetivo: string | null;
   observacoes: string | null;
 };
-type DecryptedUser = Omit<UserWithRelations, 'dadosSaude' | 'historicoPeso' | 'condicoesSaude'> & {
+type DecryptedUser = Omit<UserWithRelations, 'dadosSaude' | 'condicoesSaude'> & {
   dadosSaude: DecryptedDadosSaude | null;
-  historicoPeso: DecryptedPesoHistorico[];
   condicoesSaude: DecryptedCondicaoSaude[];
 };
 
@@ -50,15 +47,6 @@ const decryptUserData = (user: UserWithRelations | null): DecryptedUser | null =
     decryptedUser.dadosSaude.alergias = alergias && alergias.length > 0 ? alergias.map((alergia: string) => decryptString(alergia)) : [];
   }
 
-  // Descriptografar historicoPeso
-  if (decryptedUser.historicoPeso) {
-    decryptedUser.historicoPeso = decryptedUser.historicoPeso.map((registro) => ({
-      ...registro,
-      peso: decryptString(registro.peso),
-      data: decryptString(registro.data),
-    }));
-  }
-
   // Descriptografar condicoesSaude
   if (decryptedUser.condicoesSaude) {
     decryptedUser.condicoesSaude = decryptedUser.condicoesSaude.map((condicao) => ({
@@ -72,7 +60,7 @@ const decryptUserData = (user: UserWithRelations | null): DecryptedUser | null =
   return decryptedUser;
 };
 
-// --- GET: Busca todos os dados de um usuário ---
+// --- GET: Busca os dados de um usuário ---
 export async function GET(request: Request) {
   try {
     const userId = getUserIdFromUrl(request.url);
@@ -84,7 +72,6 @@ export async function GET(request: Request) {
       where: { id: userId },
       include: {
         dadosSaude: true,
-        historicoPeso: { orderBy: { data: 'asc' } },
         condicoesSaude: {
           include: { profissional: true },
           orderBy: { createdAt: 'desc' },
@@ -142,7 +129,6 @@ export async function PATCH(request: Request) {
             },
             include: {
                 dadosSaude: true,
-                historicoPeso: { orderBy: { data: 'asc' } },
                 condicoesSaude: {
                   include: { profissional: true },
                   orderBy: { createdAt: 'desc' },
@@ -161,78 +147,5 @@ export async function PATCH(request: Request) {
         }
         const errorMessage = error instanceof Error ? error.message : 'Falha ao atualizar dados';
         return NextResponse.json({ error: errorMessage }, { status: 500 });
-    }
-}
-
-// --- POST: Adiciona novo registro de peso ---
-export async function POST( request: Request) {
-    const userId = getUserIdFromUrl(request.url);
-    if (!userId) {
-        return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 });
-    }
-
-    try {
-        const body = await request.json();
-
-        if (body.peso && body.data) {
-            const { peso, data } = body;
-
-            const novoPeso = await prisma.pesoHistorico.create({
-                data: {
-                    userId: userId,
-                    peso: encryptString(peso),
-                    data: encryptString(data),
-                },
-            });
-
-            const decryptedPeso = {
-                ...novoPeso,
-                peso: decryptString(novoPeso.peso),
-                data: decryptString(novoPeso.data),
-            }
-
-            return NextResponse.json(decryptedPeso, { status: 201 });
-        }
-
-        return NextResponse.json({ error: 'Requisição inválida. Forneça peso e data.' }, { status: 400 });
-
-    } catch (error) {
-        console.error('Erro ao adicionar registro de peso:', error);
-        return NextResponse.json({ error: 'Erro interno ao processar a requisição' }, { status: 500 });
-    }
-}
-
-// --- DELETE: Deleta um registro de peso ---
-export async function DELETE(request: Request) {
-    const userId = getUserIdFromUrl(request.url);
-    if (!userId) {
-        return NextResponse.json({ error: 'ID do usuário é obrigatório' }, { status: 400 });
-    }
-
-    try {
-        const body = await request.json();
-        const { id: registroId } = body;
-
-        if (!registroId) {
-            return NextResponse.json({ error: 'ID do registro é obrigatório' }, { status: 400 });
-        }
-
-        // Garante que o usuário só pode deletar seus próprios registros
-        const result = await prisma.pesoHistorico.deleteMany({
-            where: {
-                id: registroId,
-                userId: userId,
-            },
-        });
-
-        if (result.count === 0) {
-            return NextResponse.json({ error: 'Registro não encontrado ou não pertence ao usuário' }, { status: 404 });
-        }
-
-        return NextResponse.json({ message: 'Registro de peso deletado com sucesso' }, { status: 200 });
-
-    } catch (error) {
-        console.error('Erro ao deletar registro de peso:', error);
-        return NextResponse.json({ error: 'Erro interno ao processar a requisição' }, { status: 500 });
     }
 }

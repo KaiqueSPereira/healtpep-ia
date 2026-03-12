@@ -2,9 +2,11 @@
 import { useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/app/_components/ui/button';
-import { Trash2, Edit } from 'lucide-react';
+import { Trash2, Edit, Camera } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/ui/alert-dialog';
 import EditRegistroDialog from './EditMedidasDialog';
+import { FotosAcompanhamentoDialog } from './FotosAcompanhamentoDialog';
 
 interface PesoRegistro {
   id: string;
@@ -24,6 +26,7 @@ interface RegistrosDetalhadosTableProps {
 
 const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: RegistrosDetalhadosTableProps) => {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isFotosDialogOpen, setFotosDialogOpen] = useState(false);
   const [selectedRegistro, setSelectedRegistro] = useState<PesoRegistro | null>(null);
 
   const sortedHistory = useMemo(() => {
@@ -32,27 +35,30 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
   }, [registros]);
 
   const handleDelete = async (recordId: string) => {
-    if (confirm('Tem certeza que deseja excluir este registro? Os dados de bioimpedância do mesmo dia também serão removidos.')) {
-      try {
-        const response = await fetch(`/api/users/${userId}/medidas/${recordId}`, {
-          method: 'DELETE',
-        });
+    try {
+      const response = await fetch(`/api/users/${userId}/medidas/${recordId}`, {
+        method: 'DELETE',
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Falha ao excluir o registro.');
-        }
-        onDataChange();
-      } catch (error: any) {
-        console.error('Erro ao excluir registro:', error);
-        alert(`Erro ao excluir: ${error.message}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha ao excluir o registro.');
       }
+      onDataChange();
+    } catch (error: any) {
+      console.error('Erro ao excluir registro:', error);
+      // Você pode adicionar um toast de erro aqui, se desejar
     }
   };
 
   const handleEdit = (registro: PesoRegistro) => {
     setSelectedRegistro(registro);
     setEditDialogOpen(true);
+  };
+  
+  const handleFotos = (registro: PesoRegistro) => {
+    setSelectedRegistro(registro);
+    setFotosDialogOpen(true);
   };
 
   return (
@@ -80,8 +86,25 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
                   <TableCell>{item.cintura ? `${item.cintura} cm` : '-'}</TableCell>
                   <TableCell>{item.quadril ? `${item.quadril} cm` : '-'}</TableCell>
                   <TableCell className="text-right">
+                    <Button variant="ghost" size="icon" onClick={() => handleFotos(item)}><Camera className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(item)}><Edit className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(item.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-red-500" /></Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro e os dados de bioimpedância do mesmo dia.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => handleDelete(item.id)}>Confirmar Exclusão</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))
@@ -93,14 +116,22 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
       </div>
 
       {selectedRegistro && (
-        <EditRegistroDialog
-          isOpen={isEditDialogOpen}
-          onOpenChange={setEditDialogOpen}
-          onRegistroUpdated={onDataChange}
-          registro={selectedRegistro}
-          altura={altura}
-          userId={userId}
-        />
+        <>
+          <EditRegistroDialog
+            isOpen={isEditDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onRegistroUpdated={onDataChange}
+            registro={selectedRegistro}
+            altura={altura}
+            userId={userId}
+          />
+          <FotosAcompanhamentoDialog
+            isOpen={isFotosDialogOpen}
+            onOpenChange={setFotosDialogOpen}
+            userId={userId}
+            recordId={selectedRegistro.id}
+          />
+        </>
       )}
     </div>
   );

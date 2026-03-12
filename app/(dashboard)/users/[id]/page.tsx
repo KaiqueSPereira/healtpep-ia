@@ -1,4 +1,4 @@
-'use client';
+ 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams} from 'next/navigation';
@@ -15,6 +15,7 @@ import BioimpedanciaTab from '../_components/BioimpedanciaTab';
 import IMCChart from '../_components/IMCChart';
 import BodyMeasurementChart from '../_components/BodyMeasurementChart';
 import RegistrosDetalhadosTable from '../_components/RegistrosDetalhadosTable';
+import { MetasCard } from '../_components/MetasCard';
 
 interface CondicaoSaude {
   id: string;
@@ -25,7 +26,7 @@ interface CondicaoSaude {
   profissional?: Profissional | null;
 }
 
-interface PesoRegistro {
+export interface PesoRegistro {
   id: string;
   data: string;
   peso: string;
@@ -185,6 +186,7 @@ const UserProfilePage = () => {
                     </div>
                  </CardContent>
             </Card>
+            <MetasCard userId={user.id} historicoMedidas={user.historicoPeso} /> 
             <BioimpedanciaTab userId={user.id} />
           </TabsContent>
       </Tabs>
