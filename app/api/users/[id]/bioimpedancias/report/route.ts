@@ -2,27 +2,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { PDFDocument, rgb, StandardFonts, PDFImage } from 'pdf-lib';
-import fs from 'fs/promises';
-import path from 'path';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { addHeader, addFooter } from '@/app/lib/pdf-utils';
 
 const prisma = new PrismaClient();
-
-async function embedImage(pdfDoc: PDFDocument, imagePath: string): Promise<PDFImage | null> {
-    try {
-        const fullPath = path.join(process.cwd(), imagePath);
-        const imageBytes = await fs.readFile(fullPath);
-        if (imagePath.endsWith('.png')) {
-            return await pdfDoc.embedPng(imageBytes);
-        } else if (imagePath.endsWith('.jpg') || imagePath.endsWith('.jpeg')) {
-            return await pdfDoc.embedJpg(imageBytes);
-        }
-        return null;
-    } catch (error) {
-        console.error(`Error embedding image at ${imagePath}:`, error);
-        return null;
-    }
-}
 
 const parseValue = (value: string | null | undefined): number | null => {
     if (value === null || value === undefined || value.trim() === '-' || value.trim() === '') return null;
@@ -59,25 +42,14 @@ export async function GET(request: NextRequest) {
         }
 
         const pdfDoc = await PDFDocument.create();
-        let page = pdfDoc.addPage([841.89, 595.28]); // A4 Landscape
-        const { width, height } = page.getSize();
-        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        let page = pdfDoc.addPage([841.89, 595.28]);
+        const { height } = page.getSize();
         const margin = 50;
 
-        const logoImage = await embedImage(pdfDoc, 'public/iconprontuario.png');
-        if (logoImage) {
-            page.drawImage(logoImage, { x: margin, y: height - margin - 40, width: 50, height: 50 });
-        }
+        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+        const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-        page.drawText('HealthPEP', { x: margin + 60, y: height - margin - 20, font: boldFont, size: 20, color: rgb(0.1, 0.1, 0.5) });
-
-        const sparkleImage = await embedImage(pdfDoc, 'public/sparkle.png');
-        if (sparkleImage) {
-            page.drawImage(sparkleImage, { x: margin + 165, y: height - margin - 15, width: 15, height: 15 });
-        }
-
-        page.drawText('www.healtpep.com.br', { x: margin + 60, y: height - margin - 35, font, size: 10, color: rgb(0.5, 0.5, 0.5) });
+        await addHeader(pdfDoc, page, { regular: font, bold: boldFont });
 
         page.drawText('Relatório de Evolução da Bioimpedância', { x: margin, y: height - margin - 80, font: boldFont, size: 16, color: rgb(0, 0, 0) });
 
@@ -115,6 +87,7 @@ export async function GET(request: NextRequest) {
             if (yPosition < margin + rowHeight) {
                 page = pdfDoc.addPage([841.89, 595.28]);
                 yPosition = height - margin - 30;
+                await addHeader(pdfDoc, page, { regular: font, bold: boldFont });
                 drawHeaders();
             }
 
@@ -164,7 +137,7 @@ export async function GET(request: NextRequest) {
                 };
 
                 const deltas = [
-                    null, // No delta for Date
+                    null,
                     { value: getDelta('gorduraCorporal'), unit: '%', good: 'decrease' },
                     { value: getDelta('gorduraVisceral'), unit: '', good: 'decrease' },
                     { value: getDelta('massaMuscular'), unit: 'kg', good: 'increase' },
@@ -205,8 +178,7 @@ export async function GET(request: NextRequest) {
             yPosition -= rowHeight;
         }
 
-        const footerText = 'HealthPEP | contato@healtpep.com.br';
-        page.drawText(footerText, { x: margin, y: margin - 20, font, size: 8, color: rgb(0.5, 0.5, 0.5) });
+        await addFooter(page, font);
 
         const pdfBytes = await pdfDoc.save();
 
