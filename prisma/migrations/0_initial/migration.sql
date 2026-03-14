@@ -2,7 +2,16 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "TipoAnexo" AS ENUM ('Encaminhamento', 'Atestado_Declaracao', 'Receita_Medica', 'Relatorio', 'Outro');
+CREATE TYPE "TipoAnexo" AS ENUM ('Encaminhamento', 'Atestado', 'Declaracao', 'Receita_Medica', 'Relatorio', 'Outro');
+
+-- CreateEnum
+CREATE TYPE "TipoMedicaoGlicemia" AS ENUM ('JEJUM', 'PRE_REFEICAO', 'POS_REFEICAO', 'AO_DEITAR', 'COM_SINTOMAS', 'SEM_SINTOMAS', 'OUTRO');
+
+-- CreateEnum
+CREATE TYPE "TipoMeta" AS ENUM ('PESO', 'GORDURA_CORPORAL', 'MASSA_MUSCULAR', 'IMC', 'PESCOCO', 'TORAX', 'CINTURA', 'QUADRIL', 'BRACO_E', 'BRACO_D', 'PERNA_E', 'PERNA_D', 'PANTURRILHA_E', 'PANTURRILHA_D');
+
+-- CreateEnum
+CREATE TYPE "StatusMeta" AS ENUM ('ATIVA', 'CONCLUIDA', 'CANCELADA');
 
 -- CreateEnum
 CREATE TYPE "StatusMedicamento" AS ENUM ('Ativo', 'Concluido', 'Suspenso');
@@ -48,6 +57,16 @@ CREATE TABLE "PermissionOnRole" (
 );
 
 -- CreateTable
+CREATE TABLE "ResourceLimit" (
+    "id" TEXT NOT NULL,
+    "roleId" TEXT NOT NULL,
+    "resource" TEXT NOT NULL,
+    "limit" INTEGER NOT NULL,
+
+    CONSTRAINT "ResourceLimit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
     "name" TEXT,
@@ -59,6 +78,89 @@ CREATE TABLE "User" (
     "roleId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AcompanhamentoCorporal" (
+    "id" TEXT NOT NULL,
+    "data" TIMESTAMP(3) NOT NULL,
+    "peso" TEXT,
+    "imc" TEXT,
+    "pescoco" TEXT,
+    "torax" TEXT,
+    "cintura" TEXT,
+    "quadril" TEXT,
+    "bracoE" TEXT,
+    "bracoD" TEXT,
+    "pernaE" TEXT,
+    "pernaD" TEXT,
+    "pantE" TEXT,
+    "pantD" TEXT,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AcompanhamentoCorporal_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FotosAcompanhamento" (
+    "id" TEXT NOT NULL,
+    "nomeArquivo" TEXT NOT NULL,
+    "mimetype" TEXT,
+    "arquivo" BYTEA,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "acompanhamentoId" TEXT NOT NULL,
+
+    CONSTRAINT "FotosAcompanhamento_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Bioimpedancia" (
+    "id" TEXT NOT NULL,
+    "data" TIMESTAMP(3) NOT NULL,
+    "gorduraCorporal" TEXT,
+    "massaMuscular" TEXT,
+    "gorduraVisceral" TEXT,
+    "taxaMetabolica" TEXT,
+    "idadeCorporal" TEXT,
+    "massaOssea" TEXT,
+    "aguaCorporal" TEXT,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Bioimpedancia_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AnexoBioimpedancia" (
+    "id" TEXT NOT NULL,
+    "nomeArquivo" TEXT NOT NULL,
+    "mimetype" TEXT,
+    "arquivo" BYTEA,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "bioimpedanciaId" TEXT NOT NULL,
+
+    CONSTRAINT "AnexoBioimpedancia_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Meta" (
+    "id" TEXT NOT NULL,
+    "tipo" "TipoMeta" NOT NULL,
+    "valorAlvo" TEXT NOT NULL,
+    "valorInicial" TEXT,
+    "dataInicio" TIMESTAMP(3) NOT NULL,
+    "dataFim" TIMESTAMP(3),
+    "status" "StatusMeta" NOT NULL DEFAULT 'ATIVA',
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Meta_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -82,18 +184,6 @@ CREATE TABLE "DadosSaude" (
     "alergias" TEXT[] DEFAULT ARRAY[]::TEXT[],
 
     CONSTRAINT "DadosSaude_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "PesoHistorico" (
-    "id" TEXT NOT NULL,
-    "peso" TEXT NOT NULL,
-    "data" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "PesoHistorico_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -241,9 +331,7 @@ CREATE TABLE "UnidadeDeSaude" (
 CREATE TABLE "Exame" (
     "id" TEXT NOT NULL,
     "nome" TEXT NOT NULL,
-    "nomeArquivo" TEXT,
-    "dataExame" TIMESTAMP(3) NOT NULL,
-    "arquivoExame" BYTEA,
+    "dataExame" TIMESTAMP(3),
     "anotacao" TEXT,
     "userId" TEXT NOT NULL,
     "profissionalId" TEXT,
@@ -254,6 +342,8 @@ CREATE TABLE "Exame" (
     "tipo" TEXT,
     "analiseIA" TEXT,
     "condicaoSaudeId" TEXT,
+    "profissionalExecutanteId" TEXT,
+    "laudoFinalizado" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Exame_pkey" PRIMARY KEY ("id")
 );
@@ -267,8 +357,22 @@ CREATE TABLE "ResultadoExame" (
     "unidade" TEXT,
     "referencia" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "categoria" TEXT,
 
     CONSTRAINT "ResultadoExame_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AnexoExame" (
+    "id" TEXT NOT NULL,
+    "nomeArquivo" TEXT NOT NULL,
+    "mimetype" TEXT,
+    "arquivo" BYTEA,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "exameId" TEXT NOT NULL,
+
+    CONSTRAINT "AnexoExame_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -308,6 +412,7 @@ CREATE TABLE "Medicamento" (
     "condicaoSaudeId" TEXT,
     "linkBula" TEXT,
     "principioAtivo" TEXT,
+    "ultimaAtualizacaoEstoque" TIMESTAMP(3),
 
     CONSTRAINT "Medicamento_pkey" PRIMARY KEY ("id")
 );
@@ -324,19 +429,23 @@ CREATE TABLE "Notification" (
     "relatedId" TEXT,
     "relatedModel" TEXT,
     "type" TEXT NOT NULL,
+    "url" TEXT,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "ErrorLog" (
+CREATE TABLE "ActionLog" (
     "id" TEXT NOT NULL,
     "message" TEXT NOT NULL,
     "stack" TEXT,
-    "url" TEXT,
+    "component" TEXT,
+    "level" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
     "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" TEXT,
 
-    CONSTRAINT "ErrorLog_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ActionLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -351,6 +460,47 @@ CREATE TABLE "AbastecimentoMedicamento" (
     "unidadeDeSaudeId" TEXT,
 
     CONSTRAINT "AbastecimentoMedicamento_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "BiomarkerRule" (
+    "id" TEXT NOT NULL,
+    "normalizedRawName" TEXT NOT NULL,
+    "standardizedName" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+
+    CONSTRAINT "BiomarkerRule_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PressaoArterial" (
+    "id" TEXT NOT NULL,
+    "data" TIMESTAMP(3) NOT NULL,
+    "sistolica" TEXT NOT NULL,
+    "diastolica" TEXT NOT NULL,
+    "pulso" TEXT NOT NULL,
+    "observacoes" TEXT,
+    "dadosSaudeId" TEXT NOT NULL,
+    "condicaoSaudeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PressaoArterial_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GlicemiaCapilar" (
+    "id" TEXT NOT NULL,
+    "data" TIMESTAMP(3) NOT NULL,
+    "valor" TEXT NOT NULL,
+    "tipoMedicao" "TipoMedicaoGlicemia" NOT NULL,
+    "observacoes" TEXT,
+    "dadosSaudeId" TEXT NOT NULL,
+    "condicaoSaudeId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GlicemiaCapilar_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -376,10 +526,31 @@ CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 CREATE UNIQUE INDEX "Permission_name_key" ON "Permission"("name");
 
 -- CreateIndex
+CREATE INDEX "ResourceLimit_roleId_idx" ON "ResourceLimit"("roleId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ResourceLimit_roleId_resource_key" ON "ResourceLimit"("roleId", "resource");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "User_roleId_idx" ON "User"("roleId");
+
+-- CreateIndex
+CREATE INDEX "AcompanhamentoCorporal_userId_idx" ON "AcompanhamentoCorporal"("userId");
+
+-- CreateIndex
+CREATE INDEX "FotosAcompanhamento_acompanhamentoId_idx" ON "FotosAcompanhamento"("acompanhamentoId");
+
+-- CreateIndex
+CREATE INDEX "Bioimpedancia_userId_idx" ON "Bioimpedancia"("userId");
+
+-- CreateIndex
+CREATE INDEX "AnexoBioimpedancia_bioimpedanciaId_idx" ON "AnexoBioimpedancia"("bioimpedanciaId");
+
+-- CreateIndex
+CREATE INDEX "Meta_userId_idx" ON "Meta"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AnvisaMedicamento_id_key" ON "AnvisaMedicamento"("id");
@@ -389,9 +560,6 @@ CREATE INDEX "AnvisaMedicamento_nome_idx" ON "AnvisaMedicamento"("nome");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DadosSaude_userId_key" ON "DadosSaude"("userId");
-
--- CreateIndex
-CREATE INDEX "PesoHistorico_userId_idx" ON "PesoHistorico"("userId");
 
 -- CreateIndex
 CREATE INDEX "Account_userId_idx" ON "Account"("userId");
@@ -460,7 +628,13 @@ CREATE INDEX "Exame_unidadesId_idx" ON "Exame"("unidadesId");
 CREATE INDEX "Exame_condicaoSaudeId_idx" ON "Exame"("condicaoSaudeId");
 
 -- CreateIndex
+CREATE INDEX "Exame_profissionalExecutanteId_idx" ON "Exame"("profissionalExecutanteId");
+
+-- CreateIndex
 CREATE INDEX "ResultadoExame_exameId_idx" ON "ResultadoExame"("exameId");
+
+-- CreateIndex
+CREATE INDEX "AnexoExame_exameId_idx" ON "AnexoExame"("exameId");
 
 -- CreateIndex
 CREATE INDEX "AnexoConsulta_consultaId_idx" ON "AnexoConsulta"("consultaId");
@@ -487,10 +661,40 @@ CREATE INDEX "Notification_medicamentoId_idx" ON "Notification"("medicamentoId")
 CREATE INDEX "Notification_relatedId_relatedModel_idx" ON "Notification"("relatedId", "relatedModel");
 
 -- CreateIndex
+CREATE INDEX "ActionLog_userId_idx" ON "ActionLog"("userId");
+
+-- CreateIndex
+CREATE INDEX "ActionLog_action_idx" ON "ActionLog"("action");
+
+-- CreateIndex
+CREATE INDEX "ActionLog_level_idx" ON "ActionLog"("level");
+
+-- CreateIndex
 CREATE INDEX "AbastecimentoMedicamento_medicamentoId_idx" ON "AbastecimentoMedicamento"("medicamentoId");
 
 -- CreateIndex
 CREATE INDEX "AbastecimentoMedicamento_unidadeDeSaudeId_idx" ON "AbastecimentoMedicamento"("unidadeDeSaudeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "BiomarkerRule_normalizedRawName_key" ON "BiomarkerRule"("normalizedRawName");
+
+-- CreateIndex
+CREATE INDEX "BiomarkerRule_standardizedName_idx" ON "BiomarkerRule"("standardizedName");
+
+-- CreateIndex
+CREATE INDEX "BiomarkerRule_category_idx" ON "BiomarkerRule"("category");
+
+-- CreateIndex
+CREATE INDEX "PressaoArterial_dadosSaudeId_idx" ON "PressaoArterial"("dadosSaudeId");
+
+-- CreateIndex
+CREATE INDEX "PressaoArterial_condicaoSaudeId_idx" ON "PressaoArterial"("condicaoSaudeId");
+
+-- CreateIndex
+CREATE INDEX "GlicemiaCapilar_dadosSaudeId_idx" ON "GlicemiaCapilar"("dadosSaudeId");
+
+-- CreateIndex
+CREATE INDEX "GlicemiaCapilar_condicaoSaudeId_idx" ON "GlicemiaCapilar"("condicaoSaudeId");
 
 -- CreateIndex
 CREATE INDEX "_ProfissionalUnidades_B_index" ON "_ProfissionalUnidades"("B");
@@ -505,13 +709,28 @@ ALTER TABLE "PermissionOnRole" ADD CONSTRAINT "PermissionOnRole_permissionId_fke
 ALTER TABLE "PermissionOnRole" ADD CONSTRAINT "PermissionOnRole_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ResourceLimit" ADD CONSTRAINT "ResourceLimit_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "DadosSaude" ADD CONSTRAINT "DadosSaude_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AcompanhamentoCorporal" ADD CONSTRAINT "AcompanhamentoCorporal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "PesoHistorico" ADD CONSTRAINT "PesoHistorico_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "FotosAcompanhamento" ADD CONSTRAINT "FotosAcompanhamento_acompanhamentoId_fkey" FOREIGN KEY ("acompanhamentoId") REFERENCES "AcompanhamentoCorporal"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Bioimpedancia" ADD CONSTRAINT "Bioimpedancia_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnexoBioimpedancia" ADD CONSTRAINT "AnexoBioimpedancia_bioimpedanciaId_fkey" FOREIGN KEY ("bioimpedanciaId") REFERENCES "Bioimpedancia"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Meta" ADD CONSTRAINT "Meta_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "DadosSaude" ADD CONSTRAINT "DadosSaude_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -562,6 +781,9 @@ ALTER TABLE "Exame" ADD CONSTRAINT "Exame_condicaoSaudeId_fkey" FOREIGN KEY ("co
 ALTER TABLE "Exame" ADD CONSTRAINT "Exame_consultaId_fkey" FOREIGN KEY ("consultaId") REFERENCES "Consultas"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Exame" ADD CONSTRAINT "Exame_profissionalExecutanteId_fkey" FOREIGN KEY ("profissionalExecutanteId") REFERENCES "Profissional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Exame" ADD CONSTRAINT "Exame_profissionalId_fkey" FOREIGN KEY ("profissionalId") REFERENCES "Profissional"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -572,6 +794,9 @@ ALTER TABLE "Exame" ADD CONSTRAINT "Exame_userId_fkey" FOREIGN KEY ("userId") RE
 
 -- AddForeignKey
 ALTER TABLE "ResultadoExame" ADD CONSTRAINT "ResultadoExame_exameId_fkey" FOREIGN KEY ("exameId") REFERENCES "Exame"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AnexoExame" ADD CONSTRAINT "AnexoExame_exameId_fkey" FOREIGN KEY ("exameId") REFERENCES "Exame"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AnexoConsulta" ADD CONSTRAINT "AnexoConsulta_consultaId_fkey" FOREIGN KEY ("consultaId") REFERENCES "Consultas"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -587,7 +812,7 @@ ALTER TABLE "Medicamento" ADD CONSTRAINT "Medicamento_profissionalId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "Medicamento" ADD CONSTRAINT "Medicamento_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
+	
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_medicamentoId_fkey" FOREIGN KEY ("medicamentoId") REFERENCES "Medicamento"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -595,10 +820,25 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_medicamentoId_fkey" FORE
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ActionLog" ADD CONSTRAINT "ActionLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "AbastecimentoMedicamento" ADD CONSTRAINT "AbastecimentoMedicamento_medicamentoId_fkey" FOREIGN KEY ("medicamentoId") REFERENCES "Medicamento"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "AbastecimentoMedicamento" ADD CONSTRAINT "AbastecimentoMedicamento_unidadeDeSaudeId_fkey" FOREIGN KEY ("unidadeDeSaudeId") REFERENCES "UnidadeDeSaude"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PressaoArterial" ADD CONSTRAINT "PressaoArterial_condicaoSaudeId_fkey" FOREIGN KEY ("condicaoSaudeId") REFERENCES "CondicaoSaude"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PressaoArterial" ADD CONSTRAINT "PressaoArterial_dadosSaudeId_fkey" FOREIGN KEY ("dadosSaudeId") REFERENCES "DadosSaude"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GlicemiaCapilar" ADD CONSTRAINT "GlicemiaCapilar_condicaoSaudeId_fkey" FOREIGN KEY ("condicaoSaudeId") REFERENCES "CondicaoSaude"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GlicemiaCapilar" ADD CONSTRAINT "GlicemiaCapilar_dadosSaudeId_fkey" FOREIGN KEY ("dadosSaudeId") REFERENCES "DadosSaude"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_ProfissionalUnidades" ADD CONSTRAINT "_ProfissionalUnidades_A_fkey" FOREIGN KEY ("A") REFERENCES "Profissional"("id") ON DELETE CASCADE ON UPDATE CASCADE;
