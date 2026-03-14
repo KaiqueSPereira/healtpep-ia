@@ -9,6 +9,10 @@ export const manageableResources = {
   unidades: 'Unidades',
   medicamentos: 'Medicamentos',
   tratamentos: 'Tratamentos',
+  glicemia: 'Registros de Glicemia',
+  pressao: 'Registros de Pressão Arterial',
+  metas: 'Metas de Saúde',
+  medidas: 'Medidas Corporais',
 };
 
 // Definição dos níveis de acesso para funcionalidades que não são baseadas em contagem.

@@ -2,11 +2,13 @@
 import { useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { Button } from '@/app/_components/ui/button';
-import { Trash2, Edit, Camera } from 'lucide-react';
+import { Trash2, Edit, Camera, FileDown, Loader2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/app/_components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/app/_components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/app/_components/ui/dropdown-menu";
 import EditRegistroDialog from './EditMedidasDialog';
 import { FotosAcompanhamentoDialog } from './FotosAcompanhamentoDialog';
+import { toast } from '@/app/_hooks/use-toast';
 
 interface PesoRegistro {
   id: string;
@@ -28,6 +30,7 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isFotosDialogOpen, setFotosDialogOpen] = useState(false);
   const [selectedRegistro, setSelectedRegistro] = useState<PesoRegistro | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const sortedHistory = useMemo(() => {
     if (!registros) return [];
@@ -45,9 +48,10 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
         throw new Error(errorData.error || 'Falha ao excluir o registro.');
       }
       onDataChange();
+      toast({ title: 'Registro excluído com sucesso!' });
     } catch (error: any) {
       console.error('Erro ao excluir registro:', error);
-      // Você pode adicionar um toast de erro aqui, se desejar
+      toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -61,9 +65,55 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
     setFotosDialogOpen(true);
   };
 
+  const handleGenerateReport = async (period?: '1m' | '3m' | '1y') => {
+    setIsGeneratingReport(true);
+    try {
+        let url = `/api/users/${userId}/medidas/report`;
+        if (period) {
+            url += `?period=${period}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Não foi possível gerar o relatório.');
+        }
+        const blob = await response.blob();
+        const fileUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = fileUrl;
+        a.download = `relatorio_medidas_${userId}${period ? `_${period}` : ''}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(fileUrl);
+        toast({ title: "Relatório gerado com sucesso!" });
+    } catch (error) {
+        toast({ title: "Erro ao gerar relatório", description: (error instanceof Error) ? error.message : 'Ocorreu um erro inesperado.', variant: 'destructive' });
+    } finally {
+        setIsGeneratingReport(false);
+    }
+  };
+
   return (
     <div className="bg-card p-6 rounded-lg">
-      <h4 className="font-semibold mb-3 text-lg">Registros Detalhados</h4>
+      <div className="flex justify-between items-center mb-3">
+        <h4 className="font-semibold text-lg">Registros Detalhados</h4>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" disabled={isGeneratingReport || registros.length === 0}>
+                {isGeneratingReport ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileDown className="mr-2 h-4 w-4" />}
+                Gerar Relatório
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => handleGenerateReport()}>Completo</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleGenerateReport('1m')}>Último Mês</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleGenerateReport('3m')}>Últimos 3 Meses</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleGenerateReport('1y')}>Último Ano</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
       <div className="overflow-y-auto max-h-[260px] relative pr-2">
         <Table>
           <TableHeader className="sticky top-0 bg-card z-10">
@@ -96,7 +146,7 @@ const RegistrosDetalhadosTable = ({ userId, registros, altura, onDataChange }: R
                         <AlertDialogHeader>
                           <AlertDialogTitle>Você tem certeza absoluta?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro e os dados de bioimpedância do mesmo dia.
+                            Essa ação não pode ser desfeita. Isso excluirá permanentemente o registro.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>

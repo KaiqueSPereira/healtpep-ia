@@ -1,23 +1,24 @@
+
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import { prisma } from '@/app/_lib/prisma';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/_lib/auth';
+import { getPermissionsForUser } from '@/app/_lib/auth/permission-checker';
+import { logAction } from '@/app/_lib/logger';
 import { decryptString, encryptString } from '@/app/_lib/crypto';
+import { AcompanhamentoCorporal, Bioimpedancia, Prisma } from '@prisma/client';
 
-const getUserIdFromUrl = (url: string) => {
-  const parts = url.split('/');
-  return parts[parts.length - 2];
-};
-
-const decryptItems = (items: any[], fields: string[]) => {
+const decryptItems = <T extends { id: unknown }>(items: T[], fields: (keyof T)[]): T[] => {
   return items.map(item => {
-    const decryptedItem: { [key: string]: any } = { ...item };
+    const decryptedItem = { ...item };
     for (const field of fields) {
-      if (typeof item[field] === 'string' && item[field]) {
+      const value = item[field];
+      if (typeof value === 'string' && value) {
         try {
-          decryptedItem[field] = decryptString(item[field]);
-        } catch (e: any) {
-          console.warn(`Falha ao descriptografar campo ${field} para o item ${item.id}. Mantendo valor original. Erro: ${e.message}`);
-          decryptedItem[field] = item[field]; 
+          decryptedItem[field] = decryptString(value) as T[keyof T];
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Unknown error';
+          console.warn(`Falha ao descriptografar campo ${String(field)} para o item ${item.id}. Mantendo valor original. Erro: ${message}`);
         }
       }
     }
@@ -25,115 +26,160 @@ const decryptItems = (items: any[], fields: string[]) => {
   });
 };
 
+const getParamIdFromRequest = (req: NextRequest): string => {
+    const url = new URL(req.url);
+    const pathSegments = url.pathname.split('/');
+    // Expected URL format: /api/users/[id]/medidas
+    // Segments: ['', 'api', 'users', '[id]', 'medidas']
+    return pathSegments[3];
+};
+
 export async function GET(req: NextRequest) {
-  const userId = getUserIdFromUrl(req.url);
+    let userId: string | undefined;
+    const paramId = getParamIdFromRequest(req);
 
-  if (!userId) {
-    return NextResponse.json({ error: 'ID do usuário não encontrado na URL.' }, { status: 400 });
-  }
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            throw new Error("Não autorizado");
+        }
+        userId = session.user.id;
 
-  try {
-    const acompanhamentos = await prisma.acompanhamentoCorporal.findMany({
-      where: { userId },
-      orderBy: { data: 'desc' },
-    });
+        if (userId !== paramId) {
+            throw new Error("Não autorizado");
+        }
 
-    const bioimpedancias = await prisma.bioimpedancia.findMany({
-      where: { userId },
-      orderBy: { data: 'desc' },
-    });
+        const acompanhamentos = await prisma.acompanhamentoCorporal.findMany({
+            where: { userId: paramId },
+            orderBy: { data: 'desc' },
+        });
 
-    const decryptedAcompanhamentos = decryptItems(acompanhamentos, ['peso', 'imc', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD']);
-    const decryptedBioimpedancias = decryptItems(bioimpedancias, ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal']);
+        const bioimpedancias = await prisma.bioimpedancia.findMany({
+            where: { userId: paramId },
+            orderBy: { data: 'desc' },
+        });
+        
+        const decryptedAcompanhamentos = decryptItems<AcompanhamentoCorporal>(acompanhamentos, ['peso', 'imc', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD']);
+        const decryptedBioimpedancias = decryptItems<Bioimpedancia>(bioimpedancias, ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal']);
 
-    return NextResponse.json({ acompanhamentos: decryptedAcompanhamentos, bioimpedancias: decryptedBioimpedancias });
-  } catch (error) {
-    console.error('Error fetching medidas:', error);
-    return NextResponse.json({ error: 'Erro ao buscar medidas.' }, { status: 500 });
-  }
+        return NextResponse.json({ acompanhamentos: decryptedAcompanhamentos, bioimpedancias: decryptedBioimpedancias });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : "Ocorreu um erro desconhecido";
+        if (errorMessage !== "Não autorizado") {
+            await logAction({
+                userId,
+                action: 'get_medidas_error',
+                level: 'error',
+                message: 'Erro ao buscar medidas',
+                details: { error: errorMessage, params: { id: paramId } },
+                component: 'medidas-api'
+            });
+        }
+        const status = errorMessage === "Não autorizado" ? 401 : 500;
+        return NextResponse.json({ error: `Erro ao buscar medidas: ${errorMessage}` }, { status });
+    }
 }
 
 export async function POST(req: NextRequest) {
-  const userId = getUserIdFromUrl(req.url);
+    let userId: string | undefined;
+    const paramId = getParamIdFromRequest(req);
 
-  if (!userId) {
-    return NextResponse.json({ error: 'ID do usuário não encontrado na URL.' }, { status: 400 });
-  }
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            throw new Error("Não autorizado");
+        }
+        userId = session.user.id;
+        
+        if (userId !== paramId) {
+            throw new Error("Não autorizado");
+        }
 
-  const token = await getToken({ req });
-  if (!token || token.sub !== userId) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-  }
+        const permissions = await getPermissionsForUser(userId);
+        if (await permissions.hasReachedLimit('medidas')) {
+            return NextResponse.json({ error: "Você atingiu o limite de registros de medidas para o seu plano." }, { status: 403 });
+        }
 
-  try {
-    const body = await req.json();
-    const { data, ...medidas } = body;
+        const body = await req.json();
+        const { data, ...medidas } = body;
 
-    if (medidas.peso) {
-        const userComDadosSaude = await prisma.user.findUnique({
-            where: { id: userId },
-            include: { dadosSaude: true },
+        if (medidas.peso) {
+            const userWithHealthData = await prisma.user.findUnique({
+                where: { id: userId },
+                include: { dadosSaude: true },
+            });
+
+            if (userWithHealthData?.dadosSaude?.altura) {
+                try {
+                    const heightValue = parseFloat(decryptString(userWithHealthData.dadosSaude.altura));
+                    if (heightValue > 0) {
+                        const heightInMeters = heightValue >= 3 ? heightValue / 100 : heightValue;
+                        const weightKg = parseFloat(medidas.peso);
+                        if (weightKg > 0) {
+                            medidas.imc = (weightKg / (heightInMeters * heightInMeters)).toFixed(2);
+                        }
+                    }
+                } catch (e: unknown) {
+                    console.error("Não foi possível calcular o IMC.", e);
+                }
+            }
+        }
+
+        const acompanhamentoFields: (keyof Prisma.AcompanhamentoCorporalCreateInput)[] = ['peso', 'imc', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD'];
+        const bioimpedanciaFields: (keyof Prisma.BioimpedanciaCreateInput)[] = ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal'];
+        
+        const acompanhamentoData: Prisma.AcompanhamentoCorporalUncheckedCreateInput = { userId: paramId, data: new Date(data) };
+        const bioimpedanciaData: Prisma.BioimpedanciaUncheckedCreateInput = { userId: paramId, data: new Date(data) };
+        
+        let hasAcompanhamentoData = false;
+        let hasBioimpedanciaData = false;
+
+        for (const key in medidas) {
+            const value = medidas[key];
+            if (value !== '' && value !== null && value !== undefined) {
+                const encryptedValue = encryptString(String(value));
+                if (acompanhamentoFields.includes(key as any)) {
+                    (acompanhamentoData as Record<string, unknown>)[key] = encryptedValue;
+                    hasAcompanhamentoData = true;
+                }
+                if (bioimpedanciaFields.includes(key as any)) {
+                    (bioimpedanciaData as Record<string, unknown>)[key] = encryptedValue;
+                    hasBioimpedanciaData = true;
+                }
+            }
+        }
+
+        if (hasAcompanhamentoData) {
+            await prisma.acompanhamentoCorporal.create({ data: acompanhamentoData });
+        }
+
+        if (hasBioimpedanciaData) {
+            await prisma.bioimpedancia.create({ data: bioimpedanciaData });
+        }
+
+        await logAction({
+            userId,
+            action: 'create_medidas',
+            level: 'info',
+            message: 'Medidas adicionadas com sucesso',
+            component: 'medidas-api'
         });
 
-        if (userComDadosSaude?.dadosSaude?.altura) {
-            try {
-                const alturaCriptografada = userComDadosSaude.dadosSaude.altura;
-                const valorAltura = parseFloat(decryptString(alturaCriptografada));
+        return NextResponse.json({ message: 'Medidas adicionadas com sucesso' }, { status: 201 });
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Ocorreu um erro desconhecido';
 
-                if (valorAltura > 0) {
-                    // LÓGICA ROBUSTA: Verifica se a altura está em metros ou centímetros.
-                    const alturaMetros = valorAltura >= 3 ? valorAltura / 100 : valorAltura;
-                    const pesoKg = parseFloat(medidas.peso);
-
-                    if (pesoKg > 0) {
-                        const imc = pesoKg / (alturaMetros * alturaMetros);
-                        medidas.imc = imc.toFixed(2);
-                    }
-                }
-            } catch (e) {
-                console.error("Não foi possível calcular o IMC.", e);
-            }
+        if (errorMessage !== "Não autorizado") {
+            await logAction({
+                userId,
+                action: 'create_medidas_error',
+                level: 'error',
+                message: 'Erro ao criar medidas',
+                details: { error: errorMessage, params: { id: paramId } },
+                component: 'medidas-api'
+            });
         }
+        const status = errorMessage === "Não autorizado" ? 401 : 500;
+        return NextResponse.json({ error: `Falha ao criar medidas: ${errorMessage}` }, { status });
     }
-
-    const acompanhamentoFields = ['peso', 'imc', 'pescoco', 'torax', 'cintura', 'quadril', 'bracoE', 'bracoD', 'pernaE', 'pernaD', 'pantE', 'pantD'];
-    const bioimpedanciaFields = ['gorduraCorporal', 'massaMuscular', 'gorduraVisceral', 'taxaMetabolica', 'idadeCorporal', 'massaOssea', 'aguaCorporal'];
-
-    const acompanhamentoData: any = { userId, data: new Date(data) };
-    const bioimpedanciaData: any = { userId, data: new Date(data) };
-
-    let hasAcompanhamentoData = false;
-    let hasBioimpedanciaData = false;
-
-    for (const key in medidas) {
-        const valor = medidas[key];
-        if (valor !== '' && valor !== null) {
-            const encryptedValue = encryptString(String(valor));
-            if (acompanhamentoFields.includes(key)) {
-                acompanhamentoData[key] = encryptedValue;
-                hasAcompanhamentoData = true;
-            }
-            if (bioimpedanciaFields.includes(key)) {
-                bioimpedanciaData[key] = encryptedValue;
-                hasBioimpedanciaData = true;
-            }
-        }
-    }
-
-    if (hasAcompanhamentoData) {
-        await prisma.acompanhamentoCorporal.create({ data: acompanhamentoData });
-    }
-
-    if (hasBioimpedanciaData) {
-        await prisma.bioimpedancia.create({ data: bioimpedanciaData });
-    }
-
-    return NextResponse.json({ message: 'Medidas adicionadas com sucesso' }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating medidas:', error);
-     if (error instanceof Error) {
-        return NextResponse.json({ error: 'Erro ao criar medidas.', details: error.message, code: (error as any).code }, { status: 500 });
-    }
-    return NextResponse.json({ error: 'Erro ao criar medidas.' }, { status: 500 });
-  }
 }

@@ -1,4 +1,5 @@
- 'use client';
+
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams} from 'next/navigation';
@@ -7,7 +8,7 @@ import Link from 'next/link';
 import { Button } from '@/app/_components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/_components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/_components/ui/tabs";
-import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity } from 'lucide-react';
+import { Loader2, Edit, Droplet, User as UserIcon, Calendar, Weight, HeartPulse, PlusCircle, Stethoscope, Activity, Eye } from 'lucide-react';
 import EditCondicaoSaudeDialog from '../_components/EditCondicaoSaudeDialog';
 import { Profissional } from '@prisma/client';
 import PesoHistoryChart from '../_components/PesoHistoryChart';
@@ -16,6 +17,8 @@ import IMCChart from '../_components/IMCChart';
 import BodyMeasurementChart from '../_components/BodyMeasurementChart';
 import RegistrosDetalhadosTable from '../_components/RegistrosDetalhadosTable';
 import { MetasCard } from '../_components/MetasCard';
+import GlicemiaCapilarCard from '../_components/GlicemiaCapilarCard';
+import PressaoArterialCard from '../_components/PressaoArterialCard';
 
 interface CondicaoSaude {
   id: string;
@@ -123,14 +126,14 @@ const UserProfilePage = () => {
         )}
       </div>
 
-      <Tabs defaultValue="health-analysis" className="w-full flex flex-col">
+      <Tabs defaultValue="overview" className="w-full flex flex-col">
         <TabsList className="grid w-full h-auto grid-cols-1 sm:h-10 sm:grid-cols-3">
-          <TabsTrigger value="personal-info"><UserIcon className="mr-2 h-4 w-4" /> Informações Pessoais</TabsTrigger>
+          <TabsTrigger value="overview"><Eye className="mr-2 h-4 w-4" /> Visão Geral</TabsTrigger>
           <TabsTrigger value="health-conditions"><HeartPulse className="mr-2 h-4 w-4" /> Condições de Saúde</TabsTrigger>
           <TabsTrigger value="health-analysis"><Activity className="mr-2 h-4 w-4" /> Análise de Saúde</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="personal-info" className="mt-6">
+        <TabsContent value="overview" className="mt-6 space-y-6">
           <Card>
             <CardHeader><CardTitle>Informações Pessoais</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -140,6 +143,10 @@ const UserProfilePage = () => {
               <InfoItem icon={Droplet} label="Tipo Sanguíneo" value={user.dadosSaude?.tipoSanguineo} />
             </CardContent>
           </Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <GlicemiaCapilarCard userId={user.id} />
+              <PressaoArterialCard userId={user.id} />
+          </div>
         </TabsContent>
 
         <TabsContent value="health-conditions" className="mt-6">
